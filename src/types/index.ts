@@ -79,6 +79,7 @@ export interface CandidateRecord extends RecordModel {
   custo_exames?: number
   custo_testes?: number
   custo_extras?: number
+  rank?: number
   status_candidato: CandidateStatus
   expand?: {
     vacancy_id?: VacancyRecord

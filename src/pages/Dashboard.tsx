@@ -27,7 +27,9 @@ import {
   Building2,
   PlusCircle,
   BarChart2,
+  Star,
 } from 'lucide-react'
+import { StarRating } from '@/components/StarRating'
 import {
   PieChart,
   Pie,
@@ -135,6 +137,46 @@ export default function Dashboard() {
     { etapa: 'Pré-Aprovação', dias: 6 },
     { etapa: 'Alocação', dias: 5 },
   ]
+
+  // Ranking médio por vaga
+  const rankingPerVacancy = useMemo(() => {
+    const vacancyRankMap: Record<
+      string,
+      { avg: number; count: number; cargo: string; cliente: string }
+    > = {}
+    candidates.forEach((c) => {
+      if (c.rank == null) return
+      const vId = c.vacancy_id
+      if (!vacancyRankMap[vId]) {
+        const vacancy = vacancies.find((v) => v.id === vId)
+        vacancyRankMap[vId] = {
+          avg: 0,
+          count: 0,
+          cargo: vacancy?.expand?.cargo?.nome || '—',
+          cliente: vacancy?.expand?.cliente?.nome || '—',
+        }
+      }
+      vacancyRankMap[vId].avg += c.rank
+      vacancyRankMap[vId].count += 1
+    })
+    return Object.entries(vacancyRankMap)
+      .map(([vId, data]) => ({
+        vId,
+        cargo: data.cargo,
+        cliente: data.cliente,
+        avgRank: Math.round((data.avg / data.count) * 10) / 10,
+        count: data.count,
+      }))
+      .sort((a, b) => b.avgRank - a.avgRank)
+  }, [candidates, vacancies])
+
+  // Overall average rank
+  const overallAverageRank = useMemo(() => {
+    const ranked = candidates.filter((c) => c.rank != null)
+    if (ranked.length === 0) return 0
+    const total = ranked.reduce((acc, c) => acc + (c.rank || 0), 0)
+    return Math.round((total / ranked.length) * 10) / 10
+  }, [candidates])
 
   // Stalled vacancies list (stalled >= 15 days)
   const stalledVacancies = useMemo(() => {
@@ -284,6 +326,28 @@ export default function Dashboard() {
         </Card>
       </div>
 
+      {/* Ranking Médio KPI Card */}
+      <Card className="border-slate-200 shadow-2xs hover:shadow-md transition-shadow">
+        <CardContent className="p-5">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Ranking Médio Geral
+            </span>
+            <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+              <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+            </div>
+          </div>
+          <div className="mt-3 flex items-baseline justify-between">
+            <span className="text-3xl font-extrabold text-slate-900">
+              {overallAverageRank > 0 ? overallAverageRank : '—'}
+            </span>
+            <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+              {overallAverageRank > 0 ? '/ 5 estrelas' : 'Sem dados'}
+            </span>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Performance Charts Section */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Vagas por Status */}
@@ -360,6 +424,52 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Ranking médio por vaga */}
+      {rankingPerVacancy.length > 0 && (
+        <Card className="border-slate-200 shadow-2xs">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold text-slate-900 flex items-center space-x-2">
+              <Star className="h-5 w-5 text-amber-400 fill-amber-400" />
+              <span>Ranking Médio por Vaga</span>
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Média de estrelas dos candidatos em cada vaga — use para priorizar pré-seleção
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader className="bg-slate-50">
+                <TableRow>
+                  <TableHead className="text-xs font-semibold text-slate-600">Cargo</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600">Cliente</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600">Candidatos</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600">
+                    Ranking Médio
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rankingPerVacancy.map((rv) => (
+                  <TableRow key={rv.vId} className="hover:bg-slate-50">
+                    <TableCell className="font-semibold text-slate-900 text-sm">
+                      {rv.cargo}
+                    </TableCell>
+                    <TableCell className="text-slate-600 text-sm">{rv.cliente}</TableCell>
+                    <TableCell className="text-slate-600 text-sm">{rv.count}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <StarRating value={rv.avgRank} readOnly size={14} />
+                        <span className="text-xs font-bold text-amber-700">{rv.avgRank}/5</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Vagas Paradas Alert Table */}
       <Card className="border-slate-200 shadow-2xs">

@@ -63,7 +63,9 @@ import {
   DollarSign,
   History,
   Users,
+  Star,
 } from 'lucide-react'
+import { StarRating } from '@/components/StarRating'
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
@@ -85,6 +87,8 @@ export default function VacancyDetail() {
   const [custoTestes, setCustoTestes] = useState(0)
   const [custoExtras, setCustoExtras] = useState(0)
   const [statusCandidato, setStatusCandidato] = useState<CandidateStatus>('Em análise do gestor')
+  const [rankCandidato, setRankCandidato] = useState<number | null>(null)
+  const [rankError, setRankError] = useState('')
   const [savingCandidate, setSavingCandidate] = useState(false)
 
   // Move Pipeline Modal
@@ -142,6 +146,15 @@ export default function VacancyDetail() {
       return
     }
 
+    if (
+      rankCandidato != null &&
+      (rankCandidato < 1 || rankCandidato > 5 || !Number.isInteger(rankCandidato))
+    ) {
+      setRankError('O ranking deve ser um valor entre 1 e 5 estrelas.')
+      return
+    }
+    setRankError('')
+
     setSavingCandidate(true)
     try {
       await createCandidate({
@@ -154,11 +167,11 @@ export default function VacancyDetail() {
         custo_testes: Number(custoTestes),
         custo_extras: Number(custoExtras),
         status_candidato: statusCandidato,
+        rank: rankCandidato ?? null,
       })
 
       toast.success('Candidato adicionado com sucesso!')
       setCandidateModalOpen(false)
-      // Reset form
       setNomeCandidato('')
       setEmailCandidato('')
       setTelefoneCandidato('')
@@ -166,6 +179,7 @@ export default function VacancyDetail() {
       setCustoExames(0)
       setCustoTestes(0)
       setCustoExtras(0)
+      setRankCandidato(null)
       setStatusCandidato('Em análise do gestor')
       loadData()
     } catch (err) {
@@ -209,6 +223,13 @@ export default function VacancyDetail() {
   }
 
   const currentStageIndex = VACANCY_PIPELINE_STAGES.indexOf(vaga.status_vaga)
+
+  const averageRank = useMemo(() => {
+    const ranked = candidates.filter((c) => c.rank != null)
+    if (ranked.length === 0) return 0
+    const total = ranked.reduce((acc, c) => acc + (c.rank || 0), 0)
+    return Math.round((total / ranked.length) * 10) / 10
+  }, [candidates])
 
   return (
     <div className="space-y-6">
@@ -403,6 +424,16 @@ export default function VacancyDetail() {
               </span>
             </div>
 
+            <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl text-center">
+              <span className="text-xs font-semibold text-amber-800 uppercase tracking-wider flex items-center justify-center gap-1">
+                <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                Ranking Médio
+              </span>
+              <span className="text-2xl font-black text-amber-700 mt-1 block">
+                {averageRank > 0 ? `${averageRank} / 5` : '—'}
+              </span>
+            </div>
+
             <div className="space-y-2 text-xs text-slate-600">
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span>Consultas:</span>
@@ -455,6 +486,7 @@ export default function VacancyDetail() {
               <TableHeader className="bg-slate-50">
                 <TableRow>
                   <TableHead className="text-xs font-semibold text-slate-600">Nome</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600">Ranking</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600">Contato</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600 text-right">
@@ -465,7 +497,7 @@ export default function VacancyDetail() {
               <TableBody>
                 {candidates.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-6 text-slate-500 text-sm">
+                    <TableCell colSpan={5} className="text-center py-6 text-slate-500 text-sm">
                       Nenhum candidato vinculado a esta vaga ainda.
                     </TableCell>
                   </TableRow>
@@ -481,6 +513,13 @@ export default function VacancyDetail() {
                       <TableRow key={cand.id}>
                         <TableCell className="font-semibold text-slate-900 text-sm">
                           {cand.nome}
+                        </TableCell>
+                        <TableCell>
+                          {cand.rank ? (
+                            <StarRating value={cand.rank} readOnly size={14} />
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
                         </TableCell>
                         <TableCell className="text-xs text-slate-600">
                           <div>{cand.email || '-'}</div>
@@ -643,6 +682,12 @@ export default function VacancyDetail() {
                   <SelectItem value="Rejeitado">Rejeitado</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Ranking (1-5 estrelas)</Label>
+              <StarRating value={rankCandidato} onChange={setRankCandidato} size={28} />
+              {rankError && <p className="text-xs text-rose-500 mt-1">{rankError}</p>}
             </div>
 
             <div className="pt-2 border-t border-slate-100">

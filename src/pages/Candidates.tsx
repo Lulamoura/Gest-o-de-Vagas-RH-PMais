@@ -34,7 +34,17 @@ import {
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import { CurrencyInput } from '@/components/CurrencyInput'
-import { PlusCircle, Search, Pencil, Users, Briefcase, Filter } from 'lucide-react'
+import {
+  PlusCircle,
+  Search,
+  Pencil,
+  Users,
+  Briefcase,
+  Filter,
+  Star,
+  ArrowUpDown,
+} from 'lucide-react'
+import { StarRating } from '@/components/StarRating'
 
 export default function Candidates() {
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
@@ -45,6 +55,8 @@ export default function Candidates() {
   const [search, setSearch] = useState('')
   const [vacancyFilter, setVacancyFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [rankFilter, setRankFilter] = useState('ALL')
+  const [sortByRank, setSortByRank] = useState<'asc' | 'desc' | null>(null)
 
   // Modal create/edit
   const [modalOpen, setModalOpen] = useState(false)
@@ -60,6 +72,8 @@ export default function Candidates() {
   const [custoExames, setCustoExames] = useState(0)
   const [custoTestes, setCustoTestes] = useState(0)
   const [custoExtras, setCustoExtras] = useState(0)
+  const [rank, setRank] = useState<number | null>(null)
+  const [rankError, setRankError] = useState('')
   const [saving, setSaving] = useState(false)
 
   const loadData = async () => {
@@ -81,7 +95,7 @@ export default function Candidates() {
   useRealtime('candidates', () => loadData())
 
   const filteredCandidates = useMemo(() => {
-    return candidates.filter((c) => {
+    const filtered = candidates.filter((c) => {
       const matchesSearch =
         search === '' ||
         c.nome.toLowerCase().includes(search.toLowerCase()) ||
@@ -90,9 +104,19 @@ export default function Candidates() {
       const matchesVacancy = vacancyFilter === 'ALL' || c.vacancy_id === vacancyFilter
       const matchesStatus = statusFilter === 'ALL' || c.status_candidato === statusFilter
 
-      return matchesSearch && matchesVacancy && matchesStatus
+      const matchesRank = rankFilter === 'ALL' || (c.rank != null && c.rank >= Number(rankFilter))
+
+      return matchesSearch && matchesVacancy && matchesStatus && matchesRank
     })
-  }, [candidates, search, vacancyFilter, statusFilter])
+
+    if (sortByRank === 'desc') {
+      filtered.sort((a, b) => (b.rank || 0) - (a.rank || 0))
+    } else if (sortByRank === 'asc') {
+      filtered.sort((a, b) => (a.rank || 0) - (b.rank || 0))
+    }
+
+    return filtered
+  }, [candidates, search, vacancyFilter, statusFilter, rankFilter, sortByRank])
 
   const openCreateModal = () => {
     setEditingCandidate(null)
@@ -105,6 +129,8 @@ export default function Candidates() {
     setCustoExames(0)
     setCustoTestes(0)
     setCustoExtras(0)
+    setRank(null)
+    setRankError('')
     setModalOpen(true)
   }
 
@@ -119,6 +145,8 @@ export default function Candidates() {
     setCustoExames(c.custo_exames || 0)
     setCustoTestes(c.custo_testes || 0)
     setCustoExtras(c.custo_extras || 0)
+    setRank(c.rank ?? null)
+    setRankError('')
     setModalOpen(true)
   }
 
@@ -128,6 +156,12 @@ export default function Candidates() {
       toast.error('Nome do candidato e vaga vinculada são obrigatórios.')
       return
     }
+
+    if (rank != null && (rank < 1 || rank > 5 || !Number.isInteger(rank))) {
+      setRankError('O ranking deve ser um valor entre 1 e 5 estrelas.')
+      return
+    }
+    setRankError('')
 
     setSaving(true)
     const payload = {
@@ -140,6 +174,7 @@ export default function Candidates() {
       custo_exames: Number(custoExames),
       custo_testes: Number(custoTestes),
       custo_extras: Number(custoExtras),
+      rank: rank ?? null,
     }
 
     try {
@@ -235,6 +270,21 @@ export default function Candidates() {
                 <SelectItem value="Rejeitado">Rejeitado</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select value={rankFilter} onValueChange={setRankFilter}>
+              <SelectTrigger className="h-9 text-xs">
+                <Star className="h-3.5 w-3.5 mr-1.5 text-amber-400 fill-amber-400" />
+                <SelectValue placeholder="Ranking" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos os Rankings</SelectItem>
+                <SelectItem value="1">Ranking ≥ 1 estrela</SelectItem>
+                <SelectItem value="2">Ranking ≥ 2 estrelas</SelectItem>
+                <SelectItem value="3">Ranking ≥ 3 estrelas</SelectItem>
+                <SelectItem value="4">Ranking ≥ 4 estrelas</SelectItem>
+                <SelectItem value="5">Ranking = 5 estrelas</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -250,6 +300,15 @@ export default function Candidates() {
                 <TableHead className="text-xs font-semibold text-slate-600">
                   Vaga Vinculada
                 </TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">
+                  <button
+                    className="flex items-center gap-1 hover:text-indigo-600"
+                    onClick={() => setSortByRank(sortByRank === 'desc' ? 'asc' : 'desc')}
+                  >
+                    Ranking
+                    <ArrowUpDown className="h-3 w-3" />
+                  </button>
+                </TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">Custo Total</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 text-right">
@@ -260,7 +319,7 @@ export default function Candidates() {
             <TableBody>
               {filteredCandidates.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-slate-500 text-sm">
+                  <TableCell colSpan={7} className="text-center py-8 text-slate-500 text-sm">
                     Nenhum candidato encontrado.
                   </TableCell>
                 </TableRow>
@@ -290,6 +349,14 @@ export default function Candidates() {
                             {cand.expand?.vacancy_id?.expand?.cargo?.nome || 'Vaga não encontrada'}
                           </span>
                         </div>
+                      </TableCell>
+
+                      <TableCell>
+                        {cand.rank ? (
+                          <StarRating value={cand.rank} readOnly size={14} />
+                        ) : (
+                          <span className="text-xs text-slate-400">—</span>
+                        )}
                       </TableCell>
 
                       <TableCell>
@@ -400,6 +467,12 @@ export default function Candidates() {
                   <SelectItem value="Rejeitado">Rejeitado</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Ranking (1-5 estrelas)</Label>
+              <StarRating value={rank} onChange={setRank} size={28} />
+              {rankError && <p className="text-xs text-rose-500 mt-1">{rankError}</p>}
             </div>
 
             <div className="pt-2 border-t border-slate-100">
