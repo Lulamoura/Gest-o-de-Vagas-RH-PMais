@@ -1,8 +1,16 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { getVacancies, updateVacancy } from '@/services/vacancies'
+import { getCandidates } from '@/services/candidates'
+import { getTiposContrato } from '@/services/tipos_contrato'
 import { createPipelineHistory } from '@/services/pipeline_history'
-import { VacancyRecord, VacancyStatus, VacancyPriority, VacancyType } from '@/types'
+import {
+  VacancyRecord,
+  VacancyStatus,
+  VacancyPriority,
+  TipoContratoRecord,
+  CandidateRecord,
+} from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
@@ -48,23 +56,25 @@ import {
   ChevronRight,
   Filter,
   Building2,
-  Calendar,
   User,
   XCircle,
+  Star,
 } from 'lucide-react'
 
 export default function Vacancies() {
   const [vacancies, setVacancies] = useState<VacancyRecord[]>([])
+  const [candidates, setCandidates] = useState<CandidateRecord[]>([])
+  const [tiposContratoList, setTiposContratoList] = useState<TipoContratoRecord[]>([])
   const [loading, setLoading] = useState(true)
 
-  // Filters
   const [search, setSearch] = useState('')
   const [clientFilter, setClientFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [priorityFilter, setPriorityFilter] = useState('ALL')
   const [typeFilter, setTypeFilter] = useState('ALL')
+  const [contractTypeFilter, setContractTypeFilter] = useState('ALL')
+  const [rankFilter, setRankFilter] = useState('ALL')
 
-  // Quick move pipeline dialog state
   const [selectedVacancy, setSelectedVacancy] = useState<VacancyRecord | null>(null)
   const [newStatus, setNewStatus] = useState<VacancyStatus | ''>('')
   const [moving, setMoving] = useState(false)
@@ -73,8 +83,14 @@ export default function Vacancies() {
 
   const loadData = async () => {
     try {
-      const data = await getVacancies()
+      const [data, candData, tcData] = await Promise.all([
+        getVacancies(),
+        getCandidates(),
+        getTiposContrato(),
+      ])
       setVacancies(data)
+      setCandidates(candData)
+      setTiposContratoList(tcData)
     } catch (err) {
       toast.error('Erro ao carregar lista de vagas')
     } finally {
@@ -87,6 +103,9 @@ export default function Vacancies() {
   }, [])
 
   useRealtime('vacancies', () => {
+    loadData()
+  })
+  useRealtime('candidates', () => {
     loadData()
   })
 
@@ -110,6 +129,18 @@ export default function Vacancies() {
     return Array.from(map, ([id, name]) => ({ id, name }))
   }, [vacancies])
 
+  const vacancyIdsWithMinRank = useMemo(() => {
+    if (rankFilter === 'ALL') return null
+    const minRank = Number(rankFilter)
+    const ids = new Set<string>()
+    candidates.forEach((c) => {
+      if (c.rank != null && c.rank >= minRank) {
+        ids.add(c.vacancy_id)
+      }
+    })
+    return ids
+  }, [candidates, rankFilter])
+
   const filteredVacancies = useMemo(() => {
     return vacancies.filter((v) => {
       const cargoNome = v.expand?.cargo?.nome || ''
@@ -125,10 +156,30 @@ export default function Vacancies() {
       const matchesStatus = statusFilter === 'ALL' || v.status_vaga === statusFilter
       const matchesPriority = priorityFilter === 'ALL' || v.prioridade === priorityFilter
       const matchesType = typeFilter === 'ALL' || v.tipo_vaga === typeFilter
+      const matchesContractType =
+        contractTypeFilter === 'ALL' || v.tipo_contrato === contractTypeFilter
+      const matchesRank = !vacancyIdsWithMinRank || vacancyIdsWithMinRank.has(v.id)
 
-      return matchesSearch && matchesClient && matchesStatus && matchesPriority && matchesType
+      return (
+        matchesSearch &&
+        matchesClient &&
+        matchesStatus &&
+        matchesPriority &&
+        matchesType &&
+        matchesContractType &&
+        matchesRank
+      )
     })
-  }, [vacancies, search, clientFilter, statusFilter, priorityFilter, typeFilter])
+  }, [
+    vacancies,
+    search,
+    clientFilter,
+    statusFilter,
+    priorityFilter,
+    typeFilter,
+    contractTypeFilter,
+    vacancyIdsWithMinRank,
+  ])
 
   const handleMovePipeline = async () => {
     if (!selectedVacancy || !newStatus) return
@@ -166,6 +217,8 @@ export default function Vacancies() {
     setStatusFilter('ALL')
     setPriorityFilter('ALL')
     setTypeFilter('ALL')
+    setContractTypeFilter('ALL')
+    setRankFilter('ALL')
   }
 
   if (loading) {
@@ -178,7 +231,6 @@ export default function Vacancies() {
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Gestão de Vagas</h2>
@@ -186,7 +238,6 @@ export default function Vacancies() {
             Cadastre, acompanhe e controle o fluxo de todos os processos seletivos
           </p>
         </div>
-
         <Button asChild className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm">
           <Link to="/vagas/nova">
             <PlusCircle className="h-4 w-4 mr-2" /> Nova Vaga
@@ -194,7 +245,6 @@ export default function Vacancies() {
         </Button>
       </div>
 
-      {/* Filter Bar */}
       <Card className="border-slate-200 shadow-2xs">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
@@ -204,8 +254,7 @@ export default function Vacancies() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-            {/* Search */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <Input
@@ -216,7 +265,6 @@ export default function Vacancies() {
               />
             </div>
 
-            {/* Cliente */}
             <Select value={clientFilter} onValueChange={setClientFilter}>
               <SelectTrigger className="h-9 text-xs">
                 <SelectValue placeholder="Cliente" />
@@ -231,7 +279,6 @@ export default function Vacancies() {
               </SelectContent>
             </Select>
 
-            {/* Status */}
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="h-9 text-xs">
                 <SelectValue placeholder="Status" />
@@ -246,7 +293,6 @@ export default function Vacancies() {
               </SelectContent>
             </Select>
 
-            {/* Prioridade */}
             <Select value={priorityFilter} onValueChange={setPriorityFilter}>
               <SelectTrigger className="h-9 text-xs">
                 <SelectValue placeholder="Prioridade" />
@@ -259,7 +305,6 @@ export default function Vacancies() {
               </SelectContent>
             </Select>
 
-            {/* Tipo */}
             <Select value={typeFilter} onValueChange={setTypeFilter}>
               <SelectTrigger className="h-9 text-xs">
                 <SelectValue placeholder="Tipo de Vaga" />
@@ -273,13 +318,44 @@ export default function Vacancies() {
                 ))}
               </SelectContent>
             </Select>
+
+            <Select value={contractTypeFilter} onValueChange={setContractTypeFilter}>
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Tipo de Contrato" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos os Contratos</SelectItem>
+                {tiposContratoList.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={rankFilter} onValueChange={setRankFilter}>
+              <SelectTrigger className="h-9 text-xs">
+                <Star className="h-3.5 w-3.5 mr-1.5 text-amber-400 fill-amber-400 shrink-0" />
+                <SelectValue placeholder="Ranking" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">Todos os Rankings</SelectItem>
+                <SelectItem value="1">Ranking ≥ 1 estrela</SelectItem>
+                <SelectItem value="2">Ranking ≥ 2 estrelas</SelectItem>
+                <SelectItem value="3">Ranking ≥ 3 estrelas</SelectItem>
+                <SelectItem value="4">Ranking ≥ 4 estrelas</SelectItem>
+                <SelectItem value="5">Ranking ≥ 5 estrelas</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {(search ||
             clientFilter !== 'ALL' ||
             statusFilter !== 'ALL' ||
             priorityFilter !== 'ALL' ||
-            typeFilter !== 'ALL') && (
+            typeFilter !== 'ALL' ||
+            contractTypeFilter !== 'ALL' ||
+            rankFilter !== 'ALL') && (
             <div className="flex justify-end pt-1">
               <Button
                 variant="ghost"
@@ -294,7 +370,6 @@ export default function Vacancies() {
         </CardContent>
       </Card>
 
-      {/* Desktop Table View */}
       <Card className="border-slate-200 shadow-2xs hidden md:block">
         <CardContent className="p-0">
           <Table>
@@ -313,6 +388,7 @@ export default function Vacancies() {
                   Prazo Desejado
                 </TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">Prioridade</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">Contrato</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 text-right">
                   Ações
                 </TableHead>
@@ -321,7 +397,7 @@ export default function Vacancies() {
             <TableBody>
               {filteredVacancies.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-slate-500 text-sm">
+                  <TableCell colSpan={9} className="text-center py-8 text-slate-500 text-sm">
                     Nenhuma vaga encontrada com os filtros aplicados.
                   </TableCell>
                 </TableRow>
@@ -342,7 +418,6 @@ export default function Vacancies() {
                           )}
                         </div>
                       </TableCell>
-
                       <TableCell>
                         <Badge
                           variant="outline"
@@ -351,18 +426,15 @@ export default function Vacancies() {
                           {vaga.status_vaga}
                         </Badge>
                       </TableCell>
-
                       <TableCell className="text-xs text-slate-700">
                         <div className="flex items-center space-x-1">
                           <User className="h-3.5 w-3.5 text-slate-400" />
                           <span>{vaga.expand?.responsavel_rh?.name || 'Não atribuído'}</span>
                         </div>
                       </TableCell>
-
                       <TableCell className="text-xs text-slate-600">
                         {formatDateBR(vaga.data_abertura)}
                       </TableCell>
-
                       <TableCell>
                         <span
                           className={`text-xs font-semibold px-2 py-0.5 rounded ${
@@ -374,17 +446,17 @@ export default function Vacancies() {
                           {diasAbertos} dias
                         </span>
                       </TableCell>
-
                       <TableCell className="text-xs text-slate-600">
                         {formatDateBR(vaga.prazo_desejado)}
                       </TableCell>
-
                       <TableCell>
                         <Badge variant="outline" className={getPriorityBadgeClass(vaga.prioridade)}>
                           {vaga.prioridade}
                         </Badge>
                       </TableCell>
-
+                      <TableCell className="text-xs text-slate-600">
+                        {vaga.expand?.tipo_contrato?.nome || '—'}
+                      </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-1">
                           <Button
@@ -432,7 +504,6 @@ export default function Vacancies() {
         </CardContent>
       </Card>
 
-      {/* Mobile Card List View */}
       <div className="md:hidden space-y-3">
         {filteredVacancies.map((vaga) => (
           <Card key={vaga.id} className="border-slate-200 shadow-2xs">
@@ -444,14 +515,14 @@ export default function Vacancies() {
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
                     {vaga.expand?.cliente?.nome || '—'}
-                  </p>{' '}
+                  </p>
                 </div>
                 <Badge variant="outline" className={getVacancyStatusBadgeClass(vaga.status_vaga)}>
                   {vaga.status_vaga}
                 </Badge>
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg">
+              <div className="grid grid-cols-3 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg">
                 <div>
                   <span className="text-slate-400 block text-[10px] uppercase font-semibold">
                     Prioridade
@@ -473,6 +544,14 @@ export default function Vacancies() {
                     {calculateDaysOpen(vaga.data_abertura)} dias
                   </span>
                 </div>
+                <div>
+                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                    Contrato
+                  </span>
+                  <span className="font-semibold text-slate-800 text-[10px]">
+                    {vaga.expand?.tipo_contrato?.nome || '—'}
+                  </span>
+                </div>
               </div>
 
               <div className="flex items-center justify-between pt-2 border-t border-slate-100">
@@ -485,7 +564,6 @@ export default function Vacancies() {
         ))}
       </div>
 
-      {/* Move Pipeline Modal */}
       <Dialog open={!!selectedVacancy} onOpenChange={(open) => !open && setSelectedVacancy(null)}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>

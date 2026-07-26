@@ -364,6 +364,12 @@ export default function VacancyDetail() {
                     {formatDateBR(vaga.prazo_desejado)}
                   </span>
                 </div>
+                <div className="bg-slate-50 p-2.5 rounded-lg">
+                  <span className="text-slate-400 block">Tipo de Contrato</span>
+                  <span className="font-semibold text-slate-800">
+                    {vaga.expand?.tipo_contrato?.nome || '-'}
+                  </span>
+                </div>
               </div>
             </div>
 

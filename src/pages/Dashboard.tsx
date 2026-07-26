@@ -2,13 +2,23 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { getVacancies } from '@/services/vacancies'
 import { getCandidates } from '@/services/candidates'
-import { VacancyRecord, CandidateRecord } from '@/types'
+import { getTiposContrato } from '@/services/tipos_contrato'
+import { VacancyRecord, CandidateRecord, TipoContratoRecord } from '@/types'
 import { useRealtime } from '@/hooks/use-realtime'
 import { MandatoryIndicatorCard } from '@/components/MandatoryIndicatorCard'
-import { calculateDaysOpen, formatDateBR } from '@/lib/status-utils'
+import { calculateDaysOpen } from '@/lib/status-utils'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from '@/components/ui/select'
 import {
   Table,
   TableHeader,
@@ -28,6 +38,8 @@ import {
   PlusCircle,
   BarChart2,
   Star,
+  Filter,
+  XCircle,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 import {
@@ -48,13 +60,25 @@ const PIE_COLORS = ['#3b82f6', '#a855f7', '#f59e0b', '#6366f1', '#06b6d4', '#10b
 export default function Dashboard() {
   const [vacancies, setVacancies] = useState<VacancyRecord[]>([])
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
+  const [tiposContratoList, setTiposContratoList] = useState<TipoContratoRecord[]>([])
   const [loading, setLoading] = useState(true)
+
+  const currentMonthStr = new Date().toISOString().slice(0, 7)
+  const [monthFilter, setMonthFilter] = useState(currentMonthStr)
+  const [periodStart, setPeriodStart] = useState('')
+  const [periodEnd, setPeriodEnd] = useState('')
+  const [contractTypeFilter, setContractTypeFilter] = useState('ALL')
 
   const loadData = async () => {
     try {
-      const [vData, cData] = await Promise.all([getVacancies(), getCandidates()])
+      const [vData, cData, tcData] = await Promise.all([
+        getVacancies(),
+        getCandidates(),
+        getTiposContrato(),
+      ])
       setVacancies(vData)
       setCandidates(cData)
+      setTiposContratoList(tcData)
     } catch (err) {
       console.error(err)
     } finally {
@@ -73,17 +97,46 @@ export default function Dashboard() {
     loadData()
   })
 
-  // Calculate KPIs
+  const dateRange = useMemo(() => {
+    if (periodStart && periodEnd) {
+      return {
+        start: new Date(periodStart + 'T00:00:00'),
+        end: new Date(periodEnd + 'T23:59:59'),
+      }
+    }
+    const [year, month] = monthFilter.split('-').map(Number)
+    return {
+      start: new Date(year, month - 1, 1),
+      end: new Date(year, month, 0, 23, 59, 59),
+    }
+  }, [monthFilter, periodStart, periodEnd])
+
+  const filteredVacancies = useMemo(() => {
+    return vacancies.filter((v) => {
+      const vacancyDate = new Date(v.data_abertura || v.created)
+      if (vacancyDate < dateRange.start || vacancyDate > dateRange.end) return false
+      if (contractTypeFilter !== 'ALL' && v.tipo_contrato !== contractTypeFilter) return false
+      return true
+    })
+  }, [vacancies, dateRange, contractTypeFilter])
+
+  const filteredCandidates = useMemo(() => {
+    const vacancyIds = new Set(filteredVacancies.map((v) => v.id))
+    return candidates.filter((c) => vacancyIds.has(c.vacancy_id))
+  }, [candidates, filteredVacancies])
+
   const openVacancies = useMemo(() => {
-    return vacancies.filter((v) => v.status_vaga !== 'Fechada' && v.status_vaga !== 'Cancelada')
-  }, [vacancies])
+    return filteredVacancies.filter(
+      (v) => v.status_vaga !== 'Fechada' && v.status_vaga !== 'Cancelada',
+    )
+  }, [filteredVacancies])
 
   const closedVacanciesMonth = useMemo(() => {
-    return vacancies.filter((v) => v.status_vaga === 'Fechada')
-  }, [vacancies])
+    return filteredVacancies.filter((v) => v.status_vaga === 'Fechada')
+  }, [filteredVacancies])
 
   const averageClosingDays = useMemo(() => {
-    if (closedVacanciesMonth.length === 0) return 22 // default benchmark
+    if (closedVacanciesMonth.length === 0) return 22
     const totalDays = closedVacanciesMonth.reduce(
       (acc, v) => acc + calculateDaysOpen(v.data_abertura, v.data_fechamento),
       0,
@@ -92,45 +145,37 @@ export default function Dashboard() {
   }, [closedVacanciesMonth])
 
   const delayedVacancies = useMemo(() => {
-    return openVacancies.filter((v) => {
-      const days = calculateDaysOpen(v.data_abertura)
-      return days > 30 // considered delayed if open for > 30 days
-    })
+    return openVacancies.filter((v) => calculateDaysOpen(v.data_abertura) > 30)
   }, [openVacancies])
 
-  // Mandatory indicator logic
   const mandatoryIndicatorData = useMemo(() => {
-    // Vacancies without candidate in "Pré-Aprovado" status
     const vacanciesWithPreApproved = new Set(
-      candidates.filter((c) => c.status_candidato === 'Pré-Aprovado').map((c) => c.vacancy_id),
+      filteredCandidates
+        .filter((c) => c.status_candidato === 'Pré-Aprovado')
+        .map((c) => c.vacancy_id),
     )
-
     const totalVacanciesWithoutPreApproved = openVacancies.filter(
       (v) => !vacanciesWithPreApproved.has(v.id),
     ).length
-
-    const totalPreApprovedCandidates = candidates.filter(
+    const totalPreApprovedCandidates = filteredCandidates.filter(
       (c) => c.status_candidato === 'Pré-Aprovado',
     ).length
-
     return {
       totalVacanciesWithoutPreApproved,
       totalVacancies: openVacancies.length,
-      totalCandidates: candidates.length,
+      totalCandidates: filteredCandidates.length,
       totalPreApprovedCandidates,
     }
-  }, [openVacancies, candidates])
+  }, [openVacancies, filteredCandidates])
 
-  // Chart 1: Vagas por Status
   const statusChartData = useMemo(() => {
     const counts: Record<string, number> = {}
-    vacancies.forEach((v) => {
+    filteredVacancies.forEach((v) => {
       counts[v.status_vaga] = (counts[v.status_vaga] || 0) + 1
     })
     return Object.entries(counts).map(([name, value]) => ({ name, value }))
-  }, [vacancies])
+  }, [filteredVacancies])
 
-  // Chart 2: Tempo Médio por Etapa (Days spent in pipeline)
   const averageDaysPerStageData = [
     { etapa: 'Triagem', dias: 4 },
     { etapa: 'Entrevistas', dias: 9 },
@@ -138,22 +183,22 @@ export default function Dashboard() {
     { etapa: 'Alocação', dias: 5 },
   ]
 
-  // Ranking médio por vaga
   const rankingPerVacancy = useMemo(() => {
     const vacancyRankMap: Record<
       string,
-      { avg: number; count: number; cargo: string; cliente: string }
+      { avg: number; count: number; cargo: string; cliente: string; contrato: string }
     > = {}
-    candidates.forEach((c) => {
+    filteredCandidates.forEach((c) => {
       if (c.rank == null) return
       const vId = c.vacancy_id
       if (!vacancyRankMap[vId]) {
-        const vacancy = vacancies.find((v) => v.id === vId)
+        const vacancy = filteredVacancies.find((v) => v.id === vId)
         vacancyRankMap[vId] = {
           avg: 0,
           count: 0,
           cargo: vacancy?.expand?.cargo?.nome || '—',
           cliente: vacancy?.expand?.cliente?.nome || '—',
+          contrato: vacancy?.expand?.tipo_contrato?.nome || '—',
         }
       }
       vacancyRankMap[vId].avg += c.rank
@@ -164,27 +209,23 @@ export default function Dashboard() {
         vId,
         cargo: data.cargo,
         cliente: data.cliente,
+        contrato: data.contrato,
         avgRank: Math.round((data.avg / data.count) * 10) / 10,
         count: data.count,
       }))
       .sort((a, b) => b.avgRank - a.avgRank)
-  }, [candidates, vacancies])
+  }, [filteredCandidates, filteredVacancies])
 
-  // Overall average rank
   const overallAverageRank = useMemo(() => {
-    const ranked = candidates.filter((c) => c.rank != null)
+    const ranked = filteredCandidates.filter((c) => c.rank != null)
     if (ranked.length === 0) return 0
     const total = ranked.reduce((acc, c) => acc + (c.rank || 0), 0)
     return Math.round((total / ranked.length) * 10) / 10
-  }, [candidates])
+  }, [filteredCandidates])
 
-  // Stalled vacancies list (stalled >= 15 days)
   const stalledVacancies = useMemo(() => {
     return openVacancies
-      .map((v) => ({
-        ...v,
-        diasParado: calculateDaysOpen(v.data_abertura),
-      }))
+      .map((v) => ({ ...v, diasParado: calculateDaysOpen(v.data_abertura) }))
       .sort((a, b) => b.diasParado - a.diasParado)
       .slice(0, 5)
   }, [openVacancies])
@@ -199,7 +240,6 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Top Banner & Quick Actions */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Visão Geral de RH</h2>
@@ -221,7 +261,79 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Mandatory Indicator Banner */}
+      {/* Filter Bar */}
+      <Card className="border-slate-200 shadow-2xs">
+        <CardContent className="p-4 space-y-3">
+          <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
+            <Filter className="h-4 w-4 text-slate-500" />
+            <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
+              Filtros de Período e Contrato
+            </span>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-[10px] text-slate-500 font-semibold">Mês</Label>
+              <Input
+                type="month"
+                value={monthFilter}
+                onChange={(e) => setMonthFilter(e.target.value)}
+                className="h-9 text-xs"
+                disabled={!!(periodStart && periodEnd)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-slate-500 font-semibold">Período - Início</Label>
+              <Input
+                type="date"
+                value={periodStart}
+                onChange={(e) => setPeriodStart(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-slate-500 font-semibold">Período - Fim</Label>
+              <Input
+                type="date"
+                value={periodEnd}
+                onChange={(e) => setPeriodEnd(e.target.value)}
+                className="h-9 text-xs"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] text-slate-500 font-semibold">Tipo de Contrato</Label>
+              <Select value={contractTypeFilter} onValueChange={setContractTypeFilter}>
+                <SelectTrigger className="h-9 text-xs">
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL">Todos os Contratos</SelectItem>
+                  {tiposContratoList.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.nome}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          {(periodStart || periodEnd) && (
+            <div className="flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setPeriodStart('')
+                  setPeriodEnd('')
+                }}
+                className="text-xs text-rose-600 hover:text-rose-700 h-7"
+              >
+                <XCircle className="h-3.5 w-3.5 mr-1" /> Limpar Período
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       <MandatoryIndicatorCard
         totalVacanciesWithoutPreApproved={mandatoryIndicatorData.totalVacanciesWithoutPreApproved}
         totalVacancies={mandatoryIndicatorData.totalVacancies}
@@ -289,9 +401,7 @@ export default function Dashboard() {
         </Card>
 
         <Card
-          className={`border-slate-200 shadow-2xs hover:shadow-md transition-shadow ${
-            delayedVacancies.length > 0 ? 'bg-rose-50/40 border-rose-200' : ''
-          }`}
+          className={`border-slate-200 shadow-2xs hover:shadow-md transition-shadow ${delayedVacancies.length > 0 ? 'bg-rose-50/40 border-rose-200' : ''}`}
         >
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
@@ -299,20 +409,14 @@ export default function Dashboard() {
                 Vagas em Atraso
               </span>
               <div
-                className={`p-2 rounded-lg ${
-                  delayedVacancies.length > 0
-                    ? 'bg-rose-100 text-rose-600'
-                    : 'bg-slate-100 text-slate-600'
-                }`}
+                className={`p-2 rounded-lg ${delayedVacancies.length > 0 ? 'bg-rose-100 text-rose-600' : 'bg-slate-100 text-slate-600'}`}
               >
                 <AlertTriangle className="h-5 w-5" />
               </div>
             </div>
             <div className="mt-3 flex items-baseline justify-between">
               <span
-                className={`text-3xl font-extrabold ${
-                  delayedVacancies.length > 0 ? 'text-rose-600' : 'text-slate-900'
-                }`}
+                className={`text-3xl font-extrabold ${delayedVacancies.length > 0 ? 'text-rose-600' : 'text-slate-900'}`}
               >
                 {delayedVacancies.length}
               </span>
@@ -326,7 +430,6 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Ranking Médio KPI Card */}
       <Card className="border-slate-200 shadow-2xs hover:shadow-md transition-shadow">
         <CardContent className="p-5">
           <div className="flex items-center justify-between">
@@ -348,9 +451,8 @@ export default function Dashboard() {
         </CardContent>
       </Card>
 
-      {/* Performance Charts Section */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Vagas por Status */}
         <Card className="border-slate-200 shadow-2xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-900">Vagas por Status</CardTitle>
@@ -389,7 +491,6 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
-        {/* Tempo Médio por Etapa */}
         <Card className="border-slate-200 shadow-2xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-900">
@@ -425,7 +526,7 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Ranking médio por vaga */}
+      {/* Ranking per vacancy */}
       {rankingPerVacancy.length > 0 && (
         <Card className="border-slate-200 shadow-2xs">
           <CardHeader className="pb-3">
@@ -434,7 +535,7 @@ export default function Dashboard() {
               <span>Ranking Médio por Vaga</span>
             </CardTitle>
             <CardDescription className="text-xs">
-              Média de estrelas dos candidatos em cada vaga — use para priorizar pré-seleção
+              Média de estrelas dos candidatos em cada vaga
             </CardDescription>
           </CardHeader>
           <CardContent className="p-0">
@@ -443,6 +544,7 @@ export default function Dashboard() {
                 <TableRow>
                   <TableHead className="text-xs font-semibold text-slate-600">Cargo</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600">Cliente</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600">Contrato</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600">Candidatos</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600">
                     Ranking Médio
@@ -456,6 +558,7 @@ export default function Dashboard() {
                       {rv.cargo}
                     </TableCell>
                     <TableCell className="text-slate-600 text-sm">{rv.cliente}</TableCell>
+                    <TableCell className="text-slate-600 text-sm">{rv.contrato}</TableCell>
                     <TableCell className="text-slate-600 text-sm">{rv.count}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -471,7 +574,7 @@ export default function Dashboard() {
         </Card>
       )}
 
-      {/* Vagas Paradas Alert Table */}
+      {/* Stalled Vacancies */}
       <Card className="border-slate-200 shadow-2xs">
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <div>
@@ -480,16 +583,15 @@ export default function Dashboard() {
               <span>Vagas Paradas há +Dias</span>
             </CardTitle>
             <CardDescription className="text-xs">
-              Vagas abertas com maior tempo de permanência no pipeline sem movimentação
+              Vagas abertas com maior tempo no pipeline
             </CardDescription>
           </div>
           <Button asChild variant="ghost" size="sm" className="text-indigo-600 text-xs">
             <Link to="/vagas">
-              Ver todas as vagas <ArrowRight className="h-3.5 w-3.5 ml-1" />
+              Ver todas <ArrowRight className="h-3.5 w-3.5 ml-1" />
             </Link>
           </Button>
         </CardHeader>
-
         <CardContent className="p-0">
           <div className="overflow-x-auto">
             <Table>
@@ -497,6 +599,7 @@ export default function Dashboard() {
                 <TableRow>
                   <TableHead className="text-xs font-semibold text-slate-600">Cargo</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600">Cliente</TableHead>
+                  <TableHead className="text-xs font-semibold text-slate-600">Contrato</TableHead>
                   <TableHead className="text-xs font-semibold text-slate-600">
                     Dias Parado
                   </TableHead>
@@ -511,7 +614,7 @@ export default function Dashboard() {
               <TableBody>
                 {stalledVacancies.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-6 text-slate-500 text-sm">
+                    <TableCell colSpan={6} className="text-center py-6 text-slate-500 text-sm">
                       Nenhuma vaga parada encontrada.
                     </TableCell>
                   </TableRow>
@@ -526,6 +629,9 @@ export default function Dashboard() {
                           <Building2 className="h-3.5 w-3.5 text-slate-400" />
                           <span>{vaga.expand?.cliente?.nome || '—'}</span>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-slate-600 text-sm">
+                        {vaga.expand?.tipo_contrato?.nome || '—'}
                       </TableCell>
                       <TableCell>
                         <Badge

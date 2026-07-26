@@ -282,7 +282,7 @@ export default function Candidates() {
                 <SelectItem value="2">Ranking ≥ 2 estrelas</SelectItem>
                 <SelectItem value="3">Ranking ≥ 3 estrelas</SelectItem>
                 <SelectItem value="4">Ranking ≥ 4 estrelas</SelectItem>
-                <SelectItem value="5">Ranking = 5 estrelas</SelectItem>
+                <SelectItem value="5">Ranking ≥ 5 estrelas</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -345,9 +345,17 @@ export default function Candidates() {
                       <TableCell className="text-xs text-slate-700">
                         <div className="flex items-center space-x-1">
                           <Briefcase className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <span className="font-medium truncate max-w-[180px]">
-                            {cand.expand?.vacancy_id?.expand?.cargo?.nome || 'Vaga não encontrada'}
-                          </span>
+                          <div className="min-w-0">
+                            <span className="font-medium truncate max-w-[180px] block">
+                              {cand.expand?.vacancy_id?.expand?.cargo?.nome ||
+                                'Vaga não encontrada'}
+                            </span>
+                            {cand.expand?.vacancy_id?.expand?.tipo_contrato?.nome && (
+                              <span className="text-[10px] text-slate-400">
+                                {cand.expand?.vacancy_id?.expand?.tipo_contrato?.nome}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </TableCell>
 

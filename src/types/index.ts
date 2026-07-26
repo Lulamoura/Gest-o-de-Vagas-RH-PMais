@@ -36,12 +36,17 @@ export interface TipoVagaRecord extends RecordModel {
   nome: string
 }
 
+export interface TipoContratoRecord extends RecordModel {
+  nome: string
+}
+
 export interface VacancyRecord extends RecordModel {
   cliente: string
   cargo: string
   cidade?: string
   quantidade_vagas: number
   tipo_vaga?: string
+  tipo_contrato?: string
   data_abertura?: string
   data_fechamento?: string
   data_cancelamento?: string
@@ -59,6 +64,7 @@ export interface VacancyRecord extends RecordModel {
     cargo?: CargoRecord
     cidade?: CidadeRecord
     tipo_vaga?: TipoVagaRecord
+    tipo_contrato?: TipoContratoRecord
   }
 }
 

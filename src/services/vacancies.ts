@@ -1,7 +1,7 @@
 import pb from '@/lib/pocketbase/client'
 import { VacancyRecord } from '@/types'
 
-const EXPAND = 'responsavel_rh,cliente,cargo,cidade,tipo_vaga'
+const EXPAND = 'responsavel_rh,cliente,cargo,cidade,tipo_vaga,tipo_contrato'
 
 export const getVacancies = async () => {
   return pb.collection<VacancyRecord>('vacancies').getFullList({
@@ -36,5 +36,16 @@ export const checkReferenceInUse = async (field: string, id: string): Promise<bo
     return result.totalItems > 0
   } catch {
     return false
+  }
+}
+
+export const countReferenceInUse = async (field: string, id: string): Promise<number> => {
+  try {
+    const result = await pb.collection('vacancies').getList(1, 1, {
+      filter: `${field} = "${id}"`,
+    })
+    return result.totalItems
+  } catch {
+    return 0
   }
 }

@@ -3,7 +3,13 @@ import { getClientes, createCliente, updateCliente, deleteCliente } from '@/serv
 import { getCargos, createCargo, updateCargo, deleteCargo } from '@/services/cargos'
 import { getCidades, createCidade, updateCidade, deleteCidade } from '@/services/cidades'
 import { getTiposVaga, createTipoVaga, updateTipoVaga, deleteTipoVaga } from '@/services/tipos_vaga'
-import { checkReferenceInUse } from '@/services/vacancies'
+import {
+  getTiposContrato,
+  createTipoContrato,
+  updateTipoContrato,
+  deleteTipoContrato,
+} from '@/services/tipos_contrato'
+import { countReferenceInUse } from '@/services/vacancies'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -30,7 +36,7 @@ import { toast } from 'sonner'
 import { PlusCircle, Pencil, Trash2, Database, Lock } from 'lucide-react'
 import { RecordModel } from 'pocketbase'
 
-type CollectionKey = 'clientes' | 'cargos' | 'cidades' | 'tipos_vaga'
+type CollectionKey = 'clientes' | 'cargos' | 'cidades' | 'tipos_vaga' | 'tipos_contrato'
 
 const CONFIG: Record<
   CollectionKey,
@@ -70,6 +76,13 @@ const CONFIG: Record<
     update: updateTipoVaga,
     del: deleteTipoVaga,
   },
+  tipos_contrato: {
+    label: 'Tipos de Contrato',
+    list: getTiposContrato,
+    create: createTipoContrato,
+    update: updateTipoContrato,
+    del: deleteTipoContrato,
+  },
 }
 
 const FIELD_MAP: Record<CollectionKey, string> = {
@@ -77,6 +90,7 @@ const FIELD_MAP: Record<CollectionKey, string> = {
   cargos: 'cargo',
   cidades: 'cidade',
   tipos_vaga: 'tipo_vaga',
+  tipos_contrato: 'tipo_contrato',
 }
 
 export default function ReferenceData() {
@@ -155,9 +169,9 @@ export default function ReferenceData() {
   }
 
   const handleDelete = async (id: string) => {
-    const inUse = await checkReferenceInUse(FIELD_MAP[activeTab], id)
-    if (inUse) {
-      toast.error('Não é possível excluir: este registro está em uso por uma ou mais vagas.')
+    const count = await countReferenceInUse(FIELD_MAP[activeTab], id)
+    if (count > 0) {
+      toast.error(`Não é possível excluir: este registro está em uso por ${count} vaga(s).`)
       return
     }
     if (!confirm('Excluir este registro?')) return

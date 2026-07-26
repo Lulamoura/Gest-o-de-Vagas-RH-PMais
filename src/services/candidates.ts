@@ -2,7 +2,7 @@ import pb from '@/lib/pocketbase/client'
 import { CandidateRecord } from '@/types'
 
 const EXPAND =
-  'vacancy_id.cliente,vacancy_id.cargo,vacancy_id.cidade,vacancy_id.tipo_vaga,vacancy_id.responsavel_rh'
+  'vacancy_id,vacancy_id.cliente,vacancy_id.cargo,vacancy_id.cidade,vacancy_id.tipo_vaga,vacancy_id.tipo_contrato,vacancy_id.responsavel_rh'
 
 export const getCandidates = async (vacancyId?: string) => {
   if (vacancyId) {

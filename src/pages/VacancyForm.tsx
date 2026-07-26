@@ -6,12 +6,14 @@ import { getClientes } from '@/services/clientes'
 import { getCargos } from '@/services/cargos'
 import { getCidades } from '@/services/cidades'
 import { getTiposVaga } from '@/services/tipos_vaga'
+import { getTiposContrato } from '@/services/tipos_contrato'
 import {
   UserRecord,
   ClienteRecord,
   CargoRecord,
   CidadeRecord,
   TipoVagaRecord,
+  TipoContratoRecord,
   VacancyStatus,
   VacancyPriority,
 } from '@/types'
@@ -44,6 +46,8 @@ export default function VacancyForm() {
   const [cargosList, setCargosList] = useState<CargoRecord[]>([])
   const [cidadesList, setCidadesList] = useState<CidadeRecord[]>([])
   const [tiposVagaList, setTiposVagaList] = useState<TipoVagaRecord[]>([])
+  const [tiposContratoList, setTiposContratoList] = useState<TipoContratoRecord[]>([])
+  const [tipoContrato, setTipoContrato] = useState('')
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(isEditing)
 
@@ -81,22 +85,28 @@ export default function VacancyForm() {
     () => tiposVagaList.map((t) => ({ value: t.id, label: t.nome })),
     [tiposVagaList],
   )
+  const tipoContratoOptions = useMemo(
+    () => tiposContratoList.map((t) => ({ value: t.id, label: t.nome })),
+    [tiposContratoList],
+  )
 
   useEffect(() => {
     const loadInitial = async () => {
       try {
-        const [uList, clList, cgList, cdList, tvList] = await Promise.all([
+        const [uList, clList, cgList, cdList, tvList, tcList] = await Promise.all([
           getUsers(),
           getClientes(),
           getCargos(),
           getCidades(),
           getTiposVaga(),
+          getTiposContrato(),
         ])
         setUsersList(uList)
         setClientesList(clList)
         setCargosList(cgList)
         setCidadesList(cdList)
         setTiposVagaList(tvList)
+        setTiposContratoList(tcList)
 
         if (!responsavelRh && user) setResponsavelRh(user.id)
 
@@ -107,6 +117,7 @@ export default function VacancyForm() {
           setCidade(vaga.cidade || '')
           setQuantidadeVagas(vaga.quantidade_vagas || 1)
           setTipoVaga(vaga.tipo_vaga || '')
+          setTipoContrato(vaga.tipo_contrato || '')
           setDataAbertura(vaga.data_abertura ? vaga.data_abertura.split('T')[0] : '')
           setDataFechamento(vaga.data_fechamento ? vaga.data_fechamento.split('T')[0] : '')
           setDataCancelamento(vaga.data_cancelamento ? vaga.data_cancelamento.split('T')[0] : '')
@@ -151,6 +162,7 @@ export default function VacancyForm() {
       cidade: cidade || null,
       quantidade_vagas: Number(quantidadeVagas),
       tipo_vaga: tipoVaga || null,
+      tipo_contrato: tipoContrato || null,
       data_abertura: dataAbertura ? new Date(dataAbertura).toISOString() : undefined,
       data_fechamento: dataFechamento ? new Date(dataFechamento).toISOString() : undefined,
       data_cancelamento: dataCancelamento ? new Date(dataCancelamento).toISOString() : undefined,
@@ -279,6 +291,18 @@ export default function VacancyForm() {
                   placeholder="Selecionar tipo..."
                   searchPlaceholder="Buscar tipo..."
                   emptyText="Nenhum tipo cadastrado."
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-slate-700">Tipo de Contrato</Label>
+                <Combobox
+                  options={tipoContratoOptions}
+                  value={tipoContrato}
+                  onChange={setTipoContrato}
+                  placeholder="Selecionar tipo de contrato..."
+                  searchPlaceholder="Buscar tipo de contrato..."
+                  emptyText="Nenhum tipo de contrato cadastrado."
                 />
               </div>
 
