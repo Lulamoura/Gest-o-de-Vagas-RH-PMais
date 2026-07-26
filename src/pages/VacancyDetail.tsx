@@ -214,6 +214,13 @@ export default function VacancyDetail() {
     }
   }
 
+  const averageRank = useMemo(() => {
+    const ranked = candidates.filter((c) => c.rank != null)
+    if (ranked.length === 0) return 0
+    const total = ranked.reduce((acc, c) => acc + (c.rank || 0), 0)
+    return Math.round((total / ranked.length) * 10) / 10
+  }, [candidates])
+
   if (loading || !vaga) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -223,13 +230,6 @@ export default function VacancyDetail() {
   }
 
   const currentStageIndex = VACANCY_PIPELINE_STAGES.indexOf(vaga.status_vaga)
-
-  const averageRank = useMemo(() => {
-    const ranked = candidates.filter((c) => c.rank != null)
-    if (ranked.length === 0) return 0
-    const total = ranked.reduce((acc, c) => acc + (c.rank || 0), 0)
-    return Math.round((total / ranked.length) * 10) / 10
-  }, [candidates])
 
   return (
     <div className="space-y-6">
