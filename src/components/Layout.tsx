@@ -64,7 +64,7 @@ export function Layout() {
   return (
     <div className="min-h-screen bg-slate-50 flex">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 bg-slate-900 text-slate-100 border-r border-slate-800 fixed inset-y-0 z-30">
+      <aside className="hidden lg:flex flex-col w-64 bg-slate-900 text-slate-100 border-r border-slate-800 fixed inset-y-0 z-30 print:hidden">
         <div className="p-5 border-b border-slate-800 flex items-center space-x-3">
           <div className="h-10 w-10 rounded-xl bg-indigo-600 flex items-center justify-center font-black text-white text-xl shadow-md">
             P+
@@ -141,9 +141,9 @@ export function Layout() {
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-w-0">
+      <div className="flex-1 lg:ml-64 flex flex-col min-w-0 print:ml-0">
         {/* Header */}
-        <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200 h-16 px-4 lg:px-8 flex items-center justify-between shadow-2xs">
+        <header className="sticky top-0 z-20 bg-white/95 backdrop-blur border-b border-slate-200 h-16 px-4 lg:px-8 flex items-center justify-between shadow-2xs print:hidden">
           <div className="flex items-center space-x-3">
             <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
               <SheetTrigger asChild>
@@ -250,12 +250,12 @@ export function Layout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto animate-fade-in">
+        <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto animate-fade-in print:max-w-none print:p-0">
           <Outlet />
         </main>
 
         {/* Footer */}
-        <footer className="border-t border-slate-200 bg-white py-4 px-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <footer className="border-t border-slate-200 bg-white py-4 px-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 print:hidden">
           <span>PMais RH v1.0 — Módulo de Gestão de Vagas e Indicadores</span>
           <span className="text-slate-400">Suporte Técnico: suporte@pmaisservicos.com.br</span>
         </footer>

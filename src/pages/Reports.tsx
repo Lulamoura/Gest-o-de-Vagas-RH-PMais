@@ -30,7 +30,8 @@ import {
   TableBody,
   TableCell,
 } from '@/components/ui/table'
-import { Filter, Download, FileText, XCircle } from 'lucide-react'
+import { Filter, Download, FileText, XCircle, FileDown } from 'lucide-react'
+import { renderStarsAsText, getFilterSummary } from '@/lib/print-utils'
 import { toast } from 'sonner'
 
 interface ReportRow {
@@ -42,6 +43,8 @@ interface ReportRow {
   statusCandidato: string
   ranking: string
   custoTotal: string
+  tipoContrato: string
+  rankValue: number | null
 }
 
 export default function Reports() {
@@ -115,6 +118,8 @@ export default function Reports() {
           statusCandidato: '—',
           ranking: '—',
           custoTotal: formatCurrency(0),
+          tipoContrato: v.expand?.tipo_contrato?.nome || '—',
+          rankValue: null,
         })
       } else {
         cands.forEach((c) => {
@@ -132,6 +137,8 @@ export default function Reports() {
             statusCandidato: c.status_candidato,
             ranking: c.rank != null ? `${c.rank}/5` : '—',
             custoTotal: formatCurrency(total),
+            tipoContrato: v.expand?.tipo_contrato?.nome || '—',
+            rankValue: c.rank ?? null,
           })
         })
       }
@@ -178,23 +185,33 @@ export default function Reports() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs print:hidden">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Relatórios</h2>
           <p className="text-xs text-slate-500 mt-0.5">
             Exporte e analise dados de vagas e candidatos por período e cliente.
           </p>
         </div>
-        <Button
-          onClick={handleExport}
-          disabled={reportRows.length === 0}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm disabled:opacity-50"
-        >
-          <Download className="h-4 w-4 mr-2" /> Exportar CSV
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={handleExport}
+            disabled={reportRows.length === 0}
+            className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm disabled:opacity-50"
+          >
+            <Download className="h-4 w-4 mr-2" /> Exportar CSV
+          </Button>
+          <Button
+            onClick={() => window.print()}
+            disabled={reportRows.length === 0}
+            variant="outline"
+            className="border-slate-200 disabled:opacity-50"
+          >
+            <FileDown className="h-4 w-4 mr-2" /> Exportar em PDF
+          </Button>
+        </div>
       </div>
 
-      <Card className="border-slate-200 shadow-2xs">
+      <Card className="border-slate-200 shadow-2xs print:hidden">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
             <Filter className="h-4 w-4 text-slate-500" />
@@ -266,7 +283,7 @@ export default function Reports() {
         </CardContent>
       </Card>
 
-      <Card className="border-slate-200 shadow-2xs">
+      <Card className="border-slate-200 shadow-2xs print:hidden">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-bold text-slate-900 flex items-center space-x-2">
             <FileText className="h-5 w-5 text-indigo-600" />
@@ -345,6 +362,42 @@ export default function Reports() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="hidden print:block space-y-4">
+        <div className="border-b-2 border-slate-900 pb-3">
+          <h1 className="text-xl font-bold text-slate-900">Relatório de Vagas e Candidatos</h1>
+          <p className="text-[10pt] text-slate-600 mt-1">
+            {getFilterSummary(monthFilter, periodStart, periodEnd, clientFilter, clientesList)}
+          </p>
+          <p className="text-[10pt] text-slate-600">Total de registros: {reportRows.length}</p>
+        </div>
+        <table className="w-full text-[10pt] border-collapse">
+          <thead>
+            <tr className="border-b border-slate-400">
+              <th className="text-left py-1.5 px-2 font-semibold">Nome do Candidato</th>
+              <th className="text-left py-1.5 px-2 font-semibold">Vaga</th>
+              <th className="text-left py-1.5 px-2 font-semibold">Cliente</th>
+              <th className="text-left py-1.5 px-2 font-semibold">Cargo</th>
+              <th className="text-left py-1.5 px-2 font-semibold">Tipo de Contrato</th>
+              <th className="text-center py-1.5 px-2 font-semibold">Ranking</th>
+              <th className="text-left py-1.5 px-2 font-semibold">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {reportRows.map((row, i) => (
+              <tr key={i} className="border-b border-slate-200">
+                <td className="py-1 px-2">{row.candidato}</td>
+                <td className="py-1 px-2">{row.statusVaga}</td>
+                <td className="py-1 px-2">{row.cliente}</td>
+                <td className="py-1 px-2">{row.cargo}</td>
+                <td className="py-1 px-2">{row.tipoContrato}</td>
+                <td className="py-1 px-2 text-center">{renderStarsAsText(row.rankValue)}</td>
+                <td className="py-1 px-2">{row.statusCandidato}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

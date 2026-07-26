@@ -40,8 +40,10 @@ import {
   Star,
   Filter,
   XCircle,
+  FileDown,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
+import { getFilterSummary } from '@/lib/print-utils'
 import {
   PieChart,
   Pie,
@@ -240,7 +242,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs print:hidden">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Visão Geral de RH</h2>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -258,11 +260,21 @@ export default function Dashboard() {
               <BarChart2 className="h-4 w-4 mr-2" /> Exportar Relatório
             </Link>
           </Button>
+          <Button onClick={() => window.print()} variant="outline" className="border-slate-200">
+            <FileDown className="h-4 w-4 mr-2" /> Exportar em PDF
+          </Button>
         </div>
       </div>
 
+      <div className="hidden print:block mb-4 border-b-2 border-slate-900 pb-3">
+        <h1 className="text-xl font-bold text-slate-900">Dashboard de RH — PMais</h1>
+        <p className="text-[10pt] text-slate-600 mt-1">
+          {getFilterSummary(monthFilter, periodStart, periodEnd, clientFilter, clientesList)}
+        </p>
+      </div>
+
       {/* Filter Bar */}
-      <Card className="border-slate-200 shadow-2xs">
+      <Card className="border-slate-200 shadow-2xs print:hidden">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
             <Filter className="h-4 w-4 text-slate-500" />
@@ -586,7 +598,12 @@ export default function Dashboard() {
               Vagas abertas com maior tempo no pipeline
             </CardDescription>
           </div>
-          <Button asChild variant="ghost" size="sm" className="text-indigo-600 text-xs">
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="text-indigo-600 text-xs print:hidden"
+          >
             <Link to="/vagas">
               Ver todas <ArrowRight className="h-3.5 w-3.5 ml-1" />
             </Link>
@@ -649,7 +666,12 @@ export default function Dashboard() {
                         {vaga.expand?.responsavel_rh?.name || 'Não atribuído'}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs print:hidden"
+                        >
                           <Link to={`/vagas/${vaga.id}`}>Ver Detalhes</Link>
                         </Button>
                       </TableCell>
