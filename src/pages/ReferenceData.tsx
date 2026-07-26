@@ -3,6 +3,7 @@ import { getClientes, createCliente, updateCliente, deleteCliente } from '@/serv
 import { getCargos, createCargo, updateCargo, deleteCargo } from '@/services/cargos'
 import { getCidades, createCidade, updateCidade, deleteCidade } from '@/services/cidades'
 import { getTiposVaga, createTipoVaga, updateTipoVaga, deleteTipoVaga } from '@/services/tipos_vaga'
+import { checkReferenceInUse } from '@/services/vacancies'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -69,6 +70,13 @@ const CONFIG: Record<
     update: updateTipoVaga,
     del: deleteTipoVaga,
   },
+}
+
+const FIELD_MAP: Record<CollectionKey, string> = {
+  clientes: 'cliente',
+  cargos: 'cargo',
+  cidades: 'cidade',
+  tipos_vaga: 'tipo_vaga',
 }
 
 export default function ReferenceData() {
@@ -147,6 +155,11 @@ export default function ReferenceData() {
   }
 
   const handleDelete = async (id: string) => {
+    const inUse = await checkReferenceInUse(FIELD_MAP[activeTab], id)
+    if (inUse) {
+      toast.error('Não é possível excluir: este registro está em uso por uma ou mais vagas.')
+      return
+    }
     if (!confirm('Excluir este registro?')) return
     try {
       await CONFIG[activeTab].del(id)

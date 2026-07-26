@@ -13,6 +13,7 @@ import VacancyDetail from './pages/VacancyDetail'
 import VacancyForm from './pages/VacancyForm'
 import Candidates from './pages/Candidates'
 import Users from './pages/Users'
+import ReferenceData from './pages/ReferenceData'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/vagas/:id/editar" element={<VacancyForm />} />
               <Route path="/candidatos" element={<Candidates />} />
               <Route path="/usuarios" element={<Users />} />
+              <Route path="/referencias" element={<ReferenceData />} />
               <Route path="/relatorios" element={<Dashboard />} />
             </Route>
           </Route>

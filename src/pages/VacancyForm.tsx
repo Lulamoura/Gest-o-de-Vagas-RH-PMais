@@ -1,10 +1,23 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { createVacancy, getVacancy, updateVacancy } from '@/services/vacancies'
 import { getUsers } from '@/services/users'
-import { UserRecord, VacancyStatus, VacancyPriority, VacancyType } from '@/types'
+import { getClientes } from '@/services/clientes'
+import { getCargos } from '@/services/cargos'
+import { getCidades } from '@/services/cidades'
+import { getTiposVaga } from '@/services/tipos_vaga'
+import {
+  UserRecord,
+  ClienteRecord,
+  CargoRecord,
+  CidadeRecord,
+  TipoVagaRecord,
+  VacancyStatus,
+  VacancyPriority,
+} from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { VACANCY_PIPELINE_STAGES } from '@/lib/status-utils'
+import { Combobox } from '@/components/Combobox'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,15 +40,18 @@ export default function VacancyForm() {
   const { user } = useAuth()
 
   const [usersList, setUsersList] = useState<UserRecord[]>([])
+  const [clientesList, setClientesList] = useState<ClienteRecord[]>([])
+  const [cargosList, setCargosList] = useState<CargoRecord[]>([])
+  const [cidadesList, setCidadesList] = useState<CidadeRecord[]>([])
+  const [tiposVagaList, setTiposVagaList] = useState<TipoVagaRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(isEditing)
 
-  // Form Fields
   const [cliente, setCliente] = useState('')
   const [cargo, setCargo] = useState('')
   const [cidade, setCidade] = useState('')
   const [quantidadeVagas, setQuantidadeVagas] = useState(1)
-  const [tipoVaga, setTipoVaga] = useState<VacancyType>('Efetivo')
+  const [tipoVaga, setTipoVaga] = useState('')
   const [dataAbertura, setDataAbertura] = useState(new Date().toISOString().split('T')[0])
   const [dataFechamento, setDataFechamento] = useState('')
   const [dataCancelamento, setDataCancelamento] = useState('')
@@ -47,26 +63,50 @@ export default function VacancyForm() {
   const [salarioFaixa, setSalarioFaixa] = useState('')
   const [especificacoes, setEspecificacoes] = useState('')
   const [observacoesInternas, setObservacoesInternas] = useState('')
-
-  // Errors
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const clienteOptions = useMemo(
+    () => clientesList.map((c) => ({ value: c.id, label: c.nome })),
+    [clientesList],
+  )
+  const cargoOptions = useMemo(
+    () => cargosList.map((c) => ({ value: c.id, label: c.nome })),
+    [cargosList],
+  )
+  const cidadeOptions = useMemo(
+    () => cidadesList.map((c) => ({ value: c.id, label: c.nome })),
+    [cidadesList],
+  )
+  const tipoVagaOptions = useMemo(
+    () => tiposVagaList.map((t) => ({ value: t.id, label: t.nome })),
+    [tiposVagaList],
+  )
 
   useEffect(() => {
     const loadInitial = async () => {
       try {
-        const uList = await getUsers()
+        const [uList, clList, cgList, cdList, tvList] = await Promise.all([
+          getUsers(),
+          getClientes(),
+          getCargos(),
+          getCidades(),
+          getTiposVaga(),
+        ])
         setUsersList(uList)
-        if (!responsavelRh && user) {
-          setResponsavelRh(user.id)
-        }
+        setClientesList(clList)
+        setCargosList(cgList)
+        setCidadesList(cdList)
+        setTiposVagaList(tvList)
+
+        if (!responsavelRh && user) setResponsavelRh(user.id)
 
         if (isEditing) {
           const vaga = await getVacancy(id)
-          setCliente(vaga.cliente)
-          setCargo(vaga.cargo)
+          setCliente(vaga.cliente || '')
+          setCargo(vaga.cargo || '')
           setCidade(vaga.cidade || '')
           setQuantidadeVagas(vaga.quantidade_vagas || 1)
-          setTipoVaga(vaga.tipo_vaga || 'Efetivo')
+          setTipoVaga(vaga.tipo_vaga || '')
           setDataAbertura(vaga.data_abertura ? vaga.data_abertura.split('T')[0] : '')
           setDataFechamento(vaga.data_fechamento ? vaga.data_fechamento.split('T')[0] : '')
           setDataCancelamento(vaga.data_cancelamento ? vaga.data_cancelamento.split('T')[0] : '')
@@ -79,23 +119,21 @@ export default function VacancyForm() {
           setEspecificacoes(vaga.especificacoes || '')
           setObservacoesInternas(vaga.observacoes_internas || '')
         }
-      } catch (err) {
+      } catch {
         toast.error('Erro ao carregar dados do formulário')
       } finally {
         setFetching(false)
       }
     }
-
     loadInitial()
   }, [id, isEditing])
 
   const validate = () => {
     const errs: Record<string, string> = {}
-    if (!cliente.trim()) errs.cliente = 'Cliente / contrato é obrigatório'
-    if (!cargo.trim()) errs.cargo = 'Cargo é obrigatório'
+    if (!cliente) errs.cliente = 'Cliente é obrigatório'
+    if (!cargo) errs.cargo = 'Cargo é obrigatório'
     if (!statusVaga) errs.statusVaga = 'Status é obrigatório'
     if (!responsavelRh) errs.responsavelRh = 'Responsável RH é obrigatório'
-
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -103,18 +141,16 @@ export default function VacancyForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validate()) {
-      toast.error('Por favor, preencha todos os campos obrigatórios.')
+      toast.error('Preencha todos os campos obrigatórios.')
       return
     }
-
     setLoading(true)
-
     const payload = {
       cliente,
       cargo,
-      cidade,
+      cidade: cidade || null,
       quantidade_vagas: Number(quantidadeVagas),
-      tipo_vaga: tipoVaga,
+      tipo_vaga: tipoVaga || null,
       data_abertura: dataAbertura ? new Date(dataAbertura).toISOString() : undefined,
       data_fechamento: dataFechamento ? new Date(dataFechamento).toISOString() : undefined,
       data_cancelamento: dataCancelamento ? new Date(dataCancelamento).toISOString() : undefined,
@@ -127,7 +163,6 @@ export default function VacancyForm() {
       especificacoes,
       observacoes_internas: observacoesInternas,
     }
-
     try {
       if (isEditing) {
         await updateVacancy(id, payload)
@@ -137,7 +172,7 @@ export default function VacancyForm() {
         toast.success('Vaga criada com sucesso!')
       }
       navigate('/vagas')
-    } catch (err) {
+    } catch {
       toast.error('Erro ao salvar vaga')
     } finally {
       setLoading(false)
@@ -154,11 +189,9 @@ export default function VacancyForm() {
 
   return (
     <div className="space-y-6 max-w-4xl mx-auto">
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => navigate('/vagas')} className="text-slate-600">
-          <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para Vagas
-        </Button>
-      </div>
+      <Button variant="ghost" onClick={() => navigate('/vagas')} className="text-slate-600">
+        <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para Vagas
+      </Button>
 
       <Card className="border-slate-200 shadow-md">
         <CardHeader className="bg-slate-50/80 border-b border-slate-200">
@@ -171,7 +204,7 @@ export default function VacancyForm() {
                 {isEditing ? 'Editar Vaga' : 'Nova Vaga de Emprego'}
               </CardTitle>
               <p className="text-xs text-slate-500">
-                Preencha os detalhes e especificações do perfil solicitado pelo cliente
+                Preencha os detalhes e especificações do perfil solicitado
               </p>
             </div>
           </div>
@@ -179,45 +212,48 @@ export default function VacancyForm() {
 
         <form onSubmit={handleSubmit}>
           <CardContent className="p-6 space-y-6">
-            {/* Essential Info */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="cliente" className="text-xs font-bold text-slate-700">
-                  Cliente / Contrato <span className="text-rose-500">*</span>
+                <Label className="text-xs font-bold text-slate-700">
+                  Cliente <span className="text-rose-500">*</span>
                 </Label>
-                <Input
-                  id="cliente"
-                  placeholder="Ex: Petrobras, Suzano, Ambev"
+                <Combobox
+                  options={clienteOptions}
                   value={cliente}
-                  onChange={(e) => setCliente(e.target.value)}
+                  onChange={setCliente}
+                  placeholder="Selecionar cliente..."
+                  searchPlaceholder="Buscar cliente..."
+                  emptyText="Nenhum cliente cadastrado."
                   className={errors.cliente ? 'border-rose-500' : ''}
                 />
                 {errors.cliente && <p className="text-[11px] text-rose-500">{errors.cliente}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="cargo" className="text-xs font-bold text-slate-700">
-                  Cargo da Vaga <span className="text-rose-500">*</span>
+                <Label className="text-xs font-bold text-slate-700">
+                  Cargo <span className="text-rose-500">*</span>
                 </Label>
-                <Input
-                  id="cargo"
-                  placeholder="Ex: Engenheiro de Processos Sênior"
+                <Combobox
+                  options={cargoOptions}
                   value={cargo}
-                  onChange={(e) => setCargo(e.target.value)}
+                  onChange={setCargo}
+                  placeholder="Selecionar cargo..."
+                  searchPlaceholder="Buscar cargo..."
+                  emptyText="Nenhum cargo cadastrado."
                   className={errors.cargo ? 'border-rose-500' : ''}
                 />
                 {errors.cargo && <p className="text-[11px] text-rose-500">{errors.cargo}</p>}
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="cidade" className="text-xs font-semibold text-slate-700">
-                  Cidade / Estado
-                </Label>
-                <Input
-                  id="cidade"
-                  placeholder="Ex: Rio de Janeiro - RJ"
+                <Label className="text-xs font-semibold text-slate-700">Cidade / Estado</Label>
+                <Combobox
+                  options={cidadeOptions}
                   value={cidade}
-                  onChange={(e) => setCidade(e.target.value)}
+                  onChange={setCidade}
+                  placeholder="Selecionar cidade..."
+                  searchPlaceholder="Buscar cidade..."
+                  emptyText="Nenhuma cidade cadastrada."
                 />
               </div>
 
@@ -236,18 +272,14 @@ export default function VacancyForm() {
 
               <div className="space-y-1.5">
                 <Label className="text-xs font-semibold text-slate-700">Tipo de Vaga</Label>
-                <Select value={tipoVaga} onValueChange={(v) => setTipoVaga(v as VacancyType)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione o tipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Efetivo">Efetivo</SelectItem>
-                    <SelectItem value="Temporário">Temporário</SelectItem>
-                    <SelectItem value="Estágio">Estágio</SelectItem>
-                    <SelectItem value="Terceirizado">Terceirizado</SelectItem>
-                    <SelectItem value="PJ">PJ</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Combobox
+                  options={tipoVagaOptions}
+                  value={tipoVaga}
+                  onChange={setTipoVaga}
+                  placeholder="Selecionar tipo..."
+                  searchPlaceholder="Buscar tipo..."
+                  emptyText="Nenhum tipo cadastrado."
+                />
               </div>
 
               <div className="space-y-1.5">
@@ -263,7 +295,6 @@ export default function VacancyForm() {
               </div>
             </div>
 
-            {/* Workflow & Responsibles */}
             <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-xs font-bold text-slate-700">
@@ -318,6 +349,9 @@ export default function VacancyForm() {
                     ))}
                   </SelectContent>
                 </Select>
+                {errors.responsavelRh && (
+                  <p className="text-[11px] text-rose-500">{errors.responsavelRh}</p>
+                )}
               </div>
 
               <div className="space-y-1.5 sm:col-span-3">
@@ -333,7 +367,6 @@ export default function VacancyForm() {
               </div>
             </div>
 
-            {/* Dates */}
             <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-4 gap-4">
               <div className="space-y-1.5">
                 <Label htmlFor="dataAbertura" className="text-xs font-semibold text-slate-700">
@@ -346,7 +379,6 @@ export default function VacancyForm() {
                   onChange={(e) => setDataAbertura(e.target.value)}
                 />
               </div>
-
               <div className="space-y-1.5">
                 <Label htmlFor="prazoDesejado" className="text-xs font-semibold text-slate-700">
                   Prazo Desejado
@@ -358,7 +390,6 @@ export default function VacancyForm() {
                   onChange={(e) => setPrazoDesejado(e.target.value)}
                 />
               </div>
-
               <div className="space-y-1.5">
                 <Label htmlFor="dataFechamento" className="text-xs font-semibold text-slate-700">
                   Data de Fechamento
@@ -370,7 +401,6 @@ export default function VacancyForm() {
                   onChange={(e) => setDataFechamento(e.target.value)}
                 />
               </div>
-
               <div className="space-y-1.5">
                 <Label htmlFor="dataCancelamento" className="text-xs font-semibold text-slate-700">
                   Data de Cancelamento
@@ -384,7 +414,6 @@ export default function VacancyForm() {
               </div>
             </div>
 
-            {/* Text Areas */}
             <div className="pt-4 border-t border-slate-100 space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="especificacoes" className="text-xs font-semibold text-slate-700">
@@ -398,7 +427,6 @@ export default function VacancyForm() {
                   onChange={(e) => setEspecificacoes(e.target.value)}
                 />
               </div>
-
               <div className="space-y-1.5">
                 <Label htmlFor="observacoes" className="text-xs font-semibold text-slate-700">
                   Observações Internas (RH)

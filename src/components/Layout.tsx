@@ -15,6 +15,7 @@ import {
   Bell,
   ShieldCheck,
   ChevronRight,
+  Database,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +30,7 @@ export function Layout() {
     { label: 'Vagas', path: '/vagas', icon: Briefcase },
     { label: 'Candidatos', path: '/candidatos', icon: Users },
     ...(isAdmin ? [{ label: 'Usuários', path: '/usuarios', icon: UserCheck }] : []),
+    ...(isAdmin ? [{ label: 'Referências', path: '/referencias', icon: Database }] : []),
     { label: 'Relatórios', path: '/relatorios', icon: BarChart3 },
   ]
 

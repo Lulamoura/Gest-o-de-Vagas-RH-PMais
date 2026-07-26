@@ -31,6 +31,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { toast } from 'sonner'
 import { UserCheck, PlusCircle, Pencil, Trash2, Shield, Lock } from 'lucide-react'
 
@@ -49,6 +50,7 @@ export default function Users() {
   const [password, setPassword] = useState('')
   const [profile, setProfile] = useState<UserProfile>('operator')
   const [saving, setSaving] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
 
   const loadData = async () => {
     try {
@@ -88,6 +90,7 @@ export default function Users() {
     setEmail('')
     setPassword('')
     setProfile('operator')
+    setFieldErrors({})
     setModalOpen(true)
   }
 
@@ -97,6 +100,7 @@ export default function Users() {
     setEmail(u.email)
     setPassword('')
     setProfile(u.profile || 'operator')
+    setFieldErrors({})
     setModalOpen(true)
   }
 
@@ -124,7 +128,8 @@ export default function Users() {
       setModalOpen(false)
       loadData()
     } catch (err) {
-      toast.error('Erro ao salvar usuário')
+      setFieldErrors(extractFieldErrors(err))
+      toast.error(getErrorMessage(err))
     } finally {
       setSaving(false)
     }
@@ -250,6 +255,7 @@ export default function Users() {
                 Nome
               </Label>
               <Input id="uName" value={name} onChange={(e) => setName(e.target.value)} required />
+              {fieldErrors.name && <p className="text-[11px] text-rose-500">{fieldErrors.name}</p>}
             </div>
 
             <div className="space-y-1.5">
@@ -264,6 +270,9 @@ export default function Users() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
+              {fieldErrors.email && (
+                <p className="text-[11px] text-rose-500">{fieldErrors.email}</p>
+              )}
             </div>
 
             {!editingUser && (
@@ -279,6 +288,9 @@ export default function Users() {
                   placeholder="Mínimo 8 caracteres"
                   required
                 />
+                {fieldErrors.password && (
+                  <p className="text-[11px] text-rose-500">{fieldErrors.password}</p>
+                )}
               </div>
             )}
 

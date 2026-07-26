@@ -33,6 +33,7 @@ import {
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
+import { CurrencyInput } from '@/components/CurrencyInput'
 import { PlusCircle, Search, Pencil, Users, Briefcase, Filter } from 'lucide-react'
 
 export default function Candidates() {
@@ -408,49 +409,25 @@ export default function Candidates() {
                   <Label htmlFor="c1" className="text-[10px] text-slate-500">
                     Consultas
                   </Label>
-                  <Input
-                    id="c1"
-                    type="number"
-                    min={0}
-                    value={custoConsultas}
-                    onChange={(e) => setCustoConsultas(Number(e.target.value))}
-                  />
+                  <CurrencyInput id="c1" value={custoConsultas} onChange={setCustoConsultas} />
                 </div>
                 <div>
                   <Label htmlFor="c2" className="text-[10px] text-slate-500">
                     Exames
                   </Label>
-                  <Input
-                    id="c2"
-                    type="number"
-                    min={0}
-                    value={custoExames}
-                    onChange={(e) => setCustoExames(Number(e.target.value))}
-                  />
+                  <CurrencyInput id="c2" value={custoExames} onChange={setCustoExames} />
                 </div>
                 <div>
                   <Label htmlFor="c3" className="text-[10px] text-slate-500">
                     Testes
                   </Label>
-                  <Input
-                    id="c3"
-                    type="number"
-                    min={0}
-                    value={custoTestes}
-                    onChange={(e) => setCustoTestes(Number(e.target.value))}
-                  />
+                  <CurrencyInput id="c3" value={custoTestes} onChange={setCustoTestes} />
                 </div>
                 <div>
                   <Label htmlFor="c4" className="text-[10px] text-slate-500">
                     Extras
                   </Label>
-                  <Input
-                    id="c4"
-                    type="number"
-                    min={0}
-                    value={custoExtras}
-                    onChange={(e) => setCustoExtras(Number(e.target.value))}
-                  />
+                  <CurrencyInput id="c4" value={custoExtras} onChange={setCustoExtras} />
                 </div>
               </div>
             </div>
