@@ -215,7 +215,7 @@ export default function Candidates() {
                 <SelectItem value="ALL">Todas as Vagas</SelectItem>
                 {vacancies.map((v) => (
                   <SelectItem key={v.id} value={v.id}>
-                    {v.cargo} ({v.cliente})
+                    {v.expand?.cargo?.nome || v.cargo} ({v.expand?.cliente?.nome || v.cliente})
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -287,7 +287,7 @@ export default function Candidates() {
                         <div className="flex items-center space-x-1">
                           <Briefcase className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                           <span className="font-medium truncate max-w-[180px]">
-                            {cand.expand?.vacancy_id?.cargo || 'Vaga não encontrada'}
+                            {cand.expand?.vacancy_id?.expand?.cargo?.nome || 'Vaga não encontrada'}
                           </span>
                         </div>
                       </TableCell>
@@ -375,7 +375,7 @@ export default function Candidates() {
                 <SelectContent>
                   {vacancies.map((v) => (
                     <SelectItem key={v.id} value={v.id}>
-                      {v.cargo} ({v.cliente})
+                      {v.expand?.cargo?.nome || v.cargo} ({v.expand?.cliente?.nome || v.cliente})
                     </SelectItem>
                   ))}
                 </SelectContent>

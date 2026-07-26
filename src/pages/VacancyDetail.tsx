@@ -247,7 +247,9 @@ export default function VacancyDetail() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div>
               <div className="flex items-center space-x-3">
-                <h1 className="text-2xl font-bold text-slate-900">{vaga.cargo}</h1>
+                <h1 className="text-2xl font-bold text-slate-900">
+                  {vaga.expand?.cargo?.nome || '—'}
+                </h1>
                 <Badge variant="outline" className={getVacancyStatusBadgeClass(vaga.status_vaga)}>
                   {vaga.status_vaga}
                 </Badge>
@@ -258,11 +260,11 @@ export default function VacancyDetail() {
               <div className="flex items-center space-x-4 text-xs text-slate-500 mt-1">
                 <span className="flex items-center space-x-1">
                   <Building2 className="h-3.5 w-3.5" />
-                  <strong className="text-slate-700">{vaga.cliente}</strong>
+                  <strong className="text-slate-700">{vaga.expand?.cliente?.nome || '—'}</strong>
                 </span>
-                {vaga.cidade && <span>• {vaga.cidade}</span>}
+                {vaga.expand?.cidade?.nome && <span>• {vaga.expand?.cidade?.nome}</span>}
                 <span>
-                  • {vaga.quantidade_vagas} vaga(s) ({vaga.tipo_vaga || 'Efetivo'})
+                  • {vaga.quantidade_vagas} vaga(s) ({vaga.expand?.tipo_vaga?.nome || 'Efetivo'})
                 </span>
               </div>
             </div>
@@ -577,7 +579,8 @@ export default function VacancyDetail() {
           <DialogHeader>
             <DialogTitle>Adicionar Candidato à Vaga</DialogTitle>
             <DialogDescription>
-              Vincular novo candidato para <strong className="text-slate-900">{vaga.cargo}</strong>
+              Vincular novo candidato para{' '}
+              <strong className="text-slate-900">{vaga.expand?.cargo?.nome || '—'}</strong>
             </DialogDescription>
           </DialogHeader>
 

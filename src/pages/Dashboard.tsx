@@ -409,12 +409,12 @@ export default function Dashboard() {
                   stalledVacancies.map((vaga) => (
                     <TableRow key={vaga.id} className="hover:bg-slate-50">
                       <TableCell className="font-semibold text-slate-900 text-sm">
-                        {vaga.cargo}
+                        {vaga.expand?.cargo?.nome || '—'}
                       </TableCell>
                       <TableCell className="text-slate-600 text-sm">
                         <div className="flex items-center space-x-1.5">
                           <Building2 className="h-3.5 w-3.5 text-slate-400" />
-                          <span>{vaga.cliente}</span>
+                          <span>{vaga.expand?.cliente?.nome || '—'}</span>
                         </div>
                       </TableCell>
                       <TableCell>

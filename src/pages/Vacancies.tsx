@@ -91,17 +91,35 @@ export default function Vacancies() {
   })
 
   const uniqueClients = useMemo(() => {
-    const set = new Set(vacancies.map((v) => v.cliente).filter(Boolean))
-    return Array.from(set)
+    const map = new Map<string, string>()
+    vacancies.forEach((v) => {
+      if (v.cliente) {
+        map.set(v.cliente, v.expand?.cliente?.nome || v.cliente)
+      }
+    })
+    return Array.from(map, ([id, name]) => ({ id, name }))
+  }, [vacancies])
+
+  const uniqueTypes = useMemo(() => {
+    const map = new Map<string, string>()
+    vacancies.forEach((v) => {
+      if (v.tipo_vaga) {
+        map.set(v.tipo_vaga, v.expand?.tipo_vaga?.nome || v.tipo_vaga)
+      }
+    })
+    return Array.from(map, ([id, name]) => ({ id, name }))
   }, [vacancies])
 
   const filteredVacancies = useMemo(() => {
     return vacancies.filter((v) => {
+      const cargoNome = v.expand?.cargo?.nome || ''
+      const clienteNome = v.expand?.cliente?.nome || ''
+      const cidadeNome = v.expand?.cidade?.nome || ''
       const matchesSearch =
         search === '' ||
-        v.cargo.toLowerCase().includes(search.toLowerCase()) ||
-        v.cliente.toLowerCase().includes(search.toLowerCase()) ||
-        (v.cidade && v.cidade.toLowerCase().includes(search.toLowerCase()))
+        cargoNome.toLowerCase().includes(search.toLowerCase()) ||
+        clienteNome.toLowerCase().includes(search.toLowerCase()) ||
+        cidadeNome.toLowerCase().includes(search.toLowerCase())
 
       const matchesClient = clientFilter === 'ALL' || v.cliente === clientFilter
       const matchesStatus = statusFilter === 'ALL' || v.status_vaga === statusFilter
@@ -206,8 +224,8 @@ export default function Vacancies() {
               <SelectContent>
                 <SelectItem value="ALL">Todos os Clientes</SelectItem>
                 {uniqueClients.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.name}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -248,11 +266,11 @@ export default function Vacancies() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos os Tipos</SelectItem>
-                <SelectItem value="Efetivo">Efetivo</SelectItem>
-                <SelectItem value="Temporário">Temporário</SelectItem>
-                <SelectItem value="Estágio">Estágio</SelectItem>
-                <SelectItem value="Terceirizado">Terceirizado</SelectItem>
-                <SelectItem value="PJ">PJ</SelectItem>
+                {uniqueTypes.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -313,11 +331,15 @@ export default function Vacancies() {
                   return (
                     <TableRow key={vaga.id} className="hover:bg-slate-50/80 transition-colors">
                       <TableCell>
-                        <div className="font-bold text-slate-900 text-sm">{vaga.cargo}</div>
+                        <div className="font-bold text-slate-900 text-sm">
+                          {vaga.expand?.cargo?.nome || '—'}
+                        </div>
                         <div className="text-xs text-slate-500 flex items-center space-x-1 mt-0.5">
                           <Building2 className="h-3 w-3" />
-                          <span>{vaga.cliente}</span>
-                          {vaga.cidade && <span className="text-slate-400">• {vaga.cidade}</span>}
+                          <span>{vaga.expand?.cliente?.nome || '—'}</span>
+                          {vaga.expand?.cidade?.nome && (
+                            <span className="text-slate-400">• {vaga.expand?.cidade?.nome}</span>
+                          )}
                         </div>
                       </TableCell>
 
@@ -417,8 +439,12 @@ export default function Vacancies() {
             <CardContent className="p-4 space-y-3">
               <div className="flex items-start justify-between">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-base">{vaga.cargo}</h3>
-                  <p className="text-xs text-slate-500 font-medium">{vaga.cliente}</p>
+                  <h3 className="font-bold text-slate-900 text-base">
+                    {vaga.expand?.cargo?.nome || '—'}
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    {vaga.expand?.cliente?.nome || '—'}
+                  </p>{' '}
                 </div>
                 <Badge variant="outline" className={getVacancyStatusBadgeClass(vaga.status_vaga)}>
                   {vaga.status_vaga}
@@ -466,8 +492,10 @@ export default function Vacancies() {
             <DialogTitle>Mover Pipeline de Vaga</DialogTitle>
             <DialogDescription>
               Altere a etapa atual da vaga{' '}
-              <strong className="text-slate-900">{selectedVacancy?.cargo}</strong> (
-              {selectedVacancy?.cliente})
+              <strong className="text-slate-900">
+                {selectedVacancy?.expand?.cargo?.nome || '—'}
+              </strong>{' '}
+              ({selectedVacancy?.expand?.cliente?.nome || '—'})
             </DialogDescription>
           </DialogHeader>
 
