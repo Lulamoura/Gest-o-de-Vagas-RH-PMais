@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-26T14:26:45.300Z",
+  "generatedAt": "2026-07-26T15:10:51.469Z",
   "collections": [
     {
       "name": "users",
@@ -63,35 +63,10 @@
       },
       "fields": [
         {
-          "name": "cliente",
-          "type": "text",
-          "required": true,
-          "system": false
-        },
-        {
-          "name": "cargo",
-          "type": "text",
-          "required": true,
-          "system": false
-        },
-        {
-          "name": "cidade",
-          "type": "text",
-          "required": false,
-          "system": false
-        },
-        {
           "name": "quantidade_vagas",
           "type": "number",
           "required": false,
           "system": false
-        },
-        {
-          "name": "tipo_vaga",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": ["Efetivo", "Temporário", "Estágio", "Terceirizado", "PJ"]
         },
         {
           "name": "data_abertura",
@@ -183,6 +158,34 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "cliente",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "cargo",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "cargos"
+        },
+        {
+          "name": "cidade",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "cidades"
+        },
+        {
+          "name": "tipo_vaga",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "tipos_vaga"
         }
       ],
       "indexes": [
@@ -344,6 +347,142 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_pipeline_vacancy ON pipeline_history (vacancy_id)"]
+    },
+    {
+      "name": "clientes",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.profile = 'admin'",
+        "update": "@request.auth.profile = 'admin'",
+        "delete": "@request.auth.profile = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "cargos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.profile = 'admin'",
+        "update": "@request.auth.profile = 'admin'",
+        "delete": "@request.auth.profile = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "cidades",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.profile = 'admin'",
+        "update": "@request.auth.profile = 'admin'",
+        "delete": "@request.auth.profile = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "tipos_vaga",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.profile = 'admin'",
+        "update": "@request.auth.profile = 'admin'",
+        "delete": "@request.auth.profile = 'admin'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

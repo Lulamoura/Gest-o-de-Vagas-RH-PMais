@@ -20,14 +20,28 @@ export type VacancyStatus =
 
 export type VacancyPriority = 'Alta' | 'Média' | 'Baixa'
 
-export type VacancyType = 'Efetivo' | 'Temporário' | 'Estágio' | 'Terceirizado' | 'PJ'
+export interface ClienteRecord extends RecordModel {
+  nome: string
+}
+
+export interface CargoRecord extends RecordModel {
+  nome: string
+}
+
+export interface CidadeRecord extends RecordModel {
+  nome: string
+}
+
+export interface TipoVagaRecord extends RecordModel {
+  nome: string
+}
 
 export interface VacancyRecord extends RecordModel {
   cliente: string
   cargo: string
   cidade?: string
   quantidade_vagas: number
-  tipo_vaga?: VacancyType
+  tipo_vaga?: string
   data_abertura?: string
   data_fechamento?: string
   data_cancelamento?: string
@@ -41,6 +55,10 @@ export interface VacancyRecord extends RecordModel {
   observacoes_internas?: string
   expand?: {
     responsavel_rh?: UserRecord
+    cliente?: ClienteRecord
+    cargo?: CargoRecord
+    cidade?: CidadeRecord
+    tipo_vaga?: TipoVagaRecord
   }
 }
 
