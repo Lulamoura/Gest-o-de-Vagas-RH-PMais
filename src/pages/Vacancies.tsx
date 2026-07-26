@@ -173,7 +173,7 @@ export default function Vacancies() {
         matchesRank &&
         matchesStatusGroup
       )
-    }
+    })
   }, [
     vacancies,
     search,
