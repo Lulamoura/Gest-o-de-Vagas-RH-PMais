@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-26T14:09:53.342Z",
+  "generatedAt": "2026-07-26T14:24:09.850Z",
   "collections": [
     {
       "name": "users",
@@ -29,25 +29,321 @@
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate"
-          ]
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "updated",
           "type": "autodate",
           "required": false,
           "system": false,
-          "autodateTriggers": [
-            "onCreate",
-            "onUpdate"
-          ]
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "profile",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["admin", "operator", "viewer"]
         }
       ],
       "indexes": [
         "CREATE UNIQUE INDEX `idx_tokenKey__pb_users_auth_` ON `users` (`tokenKey`)",
         "CREATE UNIQUE INDEX `idx_email__pb_users_auth_` ON `users` (`email`) WHERE `email` != ''"
       ]
+    },
+    {
+      "name": "vacancies",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "cliente",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cargo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "cidade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "quantidade_vagas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_vaga",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Efetivo", "Temporário", "Estágio", "Terceirizado", "PJ"]
+        },
+        {
+          "name": "data_abertura",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_fechamento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_cancelamento",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_desejado",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "responsavel_rh",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "responsavel_operacional",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_vaga",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Aberta",
+            "Triagem",
+            "Entrevistas",
+            "Pré-Aprovação",
+            "Alocação",
+            "Fechada",
+            "Cancelada"
+          ]
+        },
+        {
+          "name": "prioridade",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Alta", "Média", "Baixa"]
+        },
+        {
+          "name": "salario_faixa",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "especificacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes_internas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_vacancies_status ON vacancies (status_vaga)",
+        "CREATE INDEX idx_vacancies_cliente ON vacancies (cliente)"
+      ]
+    },
+    {
+      "name": "candidates",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "vacancy_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vacancies"
+        },
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_consultas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_exames",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_testes",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "custo_extras",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_candidato",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Em análise do gestor",
+            "Pré-Aprovado",
+            "Integrado",
+            "Desistiu",
+            "Não aprovado",
+            "Rejeitado"
+          ]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_candidates_vacancy ON candidates (vacancy_id)",
+        "CREATE INDEX idx_candidates_status ON candidates (status_candidato)"
+      ]
+    },
+    {
+      "name": "pipeline_history",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "vacancy_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vacancies"
+        },
+        {
+          "name": "usuario_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "status_anterior",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_novo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_mudanca",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_pipeline_vacancy ON pipeline_history (vacancy_id)"]
     }
   ]
 }
