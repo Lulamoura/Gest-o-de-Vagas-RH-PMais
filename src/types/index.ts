@@ -41,6 +41,7 @@ export interface TipoContratoRecord extends RecordModel {
 }
 
 export interface VacancyRecord extends RecordModel {
+  wordpress_job_id?: string
   cliente: string
   cargo: string
   cidade?: string
@@ -102,4 +103,14 @@ export interface PipelineHistoryRecord extends RecordModel {
     usuario_id?: UserRecord
     vacancy_id?: VacancyRecord
   }
+}
+
+export type WordpressImportStatus = 'sucesso' | 'duplicada' | 'erro'
+
+export interface WordpressImportLogRecord extends RecordModel {
+  wordpress_job_id: string
+  origem: string
+  status: WordpressImportStatus
+  mensagem?: string
+  data_hora?: string
 }
