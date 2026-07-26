@@ -20,6 +20,7 @@ import {
   getPriorityBadgeClass,
   VACANCY_PIPELINE_STAGES,
 } from '@/lib/status-utils'
+import { isVacancyInGroup, type VacancyStatusGroup } from '@/lib/vacancy-status-group'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -74,6 +75,7 @@ export default function Vacancies() {
   const [typeFilter, setTypeFilter] = useState('ALL')
   const [contractTypeFilter, setContractTypeFilter] = useState('ALL')
   const [rankFilter, setRankFilter] = useState('ALL')
+  const [vacancyStatusGroup, setVacancyStatusGroup] = useState<VacancyStatusGroup>('Em andamento')
 
   const [selectedVacancy, setSelectedVacancy] = useState<VacancyRecord | null>(null)
   const [newStatus, setNewStatus] = useState<VacancyStatus | ''>('')
@@ -159,6 +161,7 @@ export default function Vacancies() {
       const matchesContractType =
         contractTypeFilter === 'ALL' || v.tipo_contrato === contractTypeFilter
       const matchesRank = !vacancyIdsWithMinRank || vacancyIdsWithMinRank.has(v.id)
+      const matchesStatusGroup = isVacancyInGroup(v.status_vaga, vacancyStatusGroup)
 
       return (
         matchesSearch &&
@@ -167,9 +170,10 @@ export default function Vacancies() {
         matchesPriority &&
         matchesType &&
         matchesContractType &&
-        matchesRank
+        matchesRank &&
+        matchesStatusGroup
       )
-    })
+    }
   }, [
     vacancies,
     search,
@@ -179,8 +183,8 @@ export default function Vacancies() {
     typeFilter,
     contractTypeFilter,
     vacancyIdsWithMinRank,
+    vacancyStatusGroup,
   ])
-
   const handleMovePipeline = async () => {
     if (!selectedVacancy || !newStatus) return
     setMoving(true)
@@ -219,6 +223,7 @@ export default function Vacancies() {
     setTypeFilter('ALL')
     setContractTypeFilter('ALL')
     setRankFilter('ALL')
+    setVacancyStatusGroup('Em andamento')
   }
 
   if (loading) {
@@ -347,6 +352,19 @@ export default function Vacancies() {
                 <SelectItem value="5">Ranking ≥ 5 estrelas</SelectItem>
               </SelectContent>
             </Select>
+
+            <Select
+              value={vacancyStatusGroup}
+              onValueChange={(v) => setVacancyStatusGroup(v as VacancyStatusGroup)}
+            >
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Status da Vaga" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Em andamento">Em andamento</SelectItem>
+                <SelectItem value="Fechadas">Fechadas</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {(search ||
@@ -355,7 +373,8 @@ export default function Vacancies() {
             priorityFilter !== 'ALL' ||
             typeFilter !== 'ALL' ||
             contractTypeFilter !== 'ALL' ||
-            rankFilter !== 'ALL') && (
+            rankFilter !== 'ALL' ||
+            vacancyStatusGroup !== 'Em andamento') && (
             <div className="flex justify-end pt-1">
               <Button
                 variant="ghost"

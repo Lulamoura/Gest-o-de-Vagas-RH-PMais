@@ -4,6 +4,7 @@ import { getVacancies } from '@/services/vacancies'
 import { CandidateRecord, VacancyRecord, CandidateStatus } from '@/types'
 import { useRealtime } from '@/hooks/use-realtime'
 import { formatCurrency, getCandidateStatusBadgeClass } from '@/lib/status-utils'
+import { isVacancyInGroup, type VacancyStatusGroup } from '@/lib/vacancy-status-group'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -57,6 +58,7 @@ export default function Candidates() {
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [rankFilter, setRankFilter] = useState('ALL')
   const [sortByRank, setSortByRank] = useState<'asc' | 'desc' | null>(null)
+  const [vacancyStatusGroup, setVacancyStatusGroup] = useState<VacancyStatusGroup>('Em andamento')
 
   // Modal create/edit
   const [modalOpen, setModalOpen] = useState(false)
@@ -106,7 +108,14 @@ export default function Candidates() {
 
       const matchesRank = rankFilter === 'ALL' || (c.rank != null && c.rank >= Number(rankFilter))
 
-      return matchesSearch && matchesVacancy && matchesStatus && matchesRank
+      const vacancyStatus = c.expand?.vacancy_id?.status_vaga
+      const matchesVacancyStatusGroup = vacancyStatus
+        ? isVacancyInGroup(vacancyStatus, vacancyStatusGroup)
+        : false
+
+      return (
+        matchesSearch && matchesVacancy && matchesStatus && matchesRank && matchesVacancyStatusGroup
+      )
     })
 
     if (sortByRank === 'desc') {
@@ -116,7 +125,7 @@ export default function Candidates() {
     }
 
     return filtered
-  }, [candidates, search, vacancyFilter, statusFilter, rankFilter, sortByRank])
+  }, [candidates, search, vacancyFilter, statusFilter, rankFilter, sortByRank, vacancyStatusGroup])
 
   const openCreateModal = () => {
     setEditingCandidate(null)
@@ -231,7 +240,7 @@ export default function Candidates() {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
               <Input
@@ -283,6 +292,19 @@ export default function Candidates() {
                 <SelectItem value="3">Ranking ≥ 3 estrelas</SelectItem>
                 <SelectItem value="4">Ranking ≥ 4 estrelas</SelectItem>
                 <SelectItem value="5">Ranking ≥ 5 estrelas</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={vacancyStatusGroup}
+              onValueChange={(v) => setVacancyStatusGroup(v as VacancyStatusGroup)}
+            >
+              <SelectTrigger className="h-9 text-xs">
+                <SelectValue placeholder="Status da Vaga" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Em andamento">Em andamento</SelectItem>
+                <SelectItem value="Fechadas">Fechadas</SelectItem>
               </SelectContent>
             </Select>
           </div>

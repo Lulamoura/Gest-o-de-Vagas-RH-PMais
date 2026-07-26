@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { getVacancies } from '@/services/vacancies'
 import { getCandidates } from '@/services/candidates'
-import { getTiposContrato } from '@/services/tipos_contrato'
-import { VacancyRecord, CandidateRecord, TipoContratoRecord } from '@/types'
+import { getClientes } from '@/services/clientes'
+import { VacancyRecord, CandidateRecord, ClienteRecord } from '@/types'
 import { useRealtime } from '@/hooks/use-realtime'
 import { MandatoryIndicatorCard } from '@/components/MandatoryIndicatorCard'
 import { calculateDaysOpen } from '@/lib/status-utils'
@@ -60,25 +60,25 @@ const PIE_COLORS = ['#3b82f6', '#a855f7', '#f59e0b', '#6366f1', '#06b6d4', '#10b
 export default function Dashboard() {
   const [vacancies, setVacancies] = useState<VacancyRecord[]>([])
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
-  const [tiposContratoList, setTiposContratoList] = useState<TipoContratoRecord[]>([])
+  const [clientesList, setClientesList] = useState<ClienteRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   const currentMonthStr = new Date().toISOString().slice(0, 7)
   const [monthFilter, setMonthFilter] = useState(currentMonthStr)
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
-  const [contractTypeFilter, setContractTypeFilter] = useState('ALL')
+  const [clientFilter, setClientFilter] = useState('ALL')
 
   const loadData = async () => {
     try {
-      const [vData, cData, tcData] = await Promise.all([
+      const [vData, cData, clData] = await Promise.all([
         getVacancies(),
         getCandidates(),
-        getTiposContrato(),
+        getClientes(),
       ])
       setVacancies(vData)
       setCandidates(cData)
-      setTiposContratoList(tcData)
+      setClientesList(clData)
     } catch (err) {
       console.error(err)
     } finally {
@@ -115,10 +115,10 @@ export default function Dashboard() {
     return vacancies.filter((v) => {
       const vacancyDate = new Date(v.data_abertura || v.created)
       if (vacancyDate < dateRange.start || vacancyDate > dateRange.end) return false
-      if (contractTypeFilter !== 'ALL' && v.tipo_contrato !== contractTypeFilter) return false
+      if (clientFilter !== 'ALL' && v.cliente !== clientFilter) return false
       return true
     })
-  }, [vacancies, dateRange, contractTypeFilter])
+  }, [vacancies, dateRange, clientFilter])
 
   const filteredCandidates = useMemo(() => {
     const vacancyIds = new Set(filteredVacancies.map((v) => v.id))
@@ -300,16 +300,16 @@ export default function Dashboard() {
               />
             </div>
             <div className="space-y-1">
-              <Label className="text-[10px] text-slate-500 font-semibold">Tipo de Contrato</Label>
-              <Select value={contractTypeFilter} onValueChange={setContractTypeFilter}>
+              <Label className="text-[10px] text-slate-500 font-semibold">Cliente</Label>
+              <Select value={clientFilter} onValueChange={setClientFilter}>
                 <SelectTrigger className="h-9 text-xs">
                   <SelectValue placeholder="Todos" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="ALL">Todos os Contratos</SelectItem>
-                  {tiposContratoList.map((t) => (
-                    <SelectItem key={t.id} value={t.id}>
-                      {t.nome}
+                  <SelectItem value="ALL">Todos os Clientes</SelectItem>
+                  {clientesList.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.nome}
                     </SelectItem>
                   ))}
                 </SelectContent>
