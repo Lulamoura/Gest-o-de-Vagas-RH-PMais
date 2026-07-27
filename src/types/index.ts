@@ -1,6 +1,6 @@
 import { RecordModel } from 'pocketbase'
 
-export type UserProfile = 'admin' | 'operator' | 'viewer'
+export type UserProfile = 'admin' | 'operator' | 'viewer' | 'superadmin'
 
 export interface UserRecord extends RecordModel {
   name: string

@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { getVacancy, updateVacancy } from '@/services/vacancies'
+import { getVacancy, updateVacancy, deleteVacancy } from '@/services/vacancies'
 import { getCandidates, createCandidate } from '@/services/candidates'
 import { getPipelineHistory, createPipelineHistory } from '@/services/pipeline_history'
 import {
@@ -41,6 +41,16 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -64,6 +74,7 @@ import {
   History,
   Users,
   Star,
+  Trash2,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -71,7 +82,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, isSuperAdmin, canEditVacancy } = useAuth()
 
   const [vaga, setVaga] = useState<VacancyRecord | null>(null)
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
@@ -95,6 +106,10 @@ export default function VacancyDetail() {
   // Move Pipeline Modal
   const [pipelineModalOpen, setPipelineModalOpen] = useState(false)
   const [nextStatus, setNextStatus] = useState<VacancyStatus | ''>('')
+
+  // Delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const loadData = async () => {
     if (!id) return
@@ -215,6 +230,20 @@ export default function VacancyDetail() {
     }
   }
 
+  const handleDeleteVacancy = async () => {
+    if (!vaga) return
+    setDeleting(true)
+    try {
+      await deleteVacancy(vaga.id)
+      toast.success('Vaga excluída com sucesso!')
+      navigate('/vagas')
+    } catch (err) {
+      toast.error('Erro ao excluir vaga')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const averageRank = useMemo(() => {
     const ranked = candidates.filter((c) => c.rank != null)
     if (ranked.length === 0) return 0
@@ -263,45 +292,58 @@ export default function VacancyDetail() {
         </Button>
 
         <div className="flex items-center space-x-2">
-          {missingRequiredFields.length > 0 ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button
-                    disabled
-                    variant="outline"
-                    className="border-slate-200 text-slate-400 cursor-not-allowed opacity-70"
-                  >
-                    Mover Pipeline
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p className="font-semibold mb-1">Campos obrigatórios pendentes:</p>
-                <ul className="text-xs space-y-0.5">
-                  {missingRequiredFields.map((f) => (
-                    <li key={f}>• {f}</li>
-                  ))}
-                </ul>
-              </TooltipContent>
-            </Tooltip>
-          ) : (
+          {canEditVacancy && (
+            <>
+              {missingRequiredFields.length > 0 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button
+                        disabled
+                        variant="outline"
+                        className="border-slate-200 text-slate-400 cursor-not-allowed opacity-70"
+                      >
+                        Mover Pipeline
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="font-semibold mb-1">Campos obrigatórios pendentes:</p>
+                    <ul className="text-xs space-y-0.5">
+                      {missingRequiredFields.map((f) => (
+                        <li key={f}>• {f}</li>
+                      ))}
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setNextStatus(vaga.status_vaga)
+                    setPipelineModalOpen(true)
+                  }}
+                  className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                >
+                  Mover Pipeline
+                </Button>
+              )}
+              <Button asChild className="bg-indigo-600 hover:bg-indigo-500 text-white">
+                <Link to={`/vagas/${vaga.id}/editar`}>
+                  <Pencil className="h-4 w-4 mr-2" /> Editar Vaga
+                </Link>
+              </Button>
+            </>
+          )}
+          {isSuperAdmin && (
             <Button
               variant="outline"
-              onClick={() => {
-                setNextStatus(vaga.status_vaga)
-                setPipelineModalOpen(true)
-              }}
-              className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="border-rose-200 text-rose-700 hover:bg-rose-50"
             >
-              Mover Pipeline
+              <Trash2 className="h-4 w-4 mr-2" /> Excluir Vaga
             </Button>
           )}
-          <Button asChild className="bg-indigo-600 hover:bg-indigo-500 text-white">
-            <Link to={`/vagas/${vaga.id}/editar`}>
-              <Pencil className="h-4 w-4 mr-2" /> Editar Vaga
-            </Link>
-          </Button>
         </div>
       </div>
 
@@ -847,6 +889,27 @@ export default function VacancyDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Vaga</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta vaga? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteVacancy}
+              disabled={deleting}
+              className="bg-rose-600 hover:bg-rose-500 text-white"
+            >
+              {deleting ? 'Excluindo...' : 'Confirmar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

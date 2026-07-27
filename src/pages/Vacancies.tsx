@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { getVacancies, updateVacancy } from '@/services/vacancies'
+import { getVacancies, updateVacancy, deleteVacancy } from '@/services/vacancies'
 import { getCandidates } from '@/services/candidates'
 import { getTiposContrato } from '@/services/tipos_contrato'
 import { createPipelineHistory } from '@/services/pipeline_history'
@@ -48,6 +48,16 @@ import {
   DialogDescription,
   DialogFooter,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { toast } from 'sonner'
 import {
   PlusCircle,
@@ -60,6 +70,7 @@ import {
   User,
   XCircle,
   Star,
+  Trash2,
 } from 'lucide-react'
 
 export default function Vacancies() {
@@ -80,8 +91,10 @@ export default function Vacancies() {
   const [selectedVacancy, setSelectedVacancy] = useState<VacancyRecord | null>(null)
   const [newStatus, setNewStatus] = useState<VacancyStatus | ''>('')
   const [moving, setMoving] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<VacancyRecord | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
-  const { user } = useAuth()
+  const { user, isSuperAdmin, canEditVacancy } = useAuth()
 
   const loadData = async () => {
     try {
@@ -212,6 +225,21 @@ export default function Vacancies() {
       toast.error('Falha ao mover vaga no pipeline')
     } finally {
       setMoving(false)
+    }
+  }
+
+  const handleDeleteVacancy = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await deleteVacancy(deleteTarget.id)
+      toast.success('Vaga excluída com sucesso!')
+      setDeleteTarget(null)
+      loadData()
+    } catch (err) {
+      toast.error('Erro ao excluir vaga')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -489,29 +517,44 @@ export default function Vacancies() {
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
-                          <Button
-                            asChild
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-600 hover:text-amber-600"
-                            title="Editar"
-                          >
-                            <Link to={`/vagas/${vaga.id}/editar`}>
-                              <Pencil className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedVacancy(vaga)
-                              setNewStatus(vaga.status_vaga)
-                            }}
-                            className="h-8 w-8 text-slate-600 hover:text-emerald-600"
-                            title="Mover Pipeline"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
+                          {canEditVacancy && (
+                            <Button
+                              asChild
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-slate-600 hover:text-amber-600"
+                              title="Editar"
+                            >
+                              <Link to={`/vagas/${vaga.id}/editar`}>
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          )}
+                          {canEditVacancy && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedVacancy(vaga)
+                                setNewStatus(vaga.status_vaga)
+                              }}
+                              className="h-8 w-8 text-slate-600 hover:text-emerald-600"
+                              title="Mover Pipeline"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {isSuperAdmin && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => setDeleteTarget(vaga)}
+                              className="h-8 w-8 text-slate-600 hover:text-rose-600"
+                              title="Excluir Vaga"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </TableCell>
                     </TableRow>
@@ -573,15 +616,46 @@ export default function Vacancies() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                <Button asChild variant="outline" size="sm" className="w-full text-xs">
+              <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+                <Button asChild variant="outline" size="sm" className="flex-1 text-xs">
                   <Link to={`/vagas/${vaga.id}`}>Ver Detalhes da Vaga</Link>
                 </Button>
+                {isSuperAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setDeleteTarget(vaga)}
+                    className="text-xs border-rose-200 text-rose-700 hover:bg-rose-50"
+                  >
+                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
         ))}
       </div>
+
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Vaga</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta vaga? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteVacancy}
+              disabled={deleting}
+              className="bg-rose-600 hover:bg-rose-500 text-white"
+            >
+              {deleting ? 'Excluindo...' : 'Confirmar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={!!selectedVacancy} onOpenChange={(open) => !open && setSelectedVacancy(null)}>
         <DialogContent className="sm:max-w-md">
