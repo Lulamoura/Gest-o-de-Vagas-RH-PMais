@@ -1,10 +1,7 @@
 onRecordUpdate((e) => {
-  const newProfile = e.record.getString('profile')
-  const oldProfile = e.record.original().getString('profile')
-  if (newProfile !== oldProfile) {
-    if (newProfile === 'admin' || newProfile === 'superadmin') {
-      e.record.set('profile', oldProfile || 'viewer')
-    }
+  const profile = e.record.getString('profile')
+  if (!profile) {
+    e.record.set('profile', 'operator')
   }
   e.next()
 }, 'users')
