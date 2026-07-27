@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-27T00:46:13.479Z",
+  "generatedAt": "2026-07-27T00:50:22.848Z",
   "collections": [
     {
       "name": "users",
@@ -374,9 +374,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.profile = 'admin'",
-        "update": "@request.auth.profile = 'admin'",
-        "delete": "@request.auth.profile = 'admin'"
+        "create": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
       },
       "fields": [
         {
@@ -408,9 +408,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.profile = 'admin'",
-        "update": "@request.auth.profile = 'admin'",
-        "delete": "@request.auth.profile = 'admin'"
+        "create": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
       },
       "fields": [
         {
@@ -442,9 +442,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.profile = 'admin'",
-        "update": "@request.auth.profile = 'admin'",
-        "delete": "@request.auth.profile = 'admin'"
+        "create": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
       },
       "fields": [
         {
@@ -476,9 +476,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.profile = 'admin'",
-        "update": "@request.auth.profile = 'admin'",
-        "delete": "@request.auth.profile = 'admin'"
+        "create": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
       },
       "fields": [
         {
@@ -510,9 +510,9 @@
       "apiRules": {
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
-        "create": "@request.auth.profile = 'admin'",
-        "update": "@request.auth.profile = 'admin'",
-        "delete": "@request.auth.profile = 'admin'"
+        "create": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
       },
       "fields": [
         {

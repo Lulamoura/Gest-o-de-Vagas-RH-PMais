@@ -21,7 +21,7 @@ import {
 import { cn } from '@/lib/utils'
 
 export function Layout() {
-  const { user, isAdmin, signOut } = useAuth()
+  const { user, isAdmin, isSuperAdmin, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -30,8 +30,10 @@ export function Layout() {
     { label: 'Painel', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Vagas', path: '/vagas', icon: Briefcase },
     { label: 'Candidatos', path: '/candidatos', icon: Users },
-    ...(isAdmin ? [{ label: 'Usuários', path: '/usuarios', icon: UserCheck }] : []),
-    ...(isAdmin ? [{ label: 'Referências', path: '/referencias', icon: Database }] : []),
+    ...(isAdmin || isSuperAdmin ? [{ label: 'Usuários', path: '/usuarios', icon: UserCheck }] : []),
+    ...(isAdmin || isSuperAdmin
+      ? [{ label: 'Referências', path: '/referencias', icon: Database }]
+      : []),
     { label: 'Relatórios', path: '/relatorios', icon: BarChart3 },
   ]
 

@@ -94,7 +94,7 @@ const FIELD_MAP: Record<CollectionKey, string> = {
 }
 
 export default function ReferenceData() {
-  const { isAdmin } = useAuth()
+  const { isAdmin, isSuperAdmin } = useAuth()
   const [activeTab, setActiveTab] = useState<CollectionKey>('clientes')
   const [records, setRecords] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
@@ -116,10 +116,10 @@ export default function ReferenceData() {
   }
 
   useEffect(() => {
-    if (isAdmin) loadData()
-  }, [activeTab, isAdmin])
+    if (isAdmin || isSuperAdmin) loadData()
+  }, [activeTab, isAdmin, isSuperAdmin])
 
-  if (!isAdmin) {
+  if (!isAdmin && !isSuperAdmin) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
         <div className="p-4 bg-rose-100 text-rose-600 rounded-full">
