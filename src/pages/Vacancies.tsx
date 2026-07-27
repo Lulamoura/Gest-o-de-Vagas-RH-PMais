@@ -94,7 +94,7 @@ export default function Vacancies() {
   const [deleteTarget, setDeleteTarget] = useState<VacancyRecord | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const { user, isSuperAdmin } = useAuth()
+  const { user, isSuperAdmin, canEditVacancy } = useAuth()
 
   const loadData = async () => {
     try {
@@ -517,29 +517,33 @@ export default function Vacancies() {
                               <Eye className="h-4 w-4" />
                             </Link>
                           </Button>
-                          <Button
-                            asChild
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-600 hover:text-amber-600"
-                            title="Editar"
-                          >
-                            <Link to={`/vagas/${vaga.id}/editar`}>
-                              <Pencil className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setSelectedVacancy(vaga)
-                              setNewStatus(vaga.status_vaga)
-                            }}
-                            className="h-8 w-8 text-slate-600 hover:text-emerald-600"
-                            title="Mover Pipeline"
-                          >
-                            <ChevronRight className="h-4 w-4" />
-                          </Button>
+                          {canEditVacancy && (
+                            <Button
+                              asChild
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-slate-600 hover:text-amber-600"
+                              title="Editar"
+                            >
+                              <Link to={`/vagas/${vaga.id}/editar`}>
+                                <Pencil className="h-4 w-4" />
+                              </Link>
+                            </Button>
+                          )}
+                          {canEditVacancy && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => {
+                                setSelectedVacancy(vaga)
+                                setNewStatus(vaga.status_vaga)
+                              }}
+                              className="h-8 w-8 text-slate-600 hover:text-emerald-600"
+                              title="Mover Pipeline"
+                            >
+                              <ChevronRight className="h-4 w-4" />
+                            </Button>
+                          )}
                           {isSuperAdmin && (
                             <Button
                               variant="ghost"

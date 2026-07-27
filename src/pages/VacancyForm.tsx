@@ -39,7 +39,7 @@ export default function VacancyForm() {
   const { id } = useParams<{ id: string }>()
   const isEditing = !!id
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, canEditVacancy } = useAuth()
 
   const [usersList, setUsersList] = useState<UserRecord[]>([])
   const [clientesList, setClientesList] = useState<ClienteRecord[]>([])
@@ -189,6 +189,19 @@ export default function VacancyForm() {
     } finally {
       setLoading(false)
     }
+  }
+
+  if (!canEditVacancy) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-3 text-center">
+        <p className="text-sm text-slate-600">
+          Você não tem permissão para {isEditing ? 'editar' : 'criar'} vagas.
+        </p>
+        <Button variant="outline" onClick={() => navigate('/vagas')}>
+          Voltar para Vagas
+        </Button>
+      </div>
+    )
   }
 
   if (fetching) {
