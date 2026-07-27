@@ -67,7 +67,6 @@ import {
   ChevronRight,
   Filter,
   Building2,
-  User,
   XCircle,
   Star,
   Trash2,
@@ -427,7 +426,7 @@ export default function Vacancies() {
                 </TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">
-                  Responsável RH
+                  Cidade/Estado
                 </TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">Abertura</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">Dias Abertos</TableHead>
@@ -474,10 +473,7 @@ export default function Vacancies() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-slate-700">
-                        <div className="flex items-center space-x-1">
-                          <User className="h-3.5 w-3.5 text-slate-400" />
-                          <span>{vaga.expand?.responsavel_rh?.name || 'Não atribuído'}</span>
-                        </div>
+                        <span>{vaga.expand?.cidade?.nome || '-'}</span>
                       </TableCell>
                       <TableCell className="text-xs text-slate-600">
                         {formatDateBR(vaga.data_abertura)}
