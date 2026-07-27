@@ -98,7 +98,7 @@ export default function VacancyDetail() {
   const [custoExames, setCustoExames] = useState(0)
   const [custoTestes, setCustoTestes] = useState(0)
   const [custoExtras, setCustoExtras] = useState(0)
-  const [statusCandidato, setStatusCandidato] = useState<CandidateStatus>('Em análise do gestor')
+  const [statusCandidato, setStatusCandidato] = useState<CandidateStatus>('Análise do RH')
   const [rankCandidato, setRankCandidato] = useState<number | null>(null)
   const [rankError, setRankError] = useState('')
   const [savingCandidate, setSavingCandidate] = useState(false)
@@ -152,7 +152,7 @@ export default function VacancyDetail() {
 
   // Indicator logic for this single vacancy
   const preApprovedCount = useMemo(() => {
-    return candidates.filter((c) => c.status_candidato === 'Pré-Aprovado').length
+    return candidates.filter((c) => c.status_candidato === 'Cadastro DP').length
   }, [candidates])
 
   const handleAddCandidate = async (e: React.FormEvent) => {
@@ -196,7 +196,7 @@ export default function VacancyDetail() {
       setCustoTestes(0)
       setCustoExtras(0)
       setRankCandidato(null)
-      setStatusCandidato('Em análise do gestor')
+      setStatusCandidato('Análise do RH')
       loadData()
     } catch (err) {
       toast.error('Erro ao salvar candidato')
@@ -771,12 +771,14 @@ export default function VacancyDetail() {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Em análise do gestor">Em análise do gestor</SelectItem>
-                  <SelectItem value="Pré-Aprovado">Pré-Aprovado</SelectItem>
+                  <SelectItem value="Análise do RH">Análise do RH</SelectItem>
+                  <SelectItem value="Análise do gestor">Análise do gestor</SelectItem>
+                  <SelectItem value="Documentação e exame">Documentação e exame</SelectItem>
+                  <SelectItem value="Cadastro DP">Cadastro DP</SelectItem>
                   <SelectItem value="Integrado">Integrado</SelectItem>
-                  <SelectItem value="Desistiu">Desistiu</SelectItem>
-                  <SelectItem value="Não aprovado">Não aprovado</SelectItem>
-                  <SelectItem value="Rejeitado">Rejeitado</SelectItem>
+                  <SelectItem value="Desistente">Desistente</SelectItem>
+                  <SelectItem value="Desclassificado">Desclassificado</SelectItem>
+                  <SelectItem value="Em banco">Em banco</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -72,7 +72,7 @@ export default function Candidates() {
   const [cidade, setCidade] = useState('')
   const [bairro, setBairro] = useState('')
   const [vacancyId, setVacancyId] = useState('')
-  const [statusCandidato, setStatusCandidato] = useState<CandidateStatus>('Em análise do gestor')
+  const [statusCandidato, setStatusCandidato] = useState<CandidateStatus>('Análise do RH')
   const [custoConsultas, setCustoConsultas] = useState(0)
   const [custoExames, setCustoExames] = useState(0)
   const [custoTestes, setCustoTestes] = useState(0)
@@ -139,7 +139,7 @@ export default function Candidates() {
     setCidade('')
     setBairro('')
     setVacancyId(vacancies[0]?.id || '')
-    setStatusCandidato('Em análise do gestor')
+    setStatusCandidato('Análise do RH')
     setCustoConsultas(0)
     setCustoExames(0)
     setCustoTestes(0)
@@ -283,12 +283,14 @@ export default function Candidates() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos os Status</SelectItem>
-                <SelectItem value="Em análise do gestor">Em análise do gestor</SelectItem>
-                <SelectItem value="Pré-Aprovado">Pré-Aprovado</SelectItem>
+                <SelectItem value="Análise do RH">Análise do RH</SelectItem>
+                <SelectItem value="Análise do gestor">Análise do gestor</SelectItem>
+                <SelectItem value="Documentação e exame">Documentação e exame</SelectItem>
+                <SelectItem value="Cadastro DP">Cadastro DP</SelectItem>
                 <SelectItem value="Integrado">Integrado</SelectItem>
-                <SelectItem value="Desistiu">Desistiu</SelectItem>
-                <SelectItem value="Não aprovado">Não aprovado</SelectItem>
-                <SelectItem value="Rejeitado">Rejeitado</SelectItem>
+                <SelectItem value="Desistente">Desistente</SelectItem>
+                <SelectItem value="Desclassificado">Desclassificado</SelectItem>
+                <SelectItem value="Em banco">Em banco</SelectItem>
               </SelectContent>
             </Select>
 
@@ -524,12 +526,14 @@ export default function Candidates() {
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Em análise do gestor">Em análise do gestor</SelectItem>
-                  <SelectItem value="Pré-Aprovado">Pré-Aprovado</SelectItem>
+                  <SelectItem value="Análise do RH">Análise do RH</SelectItem>
+                  <SelectItem value="Análise do gestor">Análise do gestor</SelectItem>
+                  <SelectItem value="Documentação e exame">Documentação e exame</SelectItem>
+                  <SelectItem value="Cadastro DP">Cadastro DP</SelectItem>
                   <SelectItem value="Integrado">Integrado</SelectItem>
-                  <SelectItem value="Desistiu">Desistiu</SelectItem>
-                  <SelectItem value="Não aprovado">Não aprovado</SelectItem>
-                  <SelectItem value="Rejeitado">Rejeitado</SelectItem>
+                  <SelectItem value="Desistente">Desistente</SelectItem>
+                  <SelectItem value="Desclassificado">Desclassificado</SelectItem>
+                  <SelectItem value="Em banco">Em banco</SelectItem>
                 </SelectContent>
               </Select>
             </div>

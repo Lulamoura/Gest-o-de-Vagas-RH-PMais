@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-27T14:25:11.218Z",
+  "generatedAt": "2026-07-27T20:54:47.122Z",
   "collections": [
     {
       "name": "users",
@@ -268,20 +268,6 @@
           "system": false
         },
         {
-          "name": "status_candidato",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": [
-            "Em análise do gestor",
-            "Pré-Aprovado",
-            "Integrado",
-            "Desistiu",
-            "Não aprovado",
-            "Rejeitado"
-          ]
-        },
-        {
           "name": "created",
           "type": "autodate",
           "required": false,
@@ -318,6 +304,65 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "rg",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tamanho_fardamento",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["PP", "P", "M", "G", "GG"]
+        },
+        {
+          "name": "tamanho_sapato",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "vale_transporte_qtd",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nome_pai",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nome_mae",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone_emergencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_candidato",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": [
+            "Análise do RH",
+            "Análise do gestor",
+            "Documentação e exame",
+            "Cadastro DP",
+            "Integrado",
+            "Desistente",
+            "Desclassificado",
+            "Em banco"
+          ]
         }
       ],
       "indexes": [

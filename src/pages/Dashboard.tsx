@@ -154,14 +154,14 @@ export default function Dashboard() {
   const mandatoryIndicatorData = useMemo(() => {
     const vacanciesWithPreApproved = new Set(
       filteredCandidates
-        .filter((c) => c.status_candidato === 'Pré-Aprovado')
+        .filter((c) => c.status_candidato === 'Documentação e exame')
         .map((c) => c.vacancy_id),
     )
     const totalVacanciesWithoutPreApproved = openVacancies.filter(
       (v) => !vacanciesWithPreApproved.has(v.id),
     ).length
     const totalPreApprovedCandidates = filteredCandidates.filter(
-      (c) => c.status_candidato === 'Pré-Aprovado',
+      (c) => c.status_candidato === 'Documentação e exame',
     ).length
     return {
       totalVacanciesWithoutPreApproved,

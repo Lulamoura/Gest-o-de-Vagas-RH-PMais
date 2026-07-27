@@ -70,12 +70,14 @@ export interface VacancyRecord extends RecordModel {
 }
 
 export type CandidateStatus =
-  | 'Em análise do gestor'
-  | 'Pré-Aprovado'
+  | 'Análise do RH'
+  | 'Análise do gestor'
+  | 'Documentação e exame'
+  | 'Cadastro DP'
   | 'Integrado'
-  | 'Desistiu'
-  | 'Não aprovado'
-  | 'Rejeitado'
+  | 'Desistente'
+  | 'Desclassificado'
+  | 'Em banco'
 
 export interface CandidateRecord extends RecordModel {
   vacancy_id: string
