@@ -6,7 +6,7 @@ import { getClientes } from '@/services/clientes'
 import { VacancyRecord, CandidateRecord, ClienteRecord } from '@/types'
 import { useRealtime } from '@/hooks/use-realtime'
 import { MandatoryIndicatorCard } from '@/components/MandatoryIndicatorCard'
-import { calculateDaysOpen } from '@/lib/status-utils'
+import { calculateDaysOpen, formatCurrency } from '@/lib/status-utils'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -41,6 +41,7 @@ import {
   Filter,
   XCircle,
   FileDown,
+  DollarSign,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 import { getFilterSummary } from '@/lib/print-utils'
@@ -231,6 +232,28 @@ export default function Dashboard() {
       .sort((a, b) => b.diasParado - a.diasParado)
       .slice(0, 5)
   }, [openVacancies])
+
+  const vacanciesByTypeData = useMemo(() => {
+    const counts: Record<string, number> = {}
+    openVacancies.forEach((v) => {
+      const tipo = v.expand?.tipo_vaga?.nome
+      if (!tipo) return
+      counts[tipo] = (counts[tipo] || 0) + 1
+    })
+    return Object.entries(counts).map(([name, value]) => ({ name, value }))
+  }, [openVacancies])
+
+  const totalAccumulatedCost = useMemo(() => {
+    return filteredCandidates.reduce(
+      (acc, c) =>
+        acc +
+        (c.custo_consultas || 0) +
+        (c.custo_exames || 0) +
+        (c.custo_testes || 0) +
+        (c.custo_extras || 0),
+      0,
+    )
+  }, [filteredCandidates])
 
   if (loading) {
     return (
@@ -584,6 +607,108 @@ export default function Dashboard() {
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {/* Vacancies by Type Chart + Total Accumulated Cost */}
+      {vacanciesByTypeData.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <Card className="border-slate-200 shadow-2xs lg:col-span-2">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base font-bold text-slate-900">Vagas por Tipo</CardTitle>
+              <CardDescription className="text-xs">
+                Distribuição das vagas abertas por tipo de vaga
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[280px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={vacanciesByTypeData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={95}
+                    paddingAngle={3}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {vacanciesByTypeData.map((_entry, index) => (
+                      <Cell
+                        key={`cell-type-${index}`}
+                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val: number) => [`${val} vaga(s)`, 'Quantidade']}
+                    contentStyle={{
+                      backgroundColor: '#1e293b',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '12px',
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200 shadow-2xs lg:col-span-1">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base font-bold text-slate-900 flex items-center space-x-2">
+                <DollarSign className="h-5 w-5 text-emerald-600" />
+                <span>Custo Total Acumulado</span>
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Soma de todos os custos de candidatos no período
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="bg-emerald-50 border border-emerald-100 p-4 rounded-xl text-center">
+                <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider block">
+                  Investimento Total
+                </span>
+                <span className="text-3xl font-black text-emerald-700 mt-1 block">
+                  {formatCurrency(totalAccumulatedCost)}
+                </span>
+              </div>
+              <div className="space-y-2 text-xs text-slate-600">
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span>Consultas:</span>
+                  <span className="font-semibold">
+                    {formatCurrency(
+                      filteredCandidates.reduce((a, b) => a + (b.custo_consultas || 0), 0),
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span>Exames Admissionais:</span>
+                  <span className="font-semibold">
+                    {formatCurrency(
+                      filteredCandidates.reduce((a, b) => a + (b.custo_exames || 0), 0),
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span>Testes / Avaliações:</span>
+                  <span className="font-semibold">
+                    {formatCurrency(
+                      filteredCandidates.reduce((a, b) => a + (b.custo_testes || 0), 0),
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between py-1">
+                  <span>Extras / Deslocamento:</span>
+                  <span className="font-semibold">
+                    {formatCurrency(
+                      filteredCandidates.reduce((a, b) => a + (b.custo_extras || 0), 0),
+                    )}
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Stalled Vacancies */}

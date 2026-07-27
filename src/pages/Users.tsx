@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Navigate } from 'react-router-dom'
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/users'
 import { UserRecord, UserProfile } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
@@ -33,10 +34,10 @@ import {
 import { Label } from '@/components/ui/label'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { toast } from 'sonner'
-import { UserCheck, PlusCircle, Pencil, Trash2, Shield, Lock } from 'lucide-react'
+import { UserCheck, PlusCircle, Pencil, Trash2, Shield } from 'lucide-react'
 
 export default function Users() {
-  const { isAdmin } = useAuth()
+  const { canManageUsers } = useAuth()
   const [usersList, setUsersList] = useState<UserRecord[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -48,7 +49,7 @@ export default function Users() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [profile, setProfile] = useState<UserProfile>('operator')
+  const [profile, setProfile] = useState<UserProfile>('viewer')
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
 
@@ -64,24 +65,15 @@ export default function Users() {
   }
 
   useEffect(() => {
-    if (isAdmin) {
-      loadData()
+    if (!canManageUsers) {
+      toast.error('Você não tem permissão para acessar a gestão de usuários.')
+      return
     }
-  }, [isAdmin])
+    loadData()
+  }, [canManageUsers])
 
-  if (!isAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
-        <div className="p-4 bg-rose-100 text-rose-600 rounded-full">
-          <Lock className="h-8 w-8" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-900">Acesso Restrito</h2>
-        <p className="text-sm text-slate-500 max-w-md">
-          Apenas usuários com perfil de Administrador podem acessar e gerenciar a lista de usuários
-          do sistema.
-        </p>
-      </div>
-    )
+  if (!canManageUsers) {
+    return <Navigate to="/dashboard" replace />
   }
 
   const openCreateModal = () => {
@@ -99,7 +91,7 @@ export default function Users() {
     setName(u.name)
     setEmail(u.email)
     setPassword('')
-    setProfile(u.profile || 'operator')
+    setProfile(u.profile || 'viewer')
     setFieldErrors({})
     setModalOpen(true)
   }
@@ -196,18 +188,22 @@ export default function Users() {
                       <Badge
                         variant="outline"
                         className={
-                          u.profile === 'admin'
-                            ? 'bg-indigo-100 text-indigo-800 border-indigo-200 font-semibold'
-                            : u.profile === 'operator'
-                              ? 'bg-blue-100 text-blue-800 border-blue-200'
-                              : 'bg-slate-100 text-slate-700 border-slate-200'
+                          u.profile === 'superadmin'
+                            ? 'bg-purple-100 text-purple-800 border-purple-200 font-semibold'
+                            : u.profile === 'admin'
+                              ? 'bg-indigo-100 text-indigo-800 border-indigo-200 font-semibold'
+                              : u.profile === 'operator'
+                                ? 'bg-blue-100 text-blue-800 border-blue-200'
+                                : 'bg-slate-100 text-slate-700 border-slate-200'
                         }
                       >
-                        {u.profile === 'admin'
-                          ? 'Administrador'
-                          : u.profile === 'operator'
-                            ? 'Operador'
-                            : 'Visualizador'}
+                        {u.profile === 'superadmin'
+                          ? 'Super Admin'
+                          : u.profile === 'admin'
+                            ? 'Administrador'
+                            : u.profile === 'operator'
+                              ? 'Operador'
+                              : 'Visualizador'}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-slate-500">
@@ -301,7 +297,6 @@ export default function Users() {
                   <SelectValue placeholder="Selecione o perfil" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="admin">Administrador (Acesso Total)</SelectItem>
                   <SelectItem value="operator">Operador (Criar e Editar Vagas)</SelectItem>
                   <SelectItem value="viewer">Visualizador (Somente Leitura)</SelectItem>
                 </SelectContent>

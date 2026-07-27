@@ -53,15 +53,15 @@ export default function ChangePassword() {
 
     setLoading(true)
     try {
-      await pb.collection('users').authWithPassword(user.email, currentPassword)
       await pb.collection('users').update(user.id, {
+        oldPassword: currentPassword,
         password: newPassword,
         passwordConfirm: newPassword,
       })
       toast.success('Senha alterada com sucesso!')
       navigate('/dashboard')
     } catch (err: any) {
-      if (err?.status === 401) {
+      if (err?.status === 400) {
         setErrors({ currentPassword: 'Senha atual incorreta.' })
       } else {
         toast.error('Erro ao alterar senha. Tente novamente.')

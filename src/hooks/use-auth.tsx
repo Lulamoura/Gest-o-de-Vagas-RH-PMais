@@ -9,6 +9,7 @@ interface AuthContextType {
   isOperator: boolean
   isSuperAdmin: boolean
   canEditVacancy: boolean
+  canManageUsers: boolean
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => void
   loading: boolean
@@ -74,6 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isOperator = user?.profile === 'operator' || isAdmin
   const isSuperAdmin = user?.profile === 'superadmin'
   const canEditVacancy = isAdmin || isSuperAdmin
+  const canManageUsers = isAdmin || isSuperAdmin
 
   return (
     <AuthContext.Provider
@@ -84,6 +86,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isOperator,
         isSuperAdmin,
         canEditVacancy,
+        canManageUsers,
         signIn,
         signOut,
         loading,

@@ -16,8 +16,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Lock, Mail, Eye, EyeOff, AlertTriangle, ArrowRight } from 'lucide-react'
 
 export default function Login() {
-  const [email, setEmail] = useState('luiz.moura@pmaisservicos.com.br')
-  const [password, setPassword] = useState('Skip@Pass')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -109,17 +109,6 @@ export default function Login() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-            </div>
-
-            <div className="pt-2 text-xs text-slate-400 bg-slate-900/60 p-3 rounded-lg border border-slate-800 space-y-1">
-              <p className="font-semibold text-slate-300">Acesso Administrador Padrão:</p>
-              <p>
-                Email:{' '}
-                <code className="text-indigo-300 font-mono">luiz.moura@pmaisservicos.com.br</code>
-              </p>
-              <p>
-                Senha: <code className="text-indigo-300 font-mono">Skip@Pass</code>
-              </p>
             </div>
           </CardContent>
 

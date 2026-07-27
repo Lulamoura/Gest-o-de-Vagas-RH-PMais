@@ -68,6 +68,7 @@ export default function Candidates() {
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [telefone, setTelefone] = useState('')
+  const [cpf, setCpf] = useState('')
   const [vacancyId, setVacancyId] = useState('')
   const [statusCandidato, setStatusCandidato] = useState<CandidateStatus>('Em análise do gestor')
   const [custoConsultas, setCustoConsultas] = useState(0)
@@ -132,6 +133,7 @@ export default function Candidates() {
     setNome('')
     setEmail('')
     setTelefone('')
+    setCpf('')
     setVacancyId(vacancies[0]?.id || '')
     setStatusCandidato('Em análise do gestor')
     setCustoConsultas(0)
@@ -148,6 +150,7 @@ export default function Candidates() {
     setNome(c.nome)
     setEmail(c.email || '')
     setTelefone(c.telefone || '')
+    setCpf(c.cpf || '')
     setVacancyId(c.vacancy_id)
     setStatusCandidato(c.status_candidato)
     setCustoConsultas(c.custo_consultas || 0)
@@ -177,6 +180,7 @@ export default function Candidates() {
       nome,
       email,
       telefone,
+      cpf,
       vacancy_id: vacancyId,
       status_candidato: statusCandidato,
       custo_consultas: Number(custoConsultas),
@@ -361,7 +365,8 @@ export default function Candidates() {
 
                       <TableCell className="text-xs text-slate-600">
                         <div>{cand.email || '-'}</div>
-                        <div className="text-slate-400">{cand.telefone}</div>
+                        <div className="text-slate-400">{cand.telefone || '-'}</div>
+                        {cand.cpf && <div className="text-slate-400">CPF: {cand.cpf}</div>}
                       </TableCell>
 
                       <TableCell className="text-xs text-slate-700">
@@ -459,6 +464,13 @@ export default function Candidates() {
                 </Label>
                 <Input id="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="cpf" className="text-xs font-semibold text-slate-700">
+                CPF
+              </Label>
+              <Input id="cpf" value={cpf} onChange={(e) => setCpf(e.target.value)} />
             </div>
 
             <div className="space-y-1.5">

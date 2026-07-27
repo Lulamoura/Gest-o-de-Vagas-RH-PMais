@@ -82,6 +82,7 @@ export interface CandidateRecord extends RecordModel {
   nome: string
   email?: string
   telefone?: string
+  cpf?: string
   custo_consultas?: number
   custo_exames?: number
   custo_testes?: number
