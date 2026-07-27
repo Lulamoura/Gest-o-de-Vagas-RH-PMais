@@ -69,6 +69,8 @@ export default function Candidates() {
   const [email, setEmail] = useState('')
   const [telefone, setTelefone] = useState('')
   const [cpf, setCpf] = useState('')
+  const [cidade, setCidade] = useState('')
+  const [bairro, setBairro] = useState('')
   const [vacancyId, setVacancyId] = useState('')
   const [statusCandidato, setStatusCandidato] = useState<CandidateStatus>('Em análise do gestor')
   const [custoConsultas, setCustoConsultas] = useState(0)
@@ -134,6 +136,8 @@ export default function Candidates() {
     setEmail('')
     setTelefone('')
     setCpf('')
+    setCidade('')
+    setBairro('')
     setVacancyId(vacancies[0]?.id || '')
     setStatusCandidato('Em análise do gestor')
     setCustoConsultas(0)
@@ -151,6 +155,8 @@ export default function Candidates() {
     setEmail(c.email || '')
     setTelefone(c.telefone || '')
     setCpf(c.cpf || '')
+    setCidade(c.cidade || '')
+    setBairro(c.bairro || '')
     setVacancyId(c.vacancy_id)
     setStatusCandidato(c.status_candidato)
     setCustoConsultas(c.custo_consultas || 0)
@@ -180,6 +186,8 @@ export default function Candidates() {
       nome,
       email,
       telefone,
+      cidade,
+      bairro,
       cpf,
       vacancy_id: vacancyId,
       status_candidato: statusCandidato,
@@ -463,6 +471,21 @@ export default function Candidates() {
                   Telefone
                 </Label>
                 <Input id="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="cidade" className="text-xs font-semibold text-slate-700">
+                  Cidade
+                </Label>
+                <Input id="cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="bairro" className="text-xs font-semibold text-slate-700">
+                  Bairro
+                </Label>
+                <Input id="bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
               </div>
             </div>
 
