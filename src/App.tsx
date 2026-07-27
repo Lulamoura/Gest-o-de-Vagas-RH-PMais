@@ -15,6 +15,7 @@ import VacancyForm from './pages/VacancyForm'
 import Candidates from './pages/Candidates'
 import Users from './pages/Users'
 import ReferenceData from './pages/ReferenceData'
+import WordPressLogs from './pages/WordPressLogs'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -37,6 +38,7 @@ const App = () => (
               <Route path="/candidatos" element={<Candidates />} />
               <Route path="/usuarios" element={<Users />} />
               <Route path="/referencias" element={<ReferenceData />} />
+              <Route path="/wordpress" element={<WordPressLogs />} />
               <Route path="/relatorios" element={<Reports />} />
             </Route>
           </Route>
