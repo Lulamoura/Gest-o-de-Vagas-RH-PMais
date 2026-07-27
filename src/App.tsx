@@ -16,6 +16,7 @@ import Candidates from './pages/Candidates'
 import Users from './pages/Users'
 import ReferenceData from './pages/ReferenceData'
 import WordPressLogs from './pages/WordPressLogs'
+import ChangePassword from './pages/ChangePassword'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -40,6 +41,7 @@ const App = () => (
               <Route path="/referencias" element={<ReferenceData />} />
               <Route path="/wordpress" element={<WordPressLogs />} />
               <Route path="/relatorios" element={<Reports />} />
+              <Route path="/profile/senha" element={<ChangePassword />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFound />} />

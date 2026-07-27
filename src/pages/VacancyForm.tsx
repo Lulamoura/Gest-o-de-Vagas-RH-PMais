@@ -18,7 +18,7 @@ import {
   VacancyPriority,
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
-import { VACANCY_PIPELINE_STAGES } from '@/lib/status-utils'
+import { VACANCY_PIPELINE_STAGES, toDateInputValue } from '@/lib/status-utils'
 import { Combobox } from '@/components/Combobox'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -118,10 +118,10 @@ export default function VacancyForm() {
           setQuantidadeVagas(vaga.quantidade_vagas || 1)
           setTipoVaga(vaga.tipo_vaga || '')
           setTipoContrato(vaga.tipo_contrato || '')
-          setDataAbertura(vaga.data_abertura ? vaga.data_abertura.split('T')[0] : '')
-          setDataFechamento(vaga.data_fechamento ? vaga.data_fechamento.split('T')[0] : '')
-          setDataCancelamento(vaga.data_cancelamento ? vaga.data_cancelamento.split('T')[0] : '')
-          setPrazoDesejado(vaga.prazo_desejado ? vaga.prazo_desejado.split('T')[0] : '')
+          setDataAbertura(toDateInputValue(vaga.data_abertura))
+          setDataFechamento(toDateInputValue(vaga.data_fechamento))
+          setDataCancelamento(toDateInputValue(vaga.data_cancelamento))
+          setPrazoDesejado(toDateInputValue(vaga.prazo_desejado))
           setResponsavelRh(vaga.responsavel_rh || '')
           setResponsavelOperacional(vaga.responsavel_operacional || '')
           setStatusVaga(vaga.status_vaga)

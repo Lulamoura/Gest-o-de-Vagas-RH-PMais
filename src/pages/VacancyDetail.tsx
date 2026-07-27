@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { getVacancy, updateVacancy } from '@/services/vacancies'
+import { getVacancy, updateVacancy, deleteVacancy } from '@/services/vacancies'
 import { getCandidates, createCandidate } from '@/services/candidates'
 import { getPipelineHistory, createPipelineHistory } from '@/services/pipeline_history'
 import {
@@ -41,6 +41,16 @@ import {
   DialogFooter,
   DialogDescription,
 } from '@/components/ui/dialog'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import {
@@ -64,13 +74,15 @@ import {
   History,
   Users,
   Star,
+  Trash2,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, isSuperAdmin, canEditVacancy } = useAuth()
 
   const [vaga, setVaga] = useState<VacancyRecord | null>(null)
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
@@ -94,6 +106,10 @@ export default function VacancyDetail() {
   // Move Pipeline Modal
   const [pipelineModalOpen, setPipelineModalOpen] = useState(false)
   const [nextStatus, setNextStatus] = useState<VacancyStatus | ''>('')
+
+  // Delete confirmation
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const loadData = async () => {
     if (!id) return
@@ -214,12 +230,44 @@ export default function VacancyDetail() {
     }
   }
 
+  const handleDeleteVacancy = async () => {
+    if (!vaga) return
+    setDeleting(true)
+    try {
+      await deleteVacancy(vaga.id)
+      toast.success('Vaga excluída com sucesso!')
+      navigate('/vagas')
+    } catch (err) {
+      toast.error('Erro ao excluir vaga')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const averageRank = useMemo(() => {
     const ranked = candidates.filter((c) => c.rank != null)
     if (ranked.length === 0) return 0
     const total = ranked.reduce((acc, c) => acc + (c.rank || 0), 0)
     return Math.round((total / ranked.length) * 10) / 10
   }, [candidates])
+
+  const missingRequiredFields = useMemo(() => {
+    if (!vaga) return []
+    const missing: string[] = []
+    if (!vaga.quantidade_vagas || vaga.quantidade_vagas < 1) missing.push('Quantidade de Vagas')
+    if (!vaga.data_abertura) missing.push('Data de Abertura')
+    if (!vaga.prazo_desejado) missing.push('Prazo Desejado')
+    if (!vaga.responsavel_rh) missing.push('Responsável RH')
+    if (!vaga.responsavel_operacional) missing.push('Responsável Operacional')
+    if (!vaga.prioridade) missing.push('Prioridade')
+    if (!vaga.salario_faixa) missing.push('Faixa Salarial')
+    if (!vaga.cliente) missing.push('Cliente')
+    if (!vaga.cargo) missing.push('Cargo')
+    if (!vaga.cidade) missing.push('Cidade')
+    if (!vaga.tipo_vaga) missing.push('Tipo de Vaga')
+    if (!vaga.tipo_contrato) missing.push('Tipo de Contrato')
+    return missing
+  }, [vaga])
 
   if (loading || !vaga) {
     return (
@@ -244,21 +292,58 @@ export default function VacancyDetail() {
         </Button>
 
         <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setNextStatus(vaga.status_vaga)
-              setPipelineModalOpen(true)
-            }}
-            className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-          >
-            Mover Pipeline
-          </Button>
-          <Button asChild className="bg-indigo-600 hover:bg-indigo-500 text-white">
-            <Link to={`/vagas/${vaga.id}/editar`}>
-              <Pencil className="h-4 w-4 mr-2" /> Editar Vaga
-            </Link>
-          </Button>
+          {canEditVacancy && (
+            <>
+              {missingRequiredFields.length > 0 ? (
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button
+                        disabled
+                        variant="outline"
+                        className="border-slate-200 text-slate-400 cursor-not-allowed opacity-70"
+                      >
+                        Mover Pipeline
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs">
+                    <p className="font-semibold mb-1">Campos obrigatórios pendentes:</p>
+                    <ul className="text-xs space-y-0.5">
+                      {missingRequiredFields.map((f) => (
+                        <li key={f}>• {f}</li>
+                      ))}
+                    </ul>
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setNextStatus(vaga.status_vaga)
+                    setPipelineModalOpen(true)
+                  }}
+                  className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                >
+                  Mover Pipeline
+                </Button>
+              )}
+              <Button asChild className="bg-indigo-600 hover:bg-indigo-500 text-white">
+                <Link to={`/vagas/${vaga.id}/editar`}>
+                  <Pencil className="h-4 w-4 mr-2" /> Editar Vaga
+                </Link>
+              </Button>
+            </>
+          )}
+          {isSuperAdmin && (
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="border-rose-200 text-rose-700 hover:bg-rose-50"
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Excluir Vaga
+            </Button>
+          )}
         </div>
       </div>
 
@@ -804,6 +889,27 @@ export default function VacancyDetail() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir Vaga</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir esta vaga? Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteVacancy}
+              disabled={deleting}
+              className="bg-rose-600 hover:bg-rose-500 text-white"
+            >
+              {deleting ? 'Excluindo...' : 'Confirmar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
