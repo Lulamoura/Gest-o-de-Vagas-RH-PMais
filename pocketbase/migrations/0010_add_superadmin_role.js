@@ -2,10 +2,7 @@ migrate(
   (app) => {
     const usersCol = app.findCollectionByNameOrId('_pb_users_auth_')
 
-    const profileField = usersCol.fields.getByName('profile')
-    if (profileField) {
-      usersCol.fields.remove(profileField)
-    }
+    usersCol.fields.removeByName('profile')
     usersCol.fields.add(
       new SelectField({
         name: 'profile',
@@ -42,10 +39,7 @@ migrate(
   (app) => {
     const usersCol = app.findCollectionByNameOrId('_pb_users_auth_')
 
-    const profileField = usersCol.fields.getByName('profile')
-    if (profileField) {
-      usersCol.fields.remove(profileField)
-    }
+    usersCol.fields.removeByName('profile')
     usersCol.fields.add(
       new SelectField({
         name: 'profile',
