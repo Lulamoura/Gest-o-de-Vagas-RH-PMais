@@ -83,3 +83,14 @@ export const formatDateBR = (dateStr?: string) => {
     return dateStr
   }
 }
+
+export const toDateInputValue = (dateStr?: string): string => {
+  if (!dateStr) return ''
+  try {
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return ''
+    return d.toISOString().split('T')[0]
+  } catch {
+    return ''
+  }
+}

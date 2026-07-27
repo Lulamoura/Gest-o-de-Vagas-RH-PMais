@@ -16,6 +16,7 @@ import {
   ShieldCheck,
   ChevronRight,
   Database,
+  KeyRound,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -127,15 +128,26 @@ export function Layout() {
                 </div>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleLogout}
-              className="text-slate-400 hover:text-rose-400 hover:bg-slate-800 h-8 w-8 shrink-0"
-              title="Sair"
-            >
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center space-x-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/profile/senha')}
+                className="text-slate-400 hover:text-indigo-400 hover:bg-slate-800 h-8 w-8 shrink-0"
+                title="Alterar Senha"
+              >
+                <KeyRound className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleLogout}
+                className="text-slate-400 hover:text-rose-400 hover:bg-slate-800 h-8 w-8 shrink-0"
+                title="Sair"
+              >
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </aside>
@@ -203,14 +215,27 @@ export function Layout() {
                         {user?.name}
                       </span>
                     </div>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleLogout}
-                      className="text-rose-400 hover:bg-slate-800"
-                    >
-                      <LogOut className="h-4 w-4 mr-1" /> Sair
-                    </Button>
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          navigate('/profile/senha')
+                          setMobileOpen(false)
+                        }}
+                        className="text-slate-400 hover:bg-slate-800"
+                      >
+                        <KeyRound className="h-4 w-4 mr-1" /> Senha
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleLogout}
+                        className="text-rose-400 hover:bg-slate-800"
+                      >
+                        <LogOut className="h-4 w-4 mr-1" /> Sair
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </SheetContent>
