@@ -21,6 +21,7 @@ import {
   getPriorityBadgeClass,
   getCandidateStatusBadgeClass,
   VACANCY_PIPELINE_STAGES,
+  getMissingRequiredFields,
 } from '@/lib/status-utils'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -275,20 +276,20 @@ export default function VacancyDetail() {
 
   const missingRequiredFields = useMemo(() => {
     if (!vaga) return []
-    const missing: string[] = []
-    if (!vaga.quantidade_vagas || vaga.quantidade_vagas < 1) missing.push('Quantidade de Vagas')
-    if (!vaga.data_abertura) missing.push('Data de Abertura')
-    if (!vaga.prazo_desejado) missing.push('Prazo Desejado')
-    if (!vaga.responsavel_rh) missing.push('Responsável RH')
-    if (!vaga.responsavel_operacional) missing.push('Responsável Operacional')
-    if (!vaga.prioridade) missing.push('Prioridade')
-    if (!vaga.salario_faixa) missing.push('Faixa Salarial')
-    if (!vaga.cliente) missing.push('Cliente')
-    if (!vaga.cargo) missing.push('Cargo')
-    if (!vaga.cidade) missing.push('Cidade')
-    if (!vaga.tipo_vaga) missing.push('Tipo de Vaga')
-    if (!vaga.tipo_contrato) missing.push('Tipo de Contrato')
-    return missing
+    return getMissingRequiredFields({
+      quantidade_vagas: vaga.quantidade_vagas,
+      data_abertura: vaga.data_abertura,
+      prazo_desejado: vaga.prazo_desejado,
+      responsavel_rh: vaga.responsavel_rh,
+      responsavel_operacional: vaga.responsavel_operacional,
+      prioridade: vaga.prioridade,
+      salario_faixa: vaga.salario_faixa,
+      cliente: vaga.cliente,
+      cargo: vaga.cargo,
+      cidade: vaga.cidade,
+      tipo_vaga: vaga.tipo_vaga,
+      tipo_contrato: vaga.tipo_contrato,
+    })
   }, [vaga])
 
   if (loading || !vaga) {

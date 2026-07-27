@@ -18,7 +18,11 @@ import {
   VacancyPriority,
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
-import { VACANCY_PIPELINE_STAGES, toDateInputValue } from '@/lib/status-utils'
+import {
+  VACANCY_PIPELINE_STAGES,
+  toDateInputValue,
+  getMissingRequiredFields,
+} from '@/lib/status-utils'
 import { Combobox } from '@/components/Combobox'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -68,6 +72,40 @@ export default function VacancyForm() {
   const [especificacoes, setEspecificacoes] = useState('')
   const [observacoesInternas, setObservacoesInternas] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
+
+  const missingRequiredFields = useMemo(() => {
+    if (!isEditing) return []
+    return getMissingRequiredFields({
+      quantidade_vagas: quantidadeVagas,
+      data_abertura: dataAbertura,
+      prazo_desejado: prazoDesejado,
+      responsavel_rh: responsavelRh,
+      responsavel_operacional: responsavelOperacional,
+      prioridade,
+      salario_faixa: salarioFaixa,
+      cliente,
+      cargo,
+      cidade,
+      tipo_vaga: tipoVaga,
+      tipo_contrato: tipoContrato,
+    })
+  }, [
+    isEditing,
+    quantidadeVagas,
+    dataAbertura,
+    prazoDesejado,
+    responsavelRh,
+    responsavelOperacional,
+    prioridade,
+    salarioFaixa,
+    cliente,
+    cargo,
+    cidade,
+    tipoVaga,
+    tipoContrato,
+  ])
+
+  const isStatusDisabled = isEditing && missingRequiredFields.length > 0
 
   const clienteOptions = useMemo(
     () => clientesList.map((c) => ({ value: c.id, label: c.nome })),
@@ -337,8 +375,14 @@ export default function VacancyForm() {
                 <Label className="text-xs font-bold text-slate-700">
                   Status da Vaga <span className="text-rose-500">*</span>
                 </Label>
-                <Select value={statusVaga} onValueChange={(v) => setStatusVaga(v as VacancyStatus)}>
-                  <SelectTrigger>
+                <Select
+                  value={statusVaga}
+                  onValueChange={(v) => setStatusVaga(v as VacancyStatus)}
+                  disabled={isStatusDisabled}
+                >
+                  <SelectTrigger
+                    className={isStatusDisabled ? 'opacity-50 cursor-not-allowed' : ''}
+                  >
                     <SelectValue placeholder="Selecione o status" />
                   </SelectTrigger>
                   <SelectContent>

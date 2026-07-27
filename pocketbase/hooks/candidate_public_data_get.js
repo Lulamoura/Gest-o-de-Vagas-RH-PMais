@@ -1,5 +1,8 @@
 routerAdd('GET', '/backend/v1/candidate-public-data/{id}', (e) => {
   const id = e.request.pathValue('id')
+  if (!id) {
+    return e.badRequestError('ID do candidato é obrigatório')
+  }
   try {
     const candidate = $app.findRecordById('candidates', id)
     const vacancyId = candidate.getString('vacancy_id')
@@ -20,6 +23,7 @@ routerAdd('GET', '/backend/v1/candidate-public-data/{id}', (e) => {
 
     return e.json(200, {
       nome: candidate.getString('nome'),
+      email: candidate.getString('email'),
       vacancy_title: vacancyTitle,
       rg: candidate.getString('rg'),
       tamanho_fardamento: candidate.getString('tamanho_fardamento'),

@@ -89,6 +89,38 @@ export const formatDateBR = (dateStr?: string) => {
   }
 }
 
+export interface VacancyRequiredFields {
+  quantidade_vagas?: number
+  data_abertura?: string
+  prazo_desejado?: string
+  responsavel_rh?: string
+  responsavel_operacional?: string
+  prioridade?: string
+  salario_faixa?: string
+  cliente?: string
+  cargo?: string
+  cidade?: string
+  tipo_vaga?: string
+  tipo_contrato?: string
+}
+
+export const getMissingRequiredFields = (fields: VacancyRequiredFields): string[] => {
+  const missing: string[] = []
+  if (!fields.quantidade_vagas || fields.quantidade_vagas < 1) missing.push('Quantidade de Vagas')
+  if (!fields.data_abertura) missing.push('Data de Abertura')
+  if (!fields.prazo_desejado) missing.push('Prazo Desejado')
+  if (!fields.responsavel_rh) missing.push('Responsável RH')
+  if (!fields.responsavel_operacional) missing.push('Responsável Operacional')
+  if (!fields.prioridade) missing.push('Prioridade')
+  if (!fields.salario_faixa) missing.push('Faixa Salarial')
+  if (!fields.cliente) missing.push('Cliente')
+  if (!fields.cargo) missing.push('Cargo')
+  if (!fields.cidade) missing.push('Cidade')
+  if (!fields.tipo_vaga) missing.push('Tipo de Vaga')
+  if (!fields.tipo_contrato) missing.push('Tipo de Contrato')
+  return missing
+}
+
 export const toDateInputValue = (dateStr?: string): string => {
   if (!dateStr) return ''
   try {

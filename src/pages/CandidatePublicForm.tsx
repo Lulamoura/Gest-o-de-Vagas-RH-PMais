@@ -12,10 +12,11 @@ import {
   SelectContent,
   SelectItem,
 } from '@/components/ui/select'
-import { CheckCircle2, User, Briefcase, AlertCircle } from 'lucide-react'
+import { CheckCircle2, User, Briefcase, AlertCircle, RefreshCw } from 'lucide-react'
 
 interface PublicCandidateData {
   nome: string
+  email: string
   vacancy_title: string
   rg: string
   tamanho_fardamento: string
@@ -43,24 +44,41 @@ export default function CandidatePublicForm() {
   const [telefoneEmergencia, setTelefoneEmergencia] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
+  const fetchData = () => {
+    if (!id) {
+      setError('Link inválido. Verifique o endereço ou entre em contato.')
+      setLoading(false)
+      return
+    }
+    setLoading(true)
+    setError('')
+    pb.send(`/backend/v1/candidate-public-data/${id}`, { method: 'GET' })
+      .then((res: PublicCandidateData) => {
+        setData(res)
+        setRg(res.rg || '')
+        setTamanhoFardamento(res.tamanho_fardamento || '')
+        setTamanhoSapato(res.tamanho_sapato || '')
+        setValeTransporteQtd(res.vale_transporte_qtd || 0)
+        setNomePai(res.nome_pai || '')
+        setNomeMae(res.nome_mae || '')
+        setTelefoneEmergencia(res.telefone_emergencia || '')
+      })
+      .catch((err) => {
+        if (err?.isAbort) {
+          setError('O tempo limite foi excedido. Verifique sua conexão e tente novamente.')
+        } else if (err?.status === 404) {
+          setError(
+            'Não foi possível carregar seus dados. O link pode estar incorreto ou expirado. Tente novamente.',
+          )
+        } else {
+          setError('Não foi possível carregar seus dados. Tente novamente.')
+        }
+      })
+      .finally(() => setLoading(false))
+  }
+
   useEffect(() => {
-    if (!id)
-      return pb
-        .send(`/backend/v1/candidate-public-data/${id}`, { method: 'GET' })
-        .then((res: PublicCandidateData) => {
-          setData(res)
-          setRg(res.rg || '')
-          setTamanhoFardamento(res.tamanho_fardamento || '')
-          setTamanhoSapato(res.tamanho_sapato || '')
-          setValeTransporteQtd(res.vale_transporte_qtd || 0)
-          setNomePai(res.nome_pai || '')
-          setNomeMae(res.nome_mae || '')
-          setTelefoneEmergencia(res.telefone_emergencia || '')
-        })
-        .catch(() =>
-          setError('Não foi possível encontrar seus dados. Verifique o link ou entre em contato.'),
-        )
-        .finally(() => setLoading(false))
+    fetchData()
   }, [id])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -113,9 +131,13 @@ export default function CandidatePublicForm() {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
         <Card className="max-w-md w-full border-slate-200">
-          <CardContent className="pt-6 text-center space-y-3">
+          <CardContent className="pt-6 text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-rose-500 mx-auto" />
             <p className="text-slate-700 font-medium">{error}</p>
+            <Button onClick={fetchData} variant="outline" className="gap-2">
+              <RefreshCw className="h-4 w-4" />
+              Tente novamente
+            </Button>
           </CardContent>
         </Card>
       </div>

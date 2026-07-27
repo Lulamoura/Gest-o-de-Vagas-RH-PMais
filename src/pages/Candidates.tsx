@@ -1,76 +1,63 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { Mail, Plus, Pencil, Trash2, Search } from 'lucide-react'
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { StarRating } from '@/components/StarRating'
+import { CurrencyInput } from '@/components/CurrencyInput'
+import { useAuth } from '@/hooks/use-auth'
+import { useRealtime } from '@/hooks/use-realtime'
 import {
   getCandidates,
   createCandidate,
   updateCandidate,
+  deleteCandidate,
   sendComplementDataRequest,
 } from '@/services/candidates'
 import { getVacancies } from '@/services/vacancies'
-import { CandidateRecord, VacancyRecord, CandidateStatus } from '@/types'
-import { useRealtime } from '@/hooks/use-realtime'
-import { formatCurrency, getCandidateStatusBadgeClass } from '@/lib/status-utils'
-import { isVacancyInGroup, type VacancyStatusGroup } from '@/lib/vacancy-status-group'
-import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import {
-  Select,
-  SelectTrigger,
-  SelectValue,
-  SelectContent,
-  SelectItem,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from '@/components/ui/table'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { toast } from 'sonner'
-import { CurrencyInput } from '@/components/CurrencyInput'
-import {
-  PlusCircle,
-  Search,
-  Pencil,
-  Users,
-  Briefcase,
-  Filter,
-  Star,
-  ArrowUpDown,
-  Mail,
-} from 'lucide-react'
-import { StarRating } from '@/components/StarRating'
+import { CandidateRecord, CandidateStatus, VacancyRecord } from '@/types'
+import { toast } from '@/components/ui/use-toast'
+import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
+import { getErrorMessage, extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
+
+const CANDIDATE_STATUSES: CandidateStatus[] = [
+  'Análise do RH',
+  'Análise do gestor',
+  'Documentação e exame',
+  'Cadastro DP',
+  'Integrado',
+  'Desistente',
+  'Desclassificado',
+  'Em banco',
+]
 
 export default function Candidates() {
+  const { user } = useAuth()
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
   const [vacancies, setVacancies] = useState<VacancyRecord[]>([])
   const [loading, setLoading] = useState(true)
-
-  // Filters
-  const [search, setSearch] = useState('')
-  const [vacancyFilter, setVacancyFilter] = useState('ALL')
-  const [statusFilter, setStatusFilter] = useState('ALL')
-  const [rankFilter, setRankFilter] = useState('ALL')
-  const [sortByRank, setSortByRank] = useState<'asc' | 'desc' | null>(null)
-  const [vacancyStatusGroup, setVacancyStatusGroup] = useState<VacancyStatusGroup>('Em andamento')
-
-  // Modal create/edit
   const [modalOpen, setModalOpen] = useState(false)
   const [editingCandidate, setEditingCandidate] = useState<CandidateRecord | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [filterVacancyId, setFilterVacancyId] = useState<string>('all')
 
-  // Form fields
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
   const [telefone, setTelefone] = useState('')
@@ -78,90 +65,56 @@ export default function Candidates() {
   const [cidade, setCidade] = useState('')
   const [bairro, setBairro] = useState('')
   const [vacancyId, setVacancyId] = useState('')
-  const [statusCandidato, setStatusCandidato] = useState<CandidateStatus>('Análise do RH')
+  const [status, setStatus] = useState<CandidateStatus>('Análise do RH')
+  const [rank, setRank] = useState(0)
+  const [rankError, setRankError] = useState('')
   const [custoConsultas, setCustoConsultas] = useState(0)
   const [custoExames, setCustoExames] = useState(0)
   const [custoTestes, setCustoTestes] = useState(0)
   const [custoExtras, setCustoExtras] = useState(0)
-  const [rank, setRank] = useState<number | null>(null)
-  const [rankError, setRankError] = useState('')
-  const [saving, setSaving] = useState(false)
-
   const [rg, setRg] = useState('')
   const [tamanhoFardamento, setTamanhoFardamento] = useState('')
   const [tamanhoSapato, setTamanhoSapato] = useState('')
-  const [valeTransporteQtd, setValeTransporteQtd] = useState(0)
+  const [valeTransporteQtd, setValeTransporteQtd] = useState<number>(0)
   const [nomePai, setNomePai] = useState('')
   const [nomeMae, setNomeMae] = useState('')
   const [telefoneEmergencia, setTelefoneEmergencia] = useState('')
-  const [complementErrors, setComplementErrors] = useState<Record<string, string>>({})
-  const [sendingEmail, setSendingEmail] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
-      const [cData, vData] = await Promise.all([getCandidates(), getVacancies()])
-      setCandidates(cData)
-      setVacancies(vData)
+      const [cands, vacs] = await Promise.all([getCandidates(), getVacancies()])
+      setCandidates(cands)
+      setVacancies(vacs)
     } catch (err) {
-      toast.error('Erro ao carregar candidatos')
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [loadData])
+  useRealtime('candidates', () => {
+    loadData()
+  })
 
-  useRealtime('candidates', () => loadData())
-
-  const filteredCandidates = useMemo(() => {
-    const filtered = candidates.filter((c) => {
-      const matchesSearch =
-        search === '' ||
-        c.nome.toLowerCase().includes(search.toLowerCase()) ||
-        (c.email && c.email.toLowerCase().includes(search.toLowerCase()))
-
-      const matchesVacancy = vacancyFilter === 'ALL' || c.vacancy_id === vacancyFilter
-      const matchesStatus = statusFilter === 'ALL' || c.status_candidato === statusFilter
-
-      const matchesRank = rankFilter === 'ALL' || (c.rank != null && c.rank >= Number(rankFilter))
-
-      const vacancyStatus = c.expand?.vacancy_id?.status_vaga
-      const matchesVacancyStatusGroup = vacancyStatus
-        ? isVacancyInGroup(vacancyStatus, vacancyStatusGroup)
-        : false
-
-      return (
-        matchesSearch && matchesVacancy && matchesStatus && matchesRank && matchesVacancyStatusGroup
-      )
-    })
-
-    if (sortByRank === 'desc') {
-      filtered.sort((a, b) => (b.rank || 0) - (a.rank || 0))
-    } else if (sortByRank === 'asc') {
-      filtered.sort((a, b) => (a.rank || 0) - (b.rank || 0))
-    }
-
-    return filtered
-  }, [candidates, search, vacancyFilter, statusFilter, rankFilter, sortByRank, vacancyStatusGroup])
-
-  const openCreateModal = () => {
-    setEditingCandidate(null)
+  const resetForm = () => {
     setNome('')
     setEmail('')
     setTelefone('')
     setCpf('')
     setCidade('')
     setBairro('')
-    setVacancyId(vacancies[0]?.id || '')
-    setStatusCandidato('Análise do RH')
+    setVacancyId('')
+    setStatus('Análise do RH')
+    setRank(0)
+    setRankError('')
     setCustoConsultas(0)
     setCustoExames(0)
     setCustoTestes(0)
     setCustoExtras(0)
-    setRank(null)
-    setRankError('')
     setRg('')
     setTamanhoFardamento('')
     setTamanhoSapato('')
@@ -169,101 +122,111 @@ export default function Candidates() {
     setNomePai('')
     setNomeMae('')
     setTelefoneEmergencia('')
-    setComplementErrors({})
+    setFieldErrors({})
+    setEditingCandidate(null)
+  }
+
+  const handleOpenModal = () => {
+    resetForm()
     setModalOpen(true)
   }
 
-  const openEditModal = (c: CandidateRecord) => {
-    setEditingCandidate(c)
-    setNome(c.nome)
-    setEmail(c.email || '')
-    setTelefone(c.telefone || '')
-    setCpf(c.cpf || '')
-    setCidade(c.cidade || '')
-    setBairro(c.bairro || '')
-    setVacancyId(c.vacancy_id)
-    setStatusCandidato(c.status_candidato)
-    setCustoConsultas(c.custo_consultas || 0)
-    setCustoExames(c.custo_exames || 0)
-    setCustoTestes(c.custo_testes || 0)
-    setCustoExtras(c.custo_extras || 0)
-    setRank(c.rank ?? null)
-    setRankError('')
-    setRg(c.rg || '')
-    setTamanhoFardamento(c.tamanho_fardamento || '')
-    setTamanhoSapato(c.tamanho_sapato || '')
-    setValeTransporteQtd(c.vale_transporte_qtd || 0)
-    setNomePai(c.nome_pai || '')
-    setNomeMae(c.nome_mae || '')
-    setTelefoneEmergencia(c.telefone_emergencia || '')
-    setComplementErrors({})
+  const handleEdit = (candidate: CandidateRecord) => {
+    resetForm()
+    setEditingCandidate(candidate)
+    setNome(candidate.nome || '')
+    setEmail(candidate.email || '')
+    setTelefone(candidate.telefone || '')
+    setCpf(candidate.cpf || '')
+    setCidade(candidate.cidade || '')
+    setBairro(candidate.bairro || '')
+    setVacancyId(candidate.vacancy_id || '')
+    setStatus(candidate.status_candidato || 'Análise do RH')
+    setRank(candidate.rank || 0)
+    setCustoConsultas(candidate.custo_consultas || 0)
+    setCustoExames(candidate.custo_exames || 0)
+    setCustoTestes(candidate.custo_testes || 0)
+    setCustoExtras(candidate.custo_extras || 0)
+    setRg(candidate.rg || '')
+    setTamanhoFardamento(candidate.tamanho_fardamento || '')
+    setTamanhoSapato(candidate.tamanho_sapato || '')
+    setValeTransporteQtd(candidate.vale_transporte_qtd || 0)
+    setNomePai(candidate.nome_pai || '')
+    setNomeMae(candidate.nome_mae || '')
+    setTelefoneEmergencia(candidate.telefone_emergencia || '')
     setModalOpen(true)
   }
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!nome.trim() || !vacancyId) {
-      toast.error('Nome do candidato e vaga vinculada são obrigatórios.')
-      return
-    }
-
-    if (rank != null && (rank < 1 || rank > 5 || !Number.isInteger(rank))) {
-      setRankError('O ranking deve ser um valor entre 1 e 5 estrelas.')
-      return
-    }
     setRankError('')
+    setFieldErrors({})
 
-    const cErrors: Record<string, string> = {}
-    if (!rg.trim()) cErrors.rg = 'RG é obrigatório.'
-    if (!tamanhoFardamento) cErrors.tamanho_fardamento = 'Tamanho do fardamento é obrigatório.'
-    if (!tamanhoSapato.trim()) cErrors.tamanho_sapato = 'Tamanho do sapato é obrigatório.'
-    if (!nomeMae.trim()) cErrors.nome_mae = 'Nome da mãe é obrigatório.'
-    if (!telefoneEmergencia.trim())
-      cErrors.telefone_emergencia = 'Telefone para emergência é obrigatório.'
-    if (Object.keys(cErrors).length > 0) {
-      setComplementErrors(cErrors)
-      return
+    let hasError = false
+
+    if (rank < 1 || rank > 5) {
+      setRankError('Selecione uma classificação de 1 a 5 estrelas')
+      hasError = true
     }
-    setComplementErrors({})
+    if (!nome.trim()) {
+      setFieldErrors((prev) => ({ ...prev, nome: 'Nome é obrigatório' }))
+      hasError = true
+    }
+    if (!vacancyId) {
+      setFieldErrors((prev) => ({ ...prev, vacancy_id: 'Selecione uma vaga' }))
+      hasError = true
+    }
+    if (hasError) return
 
     setSaving(true)
-    const payload = {
-      nome,
-      email,
-      telefone,
-      cidade,
-      bairro,
-      cpf,
-      vacancy_id: vacancyId,
-      status_candidato: statusCandidato,
-      custo_consultas: Number(custoConsultas),
-      custo_exames: Number(custoExames),
-      custo_testes: Number(custoTestes),
-      custo_extras: Number(custoExtras),
-      rank: rank ?? null,
-      rg,
-      tamanho_fardamento: tamanhoFardamento || null,
-      tamanho_sapato: tamanhoSapato,
-      vale_transporte_qtd: Number(valeTransporteQtd),
-      nome_pai: nomePai,
-      nome_mae: nomeMae,
-      telefone_emergencia: telefoneEmergencia,
-    }
-
     try {
+      const data: Partial<CandidateRecord> = {
+        nome: nome.trim(),
+        email: email.trim() || undefined,
+        telefone: telefone.trim() || undefined,
+        cpf: cpf.trim() || undefined,
+        cidade: cidade.trim() || undefined,
+        bairro: bairro.trim() || undefined,
+        vacancy_id: vacancyId,
+        status_candidato: status,
+        rank,
+        custo_consultas: custoConsultas,
+        custo_exames: custoExames,
+        custo_testes: custoTestes,
+        custo_extras: custoExtras,
+        rg: rg.trim() || undefined,
+        tamanho_fardamento: tamanhoFardamento || undefined,
+        tamanho_sapato: tamanhoSapato.trim() || undefined,
+        vale_transporte_qtd: valeTransporteQtd || undefined,
+        nome_pai: nomePai.trim() || undefined,
+        nome_mae: nomeMae.trim() || undefined,
+        telefone_emergencia: telefoneEmergencia.trim() || undefined,
+      }
+
       if (editingCandidate) {
-        await updateCandidate(editingCandidate.id, payload)
-        toast.success('Candidato atualizado com sucesso!')
+        await updateCandidate(editingCandidate.id, data)
+        toast({ title: 'Sucesso', description: 'Candidato atualizado com sucesso!' })
       } else {
-        await createCandidate(payload)
-        toast.success('Candidato criado com sucesso!')
+        await createCandidate(data)
+        toast({ title: 'Sucesso', description: 'Candidato criado com sucesso!' })
       }
       setModalOpen(false)
-      loadData()
+      resetForm()
     } catch (err) {
-      toast.error('Erro ao salvar candidato')
+      setFieldErrors(extractFieldErrors(err))
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Tem certeza que deseja excluir este candidato?')) return
+    try {
+      await deleteCandidate(id)
+      toast({ title: 'Sucesso', description: 'Candidato excluído com sucesso!' })
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
     }
   }
 
@@ -272,334 +235,252 @@ export default function Candidates() {
     setSendingEmail(true)
     try {
       await sendComplementDataRequest(editingCandidate.id)
-      toast.success('E-mail enviado com sucesso para o candidato!')
-    } catch (err: any) {
-      const msg = err?.response?.error || 'Erro ao enviar e-mail'
-      toast.error(msg)
+      toast({ title: 'Sucesso', description: 'E-mail enviado com sucesso!' })
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
     } finally {
       setSendingEmail(false)
     }
   }
 
+  const filteredCandidates = candidates.filter((c) => {
+    const matchesSearch =
+      c.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      c.email?.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesVacancy = filterVacancyId === 'all' || c.vacancy_id === filterVacancyId
+    return matchesSearch && matchesVacancy
+  })
+
+  const getVacancyLabel = (id: string) => {
+    const v = vacancies.find((v) => v.id === id)
+    if (!v) return '—'
+    const cliente = v.expand?.cliente?.nome || ''
+    const cargo = v.expand?.cargo?.nome || ''
+    return `${cliente} — ${cargo}`.replace(/^—\s*/, '').trim() || '—'
+  }
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
+      <div className="flex items-center justify-center h-full py-20">
+        <p className="text-slate-500">Carregando candidatos...</p>
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      {/* Top Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-900">Gestão de Candidatos</h2>
-          <p className="text-xs text-slate-500">
-            Acompanhe o status e custos de todos os candidatos participantes dos processos seletivos
-          </p>
+          <h1 className="text-2xl font-bold text-slate-900">Candidatos</h1>
+          <p className="text-sm text-slate-500">Gerencie os candidatos das vagas</p>
         </div>
-
-        <Button
-          onClick={openCreateModal}
-          className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm"
-        >
-          <PlusCircle className="h-4 w-4 mr-2" /> Novo Candidato
+        <Button onClick={handleOpenModal} className="bg-indigo-600 hover:bg-indigo-500 text-white">
+          <Plus className="h-4 w-4 mr-2" />
+          Novo Candidato
         </Button>
       </div>
 
-      {/* Filter Bar */}
-      <Card className="border-slate-200 shadow-2xs">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
-            <Filter className="h-4 w-4 text-slate-500" />
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-              Filtros
-            </span>
-          </div>
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Buscar por nome ou e-mail..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={filterVacancyId} onValueChange={setFilterVacancyId}>
+          <SelectTrigger className="w-full sm:w-64">
+            <SelectValue placeholder="Filtrar por vaga" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todas as vagas</SelectItem>
+            {vacancies.map((v) => (
+              <SelectItem key={v.id} value={v.id}>
+                {getVacancyLabel(v.id)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Buscar por nome ou email..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9 h-9 text-xs"
-              />
-            </div>
-
-            <Select value={vacancyFilter} onValueChange={setVacancyFilter}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Vaga Vinculada" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todas as Vagas</SelectItem>
-                {vacancies.map((v) => (
-                  <SelectItem key={v.id} value={v.id}>
-                    {v.expand?.cargo?.nome || v.cargo} ({v.expand?.cliente?.nome || v.cliente})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Status do Candidato" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos os Status</SelectItem>
-                <SelectItem value="Análise do RH">Análise do RH</SelectItem>
-                <SelectItem value="Análise do gestor">Análise do gestor</SelectItem>
-                <SelectItem value="Documentação e exame">Documentação e exame</SelectItem>
-                <SelectItem value="Cadastro DP">Cadastro DP</SelectItem>
-                <SelectItem value="Integrado">Integrado</SelectItem>
-                <SelectItem value="Desistente">Desistente</SelectItem>
-                <SelectItem value="Desclassificado">Desclassificado</SelectItem>
-                <SelectItem value="Em banco">Em banco</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={rankFilter} onValueChange={setRankFilter}>
-              <SelectTrigger className="h-9 text-xs">
-                <Star className="h-3.5 w-3.5 mr-1.5 text-amber-400 fill-amber-400" />
-                <SelectValue placeholder="Ranking" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="ALL">Todos os Rankings</SelectItem>
-                <SelectItem value="1">Ranking ≥ 1 estrela</SelectItem>
-                <SelectItem value="2">Ranking ≥ 2 estrelas</SelectItem>
-                <SelectItem value="3">Ranking ≥ 3 estrelas</SelectItem>
-                <SelectItem value="4">Ranking ≥ 4 estrelas</SelectItem>
-                <SelectItem value="5">Ranking ≥ 5 estrelas</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select
-              value={vacancyStatusGroup}
-              onValueChange={(v) => setVacancyStatusGroup(v as VacancyStatusGroup)}
-            >
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Status da Vaga" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Em andamento">Em andamento</SelectItem>
-                <SelectItem value="Fechadas">Fechadas</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Table */}
-      <Card className="border-slate-200 shadow-2xs">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
-                <TableHead className="text-xs font-semibold text-slate-600">Nome</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Contato</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">
-                  Vaga Vinculada
-                </TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">
-                  <button
-                    className="flex items-center gap-1 hover:text-indigo-600"
-                    onClick={() => setSortByRank(sortByRank === 'desc' ? 'asc' : 'desc')}
-                  >
-                    Ranking
-                    <ArrowUpDown className="h-3 w-3" />
-                  </button>
-                </TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Custo Total</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 text-right">
-                  Ações
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredCandidates.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-center py-8 text-slate-500 text-sm">
+      <div className="rounded-lg border border-slate-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="text-left font-semibold text-slate-600 px-4 py-3">Nome</th>
+                <th className="text-left font-semibold text-slate-600 px-4 py-3 hidden md:table-cell">
+                  Vaga
+                </th>
+                <th className="text-left font-semibold text-slate-600 px-4 py-3 hidden lg:table-cell">
+                  Contato
+                </th>
+                <th className="text-left font-semibold text-slate-600 px-4 py-3">Status</th>
+                <th className="text-center font-semibold text-slate-600 px-4 py-3">Rank</th>
+                <th className="text-right font-semibold text-slate-600 px-4 py-3">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {filteredCandidates.map((candidate) => (
+                <tr key={candidate.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-slate-900">{candidate.nome}</div>
+                    {candidate.cpf && (
+                      <div className="text-xs text-slate-400">CPF: {candidate.cpf}</div>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 hidden md:table-cell text-slate-600">
+                    {getVacancyLabel(candidate.vacancy_id)}
+                  </td>
+                  <td className="px-4 py-3 hidden lg:table-cell text-slate-600">
+                    <div>{candidate.email || '—'}</div>
+                    <div className="text-xs text-slate-400">{candidate.telefone || ''}</div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <Badge className={getCandidateStatusBadgeClass(candidate.status_candidato)}>
+                      {candidate.status_candidato}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <StarRating value={candidate.rank || 0} onChange={() => {}} size={16} />
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(candidate)}
+                        className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(candidate.id)}
+                        className="h-8 w-8 text-slate-500 hover:text-rose-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+              {filteredCandidates.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-8 text-center text-slate-400">
                     Nenhum candidato encontrado.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filteredCandidates.map((cand) => {
-                  const totalCost =
-                    (cand.custo_consultas || 0) +
-                    (cand.custo_exames || 0) +
-                    (cand.custo_testes || 0) +
-                    (cand.custo_extras || 0)
-
-                  return (
-                    <TableRow key={cand.id} className="hover:bg-slate-50/80">
-                      <TableCell className="font-bold text-slate-900 text-sm">
-                        {cand.nome}
-                      </TableCell>
-
-                      <TableCell className="text-xs text-slate-600">
-                        <div>{cand.email || '-'}</div>
-                        <div className="text-slate-400">{cand.telefone || '-'}</div>
-                        {cand.cpf && <div className="text-slate-400">CPF: {cand.cpf}</div>}
-                      </TableCell>
-
-                      <TableCell className="text-xs text-slate-700">
-                        <div className="flex items-center space-x-1">
-                          <Briefcase className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                          <div className="min-w-0">
-                            <span className="font-medium truncate max-w-[180px] block">
-                              {cand.expand?.vacancy_id?.expand?.cargo?.nome ||
-                                'Vaga não encontrada'}
-                            </span>
-                            {cand.expand?.vacancy_id?.expand?.tipo_contrato?.nome && (
-                              <span className="text-[10px] text-slate-400">
-                                {cand.expand?.vacancy_id?.expand?.tipo_contrato?.nome}
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-
-                      <TableCell>
-                        {cand.rank ? (
-                          <StarRating value={cand.rank} readOnly size={14} />
-                        ) : (
-                          <span className="text-xs text-slate-400">—</span>
-                        )}
-                      </TableCell>
-
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={getCandidateStatusBadgeClass(cand.status_candidato)}
-                        >
-                          {cand.status_candidato}
-                        </Badge>
-                      </TableCell>
-
-                      <TableCell className="font-semibold text-slate-900 text-xs">
-                        {formatCurrency(totalCost)}
-                      </TableCell>
-
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => openEditModal(cand)}
-                          className="h-8 w-8 text-slate-600 hover:text-amber-600"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  )
-                })
+                  </td>
+                </tr>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      {/* Modal Candidate */}
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingCandidate ? 'Editar Candidato' : 'Novo Candidato'}</DialogTitle>
-            <DialogDescription>
-              {editingCandidate
-                ? 'Atualize as informações e custos'
-                : 'Cadastre um novo candidato no sistema'}
-            </DialogDescription>
           </DialogHeader>
-
-          <form onSubmit={handleSave} className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="nome" className="text-xs font-bold text-slate-700">
-                Nome Completo <span className="text-rose-500">*</span>
-              </Label>
-              <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} required />
-            </div>
-
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-semibold text-slate-700">
-                  Email
+              <div className="col-span-2">
+                <Label htmlFor="nome" className="text-xs font-bold text-slate-700">
+                  Nome <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  id="nome"
+                  value={nome}
+                  onChange={(e) => setNome(e.target.value)}
+                  placeholder="Nome completo"
+                />
+                {fieldErrors.nome && (
+                  <p className="text-xs text-rose-500 mt-0.5">{fieldErrors.nome}</p>
+                )}
+              </div>
+              <div>
+                <Label htmlFor="email" className="text-xs font-bold text-slate-700">
+                  E-mail
                 </Label>
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="exemplo@email.com"
                 />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="tel" className="text-xs font-semibold text-slate-700">
+              <div>
+                <Label htmlFor="telefone" className="text-xs font-bold text-slate-700">
                   Telefone
                 </Label>
-                <Input id="tel" value={telefone} onChange={(e) => setTelefone(e.target.value)} />
+                <Input
+                  id="telefone"
+                  value={telefone}
+                  onChange={(e) => setTelefone(e.target.value)}
+                  placeholder="(00) 00000-0000"
+                />
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="cidade" className="text-xs font-semibold text-slate-700">
+              <div>
+                <Label htmlFor="cpf" className="text-xs font-bold text-slate-700">
+                  CPF
+                </Label>
+                <Input
+                  id="cpf"
+                  value={cpf}
+                  onChange={(e) => setCpf(e.target.value)}
+                  placeholder="000.000.000-00"
+                />
+              </div>
+              <div>
+                <Label htmlFor="cidade" className="text-xs font-bold text-slate-700">
                   Cidade
                 </Label>
                 <Input id="cidade" value={cidade} onChange={(e) => setCidade(e.target.value)} />
               </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="bairro" className="text-xs font-semibold text-slate-700">
+              <div>
+                <Label htmlFor="bairro" className="text-xs font-bold text-slate-700">
                   Bairro
                 </Label>
                 <Input id="bairro" value={bairro} onChange={(e) => setBairro(e.target.value)} />
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="cpf" className="text-xs font-semibold text-slate-700">
-                CPF
-              </Label>
-              <Input id="cpf" value={cpf} onChange={(e) => setCpf(e.target.value)} />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold text-slate-700">
-                Vaga Vinculada <span className="text-rose-500">*</span>
-              </Label>
-              <Select value={vacancyId} onValueChange={setVacancyId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a vaga" />
-                </SelectTrigger>
-                <SelectContent>
-                  {vacancies.map((v) => (
-                    <SelectItem key={v.id} value={v.id}>
-                      {v.expand?.cargo?.nome || v.cargo} ({v.expand?.cliente?.nome || v.cliente})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="col-span-2">
+                <Label className="text-xs font-bold text-slate-700">
+                  Vaga <span className="text-rose-500">*</span>
+                </Label>
+                <Select value={vacancyId} onValueChange={setVacancyId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma vaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vacancies.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {getVacancyLabel(v.id)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {fieldErrors.vacancy_id && (
+                  <p className="text-xs text-rose-500 mt-0.5">{fieldErrors.vacancy_id}</p>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-slate-700">Status do Candidato</Label>
-              <Select
-                value={statusCandidato}
-                onValueChange={(v) => setStatusCandidato(v as CandidateStatus)}
-              >
+              <Select value={status} onValueChange={(v) => setStatus(v as CandidateStatus)}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Status" />
+                  <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Análise do RH">Análise do RH</SelectItem>
-                  <SelectItem value="Análise do gestor">Análise do gestor</SelectItem>
-                  <SelectItem value="Documentação e exame">Documentação e exame</SelectItem>
-                  <SelectItem value="Cadastro DP">Cadastro DP</SelectItem>
-                  <SelectItem value="Integrado">Integrado</SelectItem>
-                  <SelectItem value="Desistente">Desistente</SelectItem>
-                  <SelectItem value="Desclassificado">Desclassificado</SelectItem>
-                  <SelectItem value="Em banco">Em banco</SelectItem>
+                  {CANDIDATE_STATUSES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -647,17 +528,12 @@ export default function Candidates() {
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div>
                   <Label htmlFor="dRg" className="text-[10px] text-slate-500">
-                    RG <span className="text-rose-500">*</span>
+                    RG
                   </Label>
                   <Input id="dRg" value={rg} onChange={(e) => setRg(e.target.value)} />
-                  {complementErrors.rg && (
-                    <p className="text-[10px] text-rose-500 mt-0.5">{complementErrors.rg}</p>
-                  )}
                 </div>
                 <div>
-                  <Label className="text-[10px] text-slate-500">
-                    Tamanho Fardamento <span className="text-rose-500">*</span>
-                  </Label>
+                  <Label className="text-[10px] text-slate-500">Tamanho Fardamento</Label>
                   <Select value={tamanhoFardamento} onValueChange={setTamanhoFardamento}>
                     <SelectTrigger>
                       <SelectValue placeholder="Selecione" />
@@ -670,30 +546,20 @@ export default function Candidates() {
                       <SelectItem value="GG">GG</SelectItem>
                     </SelectContent>
                   </Select>
-                  {complementErrors.tamanho_fardamento && (
-                    <p className="text-[10px] text-rose-500 mt-0.5">
-                      {complementErrors.tamanho_fardamento}
-                    </p>
-                  )}
                 </div>
                 <div>
                   <Label htmlFor="dSapato" className="text-[10px] text-slate-500">
-                    Tamanho Sapato <span className="text-rose-500">*</span>
+                    Tamanho Sapato
                   </Label>
                   <Input
                     id="dSapato"
                     value={tamanhoSapato}
                     onChange={(e) => setTamanhoSapato(e.target.value)}
                   />
-                  {complementErrors.tamanho_sapato && (
-                    <p className="text-[10px] text-rose-500 mt-0.5">
-                      {complementErrors.tamanho_sapato}
-                    </p>
-                  )}
                 </div>
                 <div>
                   <Label htmlFor="dVt" className="text-[10px] text-slate-500">
-                    Vale-transporte (qtd/dia) <span className="text-rose-500">*</span>
+                    Vale-transporte (qtd/dia)
                   </Label>
                   <Input
                     id="dVt"
@@ -711,16 +577,13 @@ export default function Candidates() {
                 </div>
                 <div>
                   <Label htmlFor="dMae" className="text-[10px] text-slate-500">
-                    Nome da Mãe <span className="text-rose-500">*</span>
+                    Nome da Mãe
                   </Label>
                   <Input id="dMae" value={nomeMae} onChange={(e) => setNomeMae(e.target.value)} />
-                  {complementErrors.nome_mae && (
-                    <p className="text-[10px] text-rose-500 mt-0.5">{complementErrors.nome_mae}</p>
-                  )}
                 </div>
                 <div className="col-span-2">
                   <Label htmlFor="dEmergencia" className="text-[10px] text-slate-500">
-                    Telefone para Emergência <span className="text-rose-500">*</span>
+                    Telefone para Emergência
                   </Label>
                   <Input
                     id="dEmergencia"
@@ -728,11 +591,6 @@ export default function Candidates() {
                     onChange={(e) => setTelefoneEmergencia(e.target.value)}
                     placeholder="(00) 00000-0000"
                   />
-                  {complementErrors.telefone_emergencia && (
-                    <p className="text-[10px] text-rose-500 mt-0.5">
-                      {complementErrors.telefone_emergencia}
-                    </p>
-                  )}
                 </div>
               </div>
             </div>
