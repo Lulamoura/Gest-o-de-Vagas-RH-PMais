@@ -35,3 +35,23 @@ export const updateCandidate = async (id: string, data: Partial<CandidateRecord>
 export const deleteCandidate = async (id: string) => {
   return pb.collection<CandidateRecord>('candidates').delete(id)
 }
+
+export const sendComplementDataRequest = async (candidateId: string) => {
+  return pb.send('/backend/v1/send-complement-data-request', {
+    method: 'POST',
+    body: JSON.stringify({ candidate_id: candidateId }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
+export const getCandidatePublicData = async (id: string) => {
+  return pb.send(`/backend/v1/candidate-public-data/${id}`, { method: 'GET' })
+}
+
+export const updateCandidatePublicData = async (id: string, data: Record<string, unknown>) => {
+  return pb.send(`/backend/v1/candidate-public-data/${id}`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}

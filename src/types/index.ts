@@ -92,6 +92,13 @@ export interface CandidateRecord extends RecordModel {
   custo_testes?: number
   custo_extras?: number
   rank?: number
+  rg?: string
+  tamanho_fardamento?: string
+  tamanho_sapato?: string
+  vale_transporte_qtd?: number
+  nome_pai?: string
+  nome_mae?: string
+  telefone_emergencia?: string
   status_candidato: CandidateStatus
   expand?: {
     vacancy_id?: VacancyRecord

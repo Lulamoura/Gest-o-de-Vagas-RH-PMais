@@ -103,6 +103,14 @@ export default function VacancyDetail() {
   const [rankError, setRankError] = useState('')
   const [savingCandidate, setSavingCandidate] = useState(false)
 
+  const [rgCandidato, setRgCandidato] = useState('')
+  const [tamanhoFardamentoCandidato, setTamanhoFardamentoCandidato] = useState('')
+  const [tamanhoSapatoCandidato, setTamanhoSapatoCandidato] = useState('')
+  const [valeTransporteCandidato, setValeTransporteCandidato] = useState(0)
+  const [nomePaiCandidato, setNomePaiCandidato] = useState('')
+  const [nomeMaeCandidato, setNomeMaeCandidato] = useState('')
+  const [telefoneEmergenciaCandidato, setTelefoneEmergenciaCandidato] = useState('')
+
   // Move Pipeline Modal
   const [pipelineModalOpen, setPipelineModalOpen] = useState(false)
   const [nextStatus, setNextStatus] = useState<VacancyStatus | ''>('')
@@ -184,6 +192,13 @@ export default function VacancyDetail() {
         custo_extras: Number(custoExtras),
         status_candidato: statusCandidato,
         rank: rankCandidato ?? null,
+        rg: rgCandidato,
+        tamanho_fardamento: tamanhoFardamentoCandidato || null,
+        tamanho_sapato: tamanhoSapatoCandidato,
+        vale_transporte_qtd: Number(valeTransporteCandidato),
+        nome_pai: nomePaiCandidato,
+        nome_mae: nomeMaeCandidato,
+        telefone_emergencia: telefoneEmergenciaCandidato,
       })
 
       toast.success('Candidato adicionado com sucesso!')
@@ -197,6 +212,13 @@ export default function VacancyDetail() {
       setCustoExtras(0)
       setRankCandidato(null)
       setStatusCandidato('Análise do RH')
+      setRgCandidato('')
+      setTamanhoFardamentoCandidato('')
+      setTamanhoSapatoCandidato('')
+      setValeTransporteCandidato(0)
+      setNomePaiCandidato('')
+      setNomeMaeCandidato('')
+      setTelefoneEmergenciaCandidato('')
       loadData()
     } catch (err) {
       toast.error('Erro ao salvar candidato')
@@ -840,6 +862,94 @@ export default function VacancyDetail() {
                     min={0}
                     value={custoExtras}
                     onChange={(e) => setCustoExtras(Number(e.target.value))}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-700 block mb-2">
+                Dados Complementares
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <Label htmlFor="vdRg" className="text-[10px] text-slate-500">
+                    RG
+                  </Label>
+                  <Input
+                    id="vdRg"
+                    value={rgCandidato}
+                    onChange={(e) => setRgCandidato(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-slate-500">Tamanho Fardamento</Label>
+                  <Select
+                    value={tamanhoFardamentoCandidato}
+                    onValueChange={setTamanhoFardamentoCandidato}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PP">PP</SelectItem>
+                      <SelectItem value="P">P</SelectItem>
+                      <SelectItem value="M">M</SelectItem>
+                      <SelectItem value="G">G</SelectItem>
+                      <SelectItem value="GG">GG</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="vdSapato" className="text-[10px] text-slate-500">
+                    Tamanho Sapato
+                  </Label>
+                  <Input
+                    id="vdSapato"
+                    value={tamanhoSapatoCandidato}
+                    onChange={(e) => setTamanhoSapatoCandidato(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="vdVt" className="text-[10px] text-slate-500">
+                    Vale-transporte (qtd/dia)
+                  </Label>
+                  <Input
+                    id="vdVt"
+                    type="number"
+                    min={0}
+                    value={valeTransporteCandidato}
+                    onChange={(e) => setValeTransporteCandidato(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="vdPai" className="text-[10px] text-slate-500">
+                    Nome do Pai
+                  </Label>
+                  <Input
+                    id="vdPai"
+                    value={nomePaiCandidato}
+                    onChange={(e) => setNomePaiCandidato(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="vdMae" className="text-[10px] text-slate-500">
+                    Nome da Mãe
+                  </Label>
+                  <Input
+                    id="vdMae"
+                    value={nomeMaeCandidato}
+                    onChange={(e) => setNomeMaeCandidato(e.target.value)}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="vdEmergencia" className="text-[10px] text-slate-500">
+                    Telefone para Emergência
+                  </Label>
+                  <Input
+                    id="vdEmergencia"
+                    value={telefoneEmergenciaCandidato}
+                    onChange={(e) => setTelefoneEmergenciaCandidato(e.target.value)}
                   />
                 </div>
               </div>

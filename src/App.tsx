@@ -17,6 +17,7 @@ import Users from './pages/Users'
 import ReferenceData from './pages/ReferenceData'
 import WordPressLogs from './pages/WordPressLogs'
 import ChangePassword from './pages/ChangePassword'
+import CandidatePublicForm from './pages/CandidatePublicForm'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -28,6 +29,7 @@ const App = () => (
         <Sonner />
         <Routes>
           <Route path="/login" element={<Login />} />
+          <Route path="/candidato/:id/preencher" element={<CandidatePublicForm />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<Layout />}>
               <Route path="/" element={<Navigate to="/dashboard" replace />} />

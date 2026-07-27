@@ -1,5 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
-import { getCandidates, createCandidate, updateCandidate } from '@/services/candidates'
+import {
+  getCandidates,
+  createCandidate,
+  updateCandidate,
+  sendComplementDataRequest,
+} from '@/services/candidates'
 import { getVacancies } from '@/services/vacancies'
 import { CandidateRecord, VacancyRecord, CandidateStatus } from '@/types'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -44,6 +49,7 @@ import {
   Filter,
   Star,
   ArrowUpDown,
+  Mail,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 
@@ -80,6 +86,16 @@ export default function Candidates() {
   const [rank, setRank] = useState<number | null>(null)
   const [rankError, setRankError] = useState('')
   const [saving, setSaving] = useState(false)
+
+  const [rg, setRg] = useState('')
+  const [tamanhoFardamento, setTamanhoFardamento] = useState('')
+  const [tamanhoSapato, setTamanhoSapato] = useState('')
+  const [valeTransporteQtd, setValeTransporteQtd] = useState(0)
+  const [nomePai, setNomePai] = useState('')
+  const [nomeMae, setNomeMae] = useState('')
+  const [telefoneEmergencia, setTelefoneEmergencia] = useState('')
+  const [complementErrors, setComplementErrors] = useState<Record<string, string>>({})
+  const [sendingEmail, setSendingEmail] = useState(false)
 
   const loadData = async () => {
     try {
@@ -146,6 +162,14 @@ export default function Candidates() {
     setCustoExtras(0)
     setRank(null)
     setRankError('')
+    setRg('')
+    setTamanhoFardamento('')
+    setTamanhoSapato('')
+    setValeTransporteQtd(0)
+    setNomePai('')
+    setNomeMae('')
+    setTelefoneEmergencia('')
+    setComplementErrors({})
     setModalOpen(true)
   }
 
@@ -165,6 +189,14 @@ export default function Candidates() {
     setCustoExtras(c.custo_extras || 0)
     setRank(c.rank ?? null)
     setRankError('')
+    setRg(c.rg || '')
+    setTamanhoFardamento(c.tamanho_fardamento || '')
+    setTamanhoSapato(c.tamanho_sapato || '')
+    setValeTransporteQtd(c.vale_transporte_qtd || 0)
+    setNomePai(c.nome_pai || '')
+    setNomeMae(c.nome_mae || '')
+    setTelefoneEmergencia(c.telefone_emergencia || '')
+    setComplementErrors({})
     setModalOpen(true)
   }
 
@@ -181,6 +213,19 @@ export default function Candidates() {
     }
     setRankError('')
 
+    const cErrors: Record<string, string> = {}
+    if (!rg.trim()) cErrors.rg = 'RG é obrigatório.'
+    if (!tamanhoFardamento) cErrors.tamanho_fardamento = 'Tamanho do fardamento é obrigatório.'
+    if (!tamanhoSapato.trim()) cErrors.tamanho_sapato = 'Tamanho do sapato é obrigatório.'
+    if (!nomeMae.trim()) cErrors.nome_mae = 'Nome da mãe é obrigatório.'
+    if (!telefoneEmergencia.trim())
+      cErrors.telefone_emergencia = 'Telefone para emergência é obrigatório.'
+    if (Object.keys(cErrors).length > 0) {
+      setComplementErrors(cErrors)
+      return
+    }
+    setComplementErrors({})
+
     setSaving(true)
     const payload = {
       nome,
@@ -196,6 +241,13 @@ export default function Candidates() {
       custo_testes: Number(custoTestes),
       custo_extras: Number(custoExtras),
       rank: rank ?? null,
+      rg,
+      tamanho_fardamento: tamanhoFardamento || null,
+      tamanho_sapato: tamanhoSapato,
+      vale_transporte_qtd: Number(valeTransporteQtd),
+      nome_pai: nomePai,
+      nome_mae: nomeMae,
+      telefone_emergencia: telefoneEmergencia,
     }
 
     try {
@@ -212,6 +264,20 @@ export default function Candidates() {
       toast.error('Erro ao salvar candidato')
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleSendEmail = async () => {
+    if (!editingCandidate) return
+    setSendingEmail(true)
+    try {
+      await sendComplementDataRequest(editingCandidate.id)
+      toast.success('E-mail enviado com sucesso para o candidato!')
+    } catch (err: any) {
+      const msg = err?.response?.error || 'Erro ao enviar e-mail'
+      toast.error(msg)
+    } finally {
+      setSendingEmail(false)
     }
   }
 
@@ -573,6 +639,118 @@ export default function Candidates() {
                 </div>
               </div>
             </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-700 block mb-2">
+                Dados Complementares
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <Label htmlFor="dRg" className="text-[10px] text-slate-500">
+                    RG <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input id="dRg" value={rg} onChange={(e) => setRg(e.target.value)} />
+                  {complementErrors.rg && (
+                    <p className="text-[10px] text-rose-500 mt-0.5">{complementErrors.rg}</p>
+                  )}
+                </div>
+                <div>
+                  <Label className="text-[10px] text-slate-500">
+                    Tamanho Fardamento <span className="text-rose-500">*</span>
+                  </Label>
+                  <Select value={tamanhoFardamento} onValueChange={setTamanhoFardamento}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PP">PP</SelectItem>
+                      <SelectItem value="P">P</SelectItem>
+                      <SelectItem value="M">M</SelectItem>
+                      <SelectItem value="G">G</SelectItem>
+                      <SelectItem value="GG">GG</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {complementErrors.tamanho_fardamento && (
+                    <p className="text-[10px] text-rose-500 mt-0.5">
+                      {complementErrors.tamanho_fardamento}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="dSapato" className="text-[10px] text-slate-500">
+                    Tamanho Sapato <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="dSapato"
+                    value={tamanhoSapato}
+                    onChange={(e) => setTamanhoSapato(e.target.value)}
+                  />
+                  {complementErrors.tamanho_sapato && (
+                    <p className="text-[10px] text-rose-500 mt-0.5">
+                      {complementErrors.tamanho_sapato}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <Label htmlFor="dVt" className="text-[10px] text-slate-500">
+                    Vale-transporte (qtd/dia) <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="dVt"
+                    type="number"
+                    min={0}
+                    value={valeTransporteQtd}
+                    onChange={(e) => setValeTransporteQtd(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="dPai" className="text-[10px] text-slate-500">
+                    Nome do Pai
+                  </Label>
+                  <Input id="dPai" value={nomePai} onChange={(e) => setNomePai(e.target.value)} />
+                </div>
+                <div>
+                  <Label htmlFor="dMae" className="text-[10px] text-slate-500">
+                    Nome da Mãe <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input id="dMae" value={nomeMae} onChange={(e) => setNomeMae(e.target.value)} />
+                  {complementErrors.nome_mae && (
+                    <p className="text-[10px] text-rose-500 mt-0.5">{complementErrors.nome_mae}</p>
+                  )}
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="dEmergencia" className="text-[10px] text-slate-500">
+                    Telefone para Emergência <span className="text-rose-500">*</span>
+                  </Label>
+                  <Input
+                    id="dEmergencia"
+                    value={telefoneEmergencia}
+                    onChange={(e) => setTelefoneEmergencia(e.target.value)}
+                    placeholder="(00) 00000-0000"
+                  />
+                  {complementErrors.telefone_emergencia && (
+                    <p className="text-[10px] text-rose-500 mt-0.5">
+                      {complementErrors.telefone_emergencia}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {editingCandidate && (
+              <div className="pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendEmail}
+                  disabled={sendingEmail}
+                  className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {sendingEmail ? 'Enviando...' : 'Enviar e-mail de solicitação'}
+                </Button>
+              </div>
+            )}
 
             <DialogFooter className="pt-3">
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
