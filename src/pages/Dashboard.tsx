@@ -3,11 +3,10 @@ import { Link } from 'react-router-dom'
 import { getVacancies } from '@/services/vacancies'
 import { getCandidates } from '@/services/candidates'
 import { getClientes } from '@/services/clientes'
-import { getAllPipelineHistory } from '@/services/pipeline_history'
-import { VacancyRecord, CandidateRecord, ClienteRecord, PipelineHistoryRecord } from '@/types'
+import { VacancyRecord, CandidateRecord, ClienteRecord } from '@/types'
 import { useRealtime } from '@/hooks/use-realtime'
 import { MandatoryIndicatorCard } from '@/components/MandatoryIndicatorCard'
-import { calculateDaysOpen, formatCurrency } from '@/lib/status-utils'
+import { calculateDaysOpen, formatCurrency, CANDIDATE_STATUS_TO_PHASE } from '@/lib/status-utils'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -32,6 +31,7 @@ import {
   Briefcase,
   CheckCircle,
   Clock,
+  Users,
   AlertTriangle,
   ArrowRight,
   TrendingUp,
@@ -65,7 +65,6 @@ export default function Dashboard() {
   const [vacancies, setVacancies] = useState<VacancyRecord[]>([])
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
   const [clientesList, setClientesList] = useState<ClienteRecord[]>([])
-  const [pipelineHistory, setPipelineHistory] = useState<PipelineHistoryRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   const currentMonthStr = new Date().toISOString().slice(0, 7)
@@ -76,16 +75,14 @@ export default function Dashboard() {
 
   const loadData = async () => {
     try {
-      const [vData, cData, clData, phData] = await Promise.all([
+      const [vData, cData, clData] = await Promise.all([
         getVacancies(),
         getCandidates(),
         getClientes(),
-        getAllPipelineHistory(),
       ])
       setVacancies(vData)
       setCandidates(cData)
       setClientesList(clData)
-      setPipelineHistory(phData)
     } catch (err) {
       console.error(err)
     } finally {
@@ -103,10 +100,6 @@ export default function Dashboard() {
   useRealtime('candidates', () => {
     loadData()
   })
-  useRealtime('pipeline_history', () => {
-    loadData()
-  })
-
   const dateRange = useMemo(() => {
     if (periodStart && periodEnd) {
       return {
@@ -186,73 +179,22 @@ export default function Dashboard() {
     return Object.entries(counts).map(([name, value]) => ({ name, value }))
   }, [filteredVacancies])
 
-  const averageDaysPerStageData = useMemo(() => {
-    const abertaVacancies = filteredVacancies.filter((v) => v.status_vaga === 'Aberta')
-    if (abertaVacancies.length === 0) return []
-
-    const stageDays: Record<string, { total: number; count: number }> = {
-      Aberta: { total: 0, count: 0 },
-      Triagem: { total: 0, count: 0 },
-      Entrevistas: { total: 0, count: 0 },
-      'Pré-Aprovação': { total: 0, count: 0 },
-      Alocação: { total: 0, count: 0 },
+  const candidatesPerPhaseData = useMemo(() => {
+    const phaseCounts: Record<string, number> = {
+      Triagem: 0,
+      Entrevistas: 0,
+      'Pré-Aprovação': 0,
+      Contratação: 0,
+      Fechada: 0,
     }
-
-    const abertaIds = new Set(abertaVacancies.map((v) => v.id))
-    const historyByVacancy: Record<string, PipelineHistoryRecord[]> = {}
-    pipelineHistory.forEach((h) => {
-      if (!abertaIds.has(h.vacancy_id)) return
-      if (!historyByVacancy[h.vacancy_id]) historyByVacancy[h.vacancy_id] = []
-      historyByVacancy[h.vacancy_id].push(h)
-    })
-
-    abertaVacancies.forEach((vacancy) => {
-      const records = (historyByVacancy[vacancy.id] || []).sort(
-        (a, b) => new Date(a.created).getTime() - new Date(b.created).getTime(),
-      )
-      const vacancyStart = new Date(vacancy.data_abertura || vacancy.created).getTime()
-
-      if (records.length === 0) {
-        const days = Math.floor((Date.now() - vacancyStart) / (1000 * 60 * 60 * 24))
-        if (days >= 0) {
-          stageDays['Aberta'].total += days
-          stageDays['Aberta'].count += 1
-        }
-        return
-      }
-
-      for (let i = 0; i < records.length; i++) {
-        const record = records[i]
-        const stage = record.status_anterior
-        if (!stage || !(stage in stageDays)) continue
-        const stageEnd = new Date(record.created).getTime()
-        const stageStart = i === 0 ? vacancyStart : new Date(records[i - 1].created).getTime()
-        const days = Math.floor((stageEnd - stageStart) / (1000 * 60 * 60 * 24))
-        if (days >= 0) {
-          stageDays[stage].total += days
-          stageDays[stage].count += 1
-        }
-      }
-
-      const lastRecord = records[records.length - 1]
-      if (lastRecord.status_novo === 'Aberta') {
-        const days = Math.floor(
-          (Date.now() - new Date(lastRecord.created).getTime()) / (1000 * 60 * 60 * 24),
-        )
-        if (days >= 0) {
-          stageDays['Aberta'].total += days
-          stageDays['Aberta'].count += 1
-        }
+    filteredCandidates.forEach((c) => {
+      const phase = CANDIDATE_STATUS_TO_PHASE[c.status_candidato]
+      if (phase && phase in phaseCounts) {
+        phaseCounts[phase]++
       }
     })
-
-    return Object.entries(stageDays)
-      .filter(([, data]) => data.count > 0)
-      .map(([etapa, data]) => ({
-        etapa,
-        dias: Math.round(data.total / data.count),
-      }))
-  }, [filteredVacancies, pipelineHistory])
+    return Object.entries(phaseCounts).map(([fase, total]) => ({ fase, total }))
+  }, [filteredCandidates])
 
   const rankingPerVacancy = useMemo(() => {
     const vacancyRankMap: Record<
@@ -599,40 +541,32 @@ export default function Dashboard() {
         <Card className="border-slate-200 shadow-2xs">
           <CardHeader className="pb-2">
             <CardTitle className="text-base font-bold text-slate-900">
-              Tempo Médio por Etapa (Vagas Abertas)
+              Candidatos por Fase do Pipeline
             </CardTitle>
             <CardDescription className="text-xs">
-              Permanência média em cada fase do pipeline, considerando apenas vagas com status
-              "Aberta"
+              Quantidade de candidatos em cada etapa do pipeline
             </CardDescription>
           </CardHeader>
           <CardContent className="h-[280px]">
-            {averageDaysPerStageData.length === 0 ? (
+            {filteredCandidates.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full text-center">
-                <Clock className="h-10 w-10 text-slate-300 mb-3" />
-                <p className="text-sm font-medium text-slate-500">Nenhuma vaga aberta no momento</p>
+                <Users className="h-10 w-10 text-slate-300 mb-3" />
+                <p className="text-sm font-medium text-slate-500">Nenhum candidato encontrado</p>
                 <p className="text-xs text-slate-400 mt-1">
-                  O gráfico será atualizado quando houver vagas com status "Aberta"
+                  O gráfico será atualizado quando houver candidatos no período filtrado
                 </p>
               </div>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  layout="vertical"
-                  data={averageDaysPerStageData}
-                  margin={{ top: 10, right: 30, left: 30, bottom: 5 }}
+                  data={candidatesPerPhaseData}
+                  margin={{ top: 10, right: 30, left: 0, bottom: 5 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                  <XAxis type="number" stroke="#64748b" fontSize={12} />
-                  <YAxis
-                    dataKey="etapa"
-                    type="category"
-                    stroke="#64748b"
-                    fontSize={12}
-                    width={100}
-                  />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="fase" stroke="#64748b" fontSize={11} interval={0} />
+                  <YAxis stroke="#64748b" fontSize={12} allowDecimals={false} />
                   <Tooltip
-                    formatter={(val: number) => [`${val} dias`, 'Permanência']}
+                    formatter={(val: number) => [`${val} candidato(s)`, 'Quantidade']}
                     contentStyle={{
                       backgroundColor: '#1e293b',
                       borderRadius: '8px',
@@ -640,7 +574,7 @@ export default function Dashboard() {
                       fontSize: '12px',
                     }}
                   />
-                  <Bar dataKey="dias" fill="#6366f1" radius={[0, 6, 6, 0]} />
+                  <Bar dataKey="total" fill="#6366f1" radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
