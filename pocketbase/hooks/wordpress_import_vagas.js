@@ -18,7 +18,7 @@ routerAdd('POST', '/backend/v1/vagas/wordpress', (e) => {
   }
 
   try {
-    const existing = $app.findFirstRecordByFilter('vacancies', 'wordpress_job_id = {:jobId}', jobId)
+    const existing = $app.findFirstRecordByData('vacancies', 'wordpress_job_id', jobId)
     const logsCol = $app.findCollectionByNameOrId('wordpress_import_logs')
     const log = new Record(logsCol)
     log.set('wordpress_job_id', jobId)
