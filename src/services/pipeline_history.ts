@@ -4,7 +4,7 @@ import { PipelineHistoryRecord } from '@/types'
 export const getPipelineHistory = async (vacancyId: string) => {
   return pb.collection<PipelineHistoryRecord>('pipeline_history').getFullList({
     filter: `vacancy_id = "${vacancyId}"`,
-    sort: '-created',
+    sort: '-data_mudanca',
     expand: 'usuario_id',
   })
 }

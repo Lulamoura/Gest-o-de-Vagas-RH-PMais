@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-28T20:17:21.420Z",
+  "generatedAt": "2026-07-28T20:58:09.730Z",
   "collections": [
     {
       "name": "users",
@@ -682,6 +682,74 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "candidate_history",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.id != ''"
+      },
+      "fields": [
+        {
+          "name": "vacancy_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "vacancies"
+        },
+        {
+          "name": "candidate_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidates"
+        },
+        {
+          "name": "usuario_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "status_anterior",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_novo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "data_mudanca",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE INDEX idx_candidate_history_vacancy ON candidate_history (vacancy_id)"]
     }
   ]
 }

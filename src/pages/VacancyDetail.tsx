@@ -3,10 +3,12 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getVacancy, updateVacancy, deleteVacancy } from '@/services/vacancies'
 import { getCandidates, createCandidate } from '@/services/candidates'
 import { getPipelineHistory, createPipelineHistory } from '@/services/pipeline_history'
+import { getCandidateHistory } from '@/services/candidate_history'
 import {
   VacancyRecord,
   CandidateRecord,
   PipelineHistoryRecord,
+  CandidateHistoryRecord,
   VacancyStatus,
   CandidateStatus,
 } from '@/types'
@@ -74,6 +76,7 @@ import {
   Users,
   Star,
   Trash2,
+  UserCheck,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 
@@ -85,6 +88,7 @@ export default function VacancyDetail() {
   const [vaga, setVaga] = useState<VacancyRecord | null>(null)
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
   const [history, setHistory] = useState<PipelineHistoryRecord[]>([])
+  const [candidateHistory, setCandidateHistory] = useState<CandidateHistoryRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   // New Candidate Modal
@@ -119,14 +123,16 @@ export default function VacancyDetail() {
   const loadData = async () => {
     if (!id) return
     try {
-      const [vData, cData, hData] = await Promise.all([
+      const [vData, cData, hData, chData] = await Promise.all([
         getVacancy(id),
         getCandidates(id),
         getPipelineHistory(id),
+        getCandidateHistory(id),
       ])
       setVaga(vData)
       setCandidates(cData)
       setHistory(hData)
+      setCandidateHistory(chData)
     } catch (err) {
       toast.error('Erro ao carregar detalhes da vaga')
     } finally {
@@ -141,6 +147,7 @@ export default function VacancyDetail() {
   useRealtime('vacancies', () => loadData())
   useRealtime('candidates', () => loadData())
   useRealtime('pipeline_history', () => loadData())
+  useRealtime('candidate_history', () => loadData())
 
   // Total vacancy cost calculation
   const totalVacancyCosts = useMemo(() => {
@@ -663,15 +670,15 @@ export default function VacancyDetail() {
         </Card>
       </div>
 
-      {/* Pipeline History Log */}
+      {/* Vacancy History Log */}
       <Card className="border-slate-200 shadow-2xs">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-bold text-slate-900 flex items-center space-x-2">
             <History className="h-5 w-5 text-purple-600" />
-            <span>Histórico do Pipeline</span>
+            <span>Histórico da Vaga</span>
           </CardTitle>
           <CardDescription className="text-xs">
-            Registro auditável de todas as movimentações desta vaga
+            Registro auditável de todas as mudanças de status desta vaga
           </CardDescription>
         </CardHeader>
 
@@ -720,6 +727,73 @@ export default function VacancyDetail() {
                       >
                         {h.status_novo}
                       </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Candidate History Log */}
+      <Card className="border-slate-200 shadow-2xs">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-bold text-slate-900 flex items-center space-x-2">
+            <UserCheck className="h-5 w-5 text-cyan-600" />
+            <span>Histórico de Candidatos</span>
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Registro auditável de todas as mudanças de status dos candidatos vinculados
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader className="bg-slate-50">
+              <TableRow>
+                <TableHead className="text-xs font-semibold text-slate-600">Candidato</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">Usuário</TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">
+                  De (Status Anterior)
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">
+                  Para (Novo Status)
+                </TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">Data / Hora</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {candidateHistory.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-6 text-slate-500 text-sm">
+                    Nenhuma mudança de status de candidato registrada ainda.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                candidateHistory.map((ch) => (
+                  <TableRow key={ch.id}>
+                    <TableCell className="font-semibold text-slate-900 text-sm">
+                      {ch.expand?.candidate_id?.nome || '—'}
+                    </TableCell>
+                    <TableCell className="text-xs font-medium text-slate-800">
+                      {ch.expand?.usuario_id?.name || 'Sistema'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className="bg-slate-100 text-slate-600 border-slate-200"
+                      >
+                        {ch.status_anterior || 'Início'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="bg-cyan-50 text-cyan-700 border-cyan-200">
+                        {ch.status_novo}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-600">
+                      {formatDateBR(ch.data_mudanca || ch.created)}
                     </TableCell>
                   </TableRow>
                 ))

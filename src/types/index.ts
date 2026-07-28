@@ -111,6 +111,19 @@ export interface PipelineHistoryRecord extends RecordModel {
   }
 }
 
+export interface CandidateHistoryRecord extends RecordModel {
+  vacancy_id: string
+  candidate_id: string
+  usuario_id?: string
+  status_anterior?: string
+  status_novo: string
+  data_mudanca?: string
+  expand?: {
+    candidate_id?: CandidateRecord
+    usuario_id?: UserRecord
+  }
+}
+
 export type WordpressImportStatus = 'sucesso' | 'duplicada' | 'erro'
 
 export interface WordpressImportLogRecord extends RecordModel {
