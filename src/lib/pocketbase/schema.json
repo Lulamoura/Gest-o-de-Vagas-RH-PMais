@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-28T14:12:22.966Z",
+  "generatedAt": "2026-07-28T14:24:38.693Z",
   "collections": [
     {
       "name": "users",
@@ -196,6 +196,24 @@
         },
         {
           "name": "wordpress_job_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "link_publico",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "perfil_interno",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "origem",
           "type": "text",
           "required": false,
           "system": false
