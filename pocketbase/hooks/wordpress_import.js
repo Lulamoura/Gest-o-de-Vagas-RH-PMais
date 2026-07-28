@@ -2,6 +2,16 @@ routerAdd(
   'POST',
   '/backend/v1/wordpress-import',
   (e) => {
+    var authHeader = e.request.header.get('Authorization') || ''
+    if (!authHeader.startsWith('Bearer ')) {
+      return e.json(401, { ok: false, message: 'Acesso não autorizado' })
+    }
+    var token = authHeader.slice(7).trim()
+    var expectedToken = $secrets.get('WORDPRESS_INTEGRATION_TOKEN') || ''
+    if (!expectedToken || token !== expectedToken) {
+      return e.json(401, { ok: false, message: 'Acesso não autorizado' })
+    }
+
     const body = e.requestInfo().body || {}
     const jobId = body.wordpress_job_id || ''
     const origem = body.origem || 'manual'
