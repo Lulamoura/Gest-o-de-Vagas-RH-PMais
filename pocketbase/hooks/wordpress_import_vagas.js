@@ -26,7 +26,7 @@ routerAdd('POST', '/backend/v1/vagas/wordpress', (e) => {
     log.set('status', 'duplicada')
     log.set('mensagem', 'Vaga com este wordpress_job_id já existe')
     $app.save(log)
-    return e.json(200, { ok: true, duplicate: true })
+    return e.json(200, { ok: true, duplicate: true, vaga_id: existing.id })
   } catch (_) {}
 
   try {
