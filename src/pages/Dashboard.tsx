@@ -137,12 +137,12 @@ export default function Dashboard() {
 
   const openVacancies = useMemo(() => {
     return filteredVacancies.filter(
-      (v) => v.status_vaga !== 'Fechada' && v.status_vaga !== 'Cancelada',
+      (v) => v.status_vaga !== 'Concluída' && v.status_vaga !== 'Cancelada',
     )
   }, [filteredVacancies])
 
   const closedVacanciesMonth = useMemo(() => {
-    return filteredVacancies.filter((v) => v.status_vaga === 'Fechada')
+    return filteredVacancies.filter((v) => v.status_vaga === 'Concluída')
   }, [filteredVacancies])
 
   const averageClosingDays = useMemo(() => {
@@ -471,7 +471,7 @@ export default function Dashboard() {
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-                Fechadas no Mês
+                Concluídas no Mês
               </span>
               <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
                 <CheckCircle className="h-5 w-5" />

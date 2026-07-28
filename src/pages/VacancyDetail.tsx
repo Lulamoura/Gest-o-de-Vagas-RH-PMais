@@ -20,8 +20,9 @@ import {
   getVacancyStatusBadgeClass,
   getPriorityBadgeClass,
   getCandidateStatusBadgeClass,
-  VACANCY_PIPELINE_STAGES,
-  getMissingRequiredFields,
+  PIPELINE_PHASES,
+  VACANCY_STATUS_OPTIONS,
+  CANDIDATE_STATUS_TO_PHASE,
 } from '@/lib/status-utils'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -67,9 +68,6 @@ import {
   Pencil,
   PlusCircle,
   Building2,
-  Calendar,
-  CheckCircle2,
-  Clock,
   User,
   DollarSign,
   History,
@@ -78,7 +76,6 @@ import {
   Trash2,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
@@ -112,9 +109,8 @@ export default function VacancyDetail() {
   const [nomeMaeCandidato, setNomeMaeCandidato] = useState('')
   const [telefoneEmergenciaCandidato, setTelefoneEmergenciaCandidato] = useState('')
 
-  // Move Pipeline Modal
-  const [pipelineModalOpen, setPipelineModalOpen] = useState(false)
-  const [nextStatus, setNextStatus] = useState<VacancyStatus | ''>('')
+  // Status change
+  const [statusChanging, setStatusChanging] = useState(false)
 
   // Delete confirmation
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -229,28 +225,31 @@ export default function VacancyDetail() {
     }
   }
 
-  const handleMovePipeline = async () => {
-    if (!vaga || !nextStatus) return
+  const handleStatusChange = async (newStatus: VacancyStatus) => {
+    if (!vaga || newStatus === vaga.status_vaga) return
+    setStatusChanging(true)
     try {
       await updateVacancy(vaga.id, {
-        status_vaga: nextStatus,
-        data_fechamento: nextStatus === 'Fechada' ? new Date().toISOString() : vaga.data_fechamento,
+        status_vaga: newStatus,
+        data_fechamento:
+          newStatus === 'Concluída' ? new Date().toISOString() : vaga.data_fechamento,
         data_cancelamento:
-          nextStatus === 'Cancelada' ? new Date().toISOString() : vaga.data_cancelamento,
+          newStatus === 'Cancelada' ? new Date().toISOString() : vaga.data_cancelamento,
       })
 
       await createPipelineHistory({
         vacancy_id: vaga.id,
         usuario_id: user?.id,
         status_anterior: vaga.status_vaga,
-        status_novo: nextStatus,
+        status_novo: newStatus,
       })
 
-      toast.success(`Etapa alterada para "${nextStatus}"`)
-      setPipelineModalOpen(false)
+      toast.success(`Status alterado para "${newStatus}"`)
       loadData()
     } catch (err) {
-      toast.error('Erro ao atualizar etapa')
+      toast.error('Erro ao atualizar status')
+    } finally {
+      setStatusChanging(false)
     }
   }
 
@@ -275,23 +274,27 @@ export default function VacancyDetail() {
     return Math.round((total / ranked.length) * 10) / 10
   }, [candidates])
 
-  const missingRequiredFields = useMemo(() => {
-    if (!vaga) return []
-    return getMissingRequiredFields({
-      quantidade_vagas: vaga.quantidade_vagas,
-      data_abertura: vaga.data_abertura,
-      prazo_desejado: vaga.prazo_desejado,
-      responsavel_rh: vaga.responsavel_rh,
-      responsavel_operacional: vaga.responsavel_operacional,
-      prioridade: vaga.prioridade,
-      salario_faixa: vaga.salario_faixa,
-      cliente: vaga.cliente,
-      cargo: vaga.cargo,
-      cidade: vaga.cidade,
-      tipo_vaga: vaga.tipo_vaga,
-      tipo_contrato: vaga.tipo_contrato,
+  const phaseCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      Triagem: 0,
+      Entrevistas: 0,
+      'Pré-Aprovação': 0,
+      Contratação: 0,
+      Fechada: 0,
+    }
+    candidates.forEach((c) => {
+      const phase = CANDIDATE_STATUS_TO_PHASE[c.status_candidato]
+      if (phase && phase in counts) {
+        counts[phase]++
+      }
     })
-  }, [vaga])
+    return counts
+  }, [candidates])
+
+  const hasActiveCandidates = useMemo(
+    () => Object.values(phaseCounts).some((count) => count > 0),
+    [phaseCounts],
+  )
 
   if (loading || !vaga) {
     return (
@@ -300,8 +303,6 @@ export default function VacancyDetail() {
       </div>
     )
   }
-
-  const currentStageIndex = VACANCY_PIPELINE_STAGES.indexOf(vaga.status_vaga)
 
   return (
     <div className="space-y-6">
@@ -318,40 +319,22 @@ export default function VacancyDetail() {
         <div className="flex items-center space-x-2">
           {canEditVacancy && (
             <>
-              {missingRequiredFields.length > 0 ? (
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span>
-                      <Button
-                        disabled
-                        variant="outline"
-                        className="border-slate-200 text-slate-400 cursor-not-allowed opacity-70"
-                      >
-                        Mover Pipeline
-                      </Button>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent className="max-w-xs">
-                    <p className="font-semibold mb-1">Campos obrigatórios pendentes:</p>
-                    <ul className="text-xs space-y-0.5">
-                      {missingRequiredFields.map((f) => (
-                        <li key={f}>• {f}</li>
-                      ))}
-                    </ul>
-                  </TooltipContent>
-                </Tooltip>
-              ) : (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setNextStatus(vaga.status_vaga)
-                    setPipelineModalOpen(true)
-                  }}
-                  className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                >
-                  Mover Pipeline
-                </Button>
-              )}
+              <Select
+                value={vaga.status_vaga}
+                onValueChange={(v) => handleStatusChange(v as VacancyStatus)}
+                disabled={statusChanging}
+              >
+                <SelectTrigger className="w-[160px] h-9 text-xs border-indigo-200 text-indigo-700">
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {VACANCY_STATUS_OPTIONS.map((st) => (
+                    <SelectItem key={st} value={st}>
+                      {st}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button asChild className="bg-indigo-600 hover:bg-indigo-500 text-white">
                 <Link to={`/vagas/${vaga.id}/editar`}>
                   <Pencil className="h-4 w-4 mr-2" /> Editar Vaga
@@ -415,27 +398,34 @@ export default function VacancyDetail() {
               Fluxo do Pipeline
             </span>
             <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2">
-              {VACANCY_PIPELINE_STAGES.map((stage, idx) => {
-                const isPassed = idx < currentStageIndex
-                const isCurrent = idx === currentStageIndex
+              {PIPELINE_PHASES.map((phase) => {
+                const count = phaseCounts[phase] ?? 0
+                const isActive =
+                  phase === 'Aberta'
+                    ? !hasActiveCandidates
+                    : phase === 'Cancelada'
+                      ? vaga.status_vaga === 'Cancelada'
+                      : count > 0
 
                 return (
                   <div
-                    key={stage}
+                    key={phase}
                     className={`p-2.5 rounded-lg border text-center transition-all ${
-                      isCurrent
+                      isActive
                         ? 'bg-indigo-600 text-white border-indigo-600 font-bold shadow-xs'
-                        : isPassed
-                          ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                          : 'bg-slate-50 text-slate-400 border-slate-200'
+                        : 'bg-slate-50 text-slate-400 border-slate-200'
                     }`}
                   >
-                    <div className="flex items-center justify-center space-x-1">
-                      {isPassed && (
-                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
-                      )}
-                      <span className="text-xs truncate">{stage}</span>
-                    </div>
+                    <span className="text-xs truncate block">{phase}</span>
+                    {phase !== 'Aberta' && phase !== 'Cancelada' && (
+                      <span
+                        className={`text-[10px] block mt-0.5 ${
+                          isActive ? 'text-indigo-100' : 'text-slate-400'
+                        }`}
+                      >
+                        {count} cand.
+                      </span>
+                    )}
                   </div>
                 )
               })}
@@ -976,43 +966,6 @@ export default function VacancyDetail() {
               </Button>
             </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Move Pipeline Modal */}
-      <Dialog open={pipelineModalOpen} onOpenChange={setPipelineModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Mover Vaga de Etapa</DialogTitle>
-            <DialogDescription>Altere a fase do processo seletivo</DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <Select value={nextStatus} onValueChange={(v) => setNextStatus(v as VacancyStatus)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Selecione o status" />
-              </SelectTrigger>
-              <SelectContent>
-                {VACANCY_PIPELINE_STAGES.map((st) => (
-                  <SelectItem key={st} value={st}>
-                    {st}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPipelineModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleMovePipeline}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white"
-            >
-              Confirmar
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 

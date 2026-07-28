@@ -12,7 +12,7 @@ routerAdd(
 
     for (var i = 0; i < vacancies.length; i++) {
       var vStatus = vacancies[i].getString('status_vaga')
-      if (vStatus === 'Fechada' || vStatus === 'Cancelada') {
+      if (vStatus === 'Concluída' || vStatus === 'Cancelada') {
         closedVacancies++
       } else {
         openVacancies++
@@ -39,7 +39,7 @@ routerAdd(
     var openVacancyIds = {}
     for (var m = 0; m < vacancies.length; m++) {
       var vStatus2 = vacancies[m].getString('status_vaga')
-      if (vStatus2 !== 'Fechada' && vStatus2 !== 'Cancelada') {
+      if (vStatus2 !== 'Concluída' && vStatus2 !== 'Cancelada') {
         openVacancyIds[vacancies[m].id] = true
       }
     }

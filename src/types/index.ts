@@ -9,14 +9,7 @@ export interface UserRecord extends RecordModel {
   email: string
 }
 
-export type VacancyStatus =
-  | 'Aberta'
-  | 'Triagem'
-  | 'Entrevistas'
-  | 'Pré-Aprovação'
-  | 'Alocação'
-  | 'Fechada'
-  | 'Cancelada'
+export type VacancyStatus = 'Aberta' | 'Concluída' | 'Cancelada'
 
 export type VacancyPriority = 'Alta' | 'Média' | 'Baixa'
 

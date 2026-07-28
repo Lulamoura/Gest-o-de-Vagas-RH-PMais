@@ -1,28 +1,35 @@
 import { VacancyStatus, CandidateStatus, VacancyPriority } from '@/types'
 
-export const VACANCY_PIPELINE_STAGES: VacancyStatus[] = [
+export const PIPELINE_PHASES = [
   'Aberta',
   'Triagem',
   'Entrevistas',
   'Pré-Aprovação',
-  'Alocação',
+  'Contratação',
   'Fechada',
   'Cancelada',
-]
+] as const
+
+export type PipelinePhase = (typeof PIPELINE_PHASES)[number]
+
+export const VACANCY_STATUS_OPTIONS: VacancyStatus[] = ['Aberta', 'Concluída', 'Cancelada']
+
+export const CANDIDATE_STATUS_TO_PHASE: Record<CandidateStatus, PipelinePhase | null> = {
+  'Análise do RH': 'Triagem',
+  'Análise do gestor': 'Entrevistas',
+  'Documentação e exame': 'Pré-Aprovação',
+  'Cadastro DP': 'Contratação',
+  Integrado: 'Fechada',
+  Desistente: null,
+  Desclassificado: null,
+  'Em banco': null,
+}
 
 export const getVacancyStatusBadgeClass = (status: VacancyStatus) => {
   switch (status) {
     case 'Aberta':
       return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300'
-    case 'Triagem':
-      return 'bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300'
-    case 'Entrevistas':
-      return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300'
-    case 'Pré-Aprovação':
-      return 'bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300'
-    case 'Alocação':
-      return 'bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300'
-    case 'Fechada':
+    case 'Concluída':
       return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300'
     case 'Cancelada':
       return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300'

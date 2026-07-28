@@ -18,7 +18,7 @@ import {
   formatDateBR,
   getVacancyStatusBadgeClass,
   getPriorityBadgeClass,
-  VACANCY_PIPELINE_STAGES,
+  VACANCY_STATUS_OPTIONS,
 } from '@/lib/status-utils'
 import { isVacancyInGroup, type VacancyStatusGroup } from '@/lib/vacancy-status-group'
 import { Card, CardContent } from '@/components/ui/card'
@@ -206,7 +206,7 @@ export default function Vacancies() {
       await updateVacancy(selectedVacancy.id, {
         status_vaga: newStatus,
         data_fechamento:
-          newStatus === 'Fechada' ? new Date().toISOString() : selectedVacancy.data_fechamento,
+          newStatus === 'Concluída' ? new Date().toISOString() : selectedVacancy.data_fechamento,
         data_cancelamento:
           newStatus === 'Cancelada' ? new Date().toISOString() : selectedVacancy.data_cancelamento,
       })
@@ -318,7 +318,7 @@ export default function Vacancies() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ALL">Todos os Status</SelectItem>
-                {VACANCY_PIPELINE_STAGES.map((s) => (
+                {VACANCY_STATUS_OPTIONS.map((s) => (
                   <SelectItem key={s} value={s}>
                     {s}
                   </SelectItem>
@@ -694,11 +694,11 @@ export default function Vacancies() {
                   <SelectValue placeholder="Selecione o novo status" />
                 </SelectTrigger>
                 <SelectContent>
-                  {VACANCY_PIPELINE_STAGES.map((st) => (
+                  {VACANCY_STATUS_OPTIONS.map((st) => (
                     <SelectItem key={st} value={st}>
                       {st}
                     </SelectItem>
-                  ))}
+                  ))}{' '}
                 </SelectContent>
               </Select>
             </div>

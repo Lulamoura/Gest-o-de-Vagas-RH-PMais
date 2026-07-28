@@ -19,7 +19,7 @@ import {
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import {
-  VACANCY_PIPELINE_STAGES,
+  VACANCY_STATUS_OPTIONS,
   toDateInputValue,
   getMissingRequiredFields,
 } from '@/lib/status-utils'
@@ -402,7 +402,7 @@ export default function VacancyForm() {
                     <SelectValue placeholder="Selecione o status" />
                   </SelectTrigger>
                   <SelectContent>
-                    {VACANCY_PIPELINE_STAGES.map((st) => (
+                    {VACANCY_STATUS_OPTIONS.map((st) => (
                       <SelectItem key={st} value={st}>
                         {st}
                       </SelectItem>
