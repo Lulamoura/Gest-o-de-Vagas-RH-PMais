@@ -26,7 +26,7 @@ routerAdd('POST', '/backend/v1/vagas/wordpress', (e) => {
     log.set('status', 'duplicada')
     log.set('mensagem', 'Vaga com este wordpress_job_id já existe')
     $app.save(log)
-    return e.json(200, { status: 'duplicada', message: 'Vaga já importada' })
+    return e.json(200, { ok: true, duplicate: true })
   } catch (_) {}
 
   try {
@@ -70,7 +70,7 @@ routerAdd('POST', '/backend/v1/vagas/wordpress', (e) => {
     log.set('mensagem', 'Vaga importada com sucesso')
     $app.save(log)
 
-    return e.json(200, { status: 'sucesso', vacancy: vacancy.id })
+    return e.json(200, { ok: true, status: 'sucesso', vaga_id: vacancy.id, vacancy: vacancy.id })
   } catch (err) {
     const logsCol = $app.findCollectionByNameOrId('wordpress_import_logs')
     const log = new Record(logsCol)
