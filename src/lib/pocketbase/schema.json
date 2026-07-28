@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-27T22:26:45.461Z",
+  "generatedAt": "2026-07-27T22:55:49.875Z",
   "collections": [
     {
       "name": "users",
@@ -363,6 +363,12 @@
             "Desclassificado",
             "Em banco"
           ]
+        },
+        {
+          "name": "wordpress_candidatura_id",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
