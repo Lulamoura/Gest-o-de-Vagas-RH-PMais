@@ -117,7 +117,7 @@ export default function Reports() {
           candidato: '—',
           statusCandidato: '—',
           ranking: '—',
-          custoTotal: formatCurrency(0),
+          custoTotal: formatCurrency(v.despesas_vaga || 0),
           tipoContrato: v.expand?.tipo_contrato?.nome || '—',
           rankValue: null,
         })

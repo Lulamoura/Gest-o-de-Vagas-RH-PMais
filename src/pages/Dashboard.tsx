@@ -312,7 +312,7 @@ export default function Dashboard() {
   }, [openVacancies])
 
   const totalAccumulatedCost = useMemo(() => {
-    return filteredCandidates.reduce(
+    const candidateCosts = filteredCandidates.reduce(
       (acc, c) =>
         acc +
         (c.custo_consultas || 0) +
@@ -321,7 +321,9 @@ export default function Dashboard() {
         (c.custo_extras || 0),
       0,
     )
-  }, [filteredCandidates])
+    const vacancyExpenses = filteredVacancies.reduce((acc, v) => acc + (v.despesas_vaga || 0), 0)
+    return candidateCosts + vacancyExpenses
+  }, [filteredCandidates, filteredVacancies])
 
   if (loading) {
     return (

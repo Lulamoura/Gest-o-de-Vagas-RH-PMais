@@ -24,6 +24,7 @@ import {
   getMissingRequiredFields,
 } from '@/lib/status-utils'
 import { Combobox } from '@/components/Combobox'
+import { CurrencyInput } from '@/components/CurrencyInput'
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -69,6 +70,7 @@ export default function VacancyForm() {
   const [statusVaga, setStatusVaga] = useState<VacancyStatus>('Aberta')
   const [prioridade, setPrioridade] = useState<VacancyPriority>('Média')
   const [salarioFaixa, setSalarioFaixa] = useState('')
+  const [despesasVaga, setDespesasVaga] = useState(0)
   const [especificacoes, setEspecificacoes] = useState('')
   const [observacoesInternas, setObservacoesInternas] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -165,6 +167,7 @@ export default function VacancyForm() {
           setStatusVaga(vaga.status_vaga)
           setPrioridade(vaga.prioridade)
           setSalarioFaixa(vaga.salario_faixa || '')
+          setDespesasVaga(vaga.despesas_vaga || 0)
           setEspecificacoes(vaga.especificacoes || '')
           setObservacoesInternas(vaga.observacoes_internas || '')
         }
@@ -210,6 +213,7 @@ export default function VacancyForm() {
       status_vaga: statusVaga,
       prioridade,
       salario_faixa: salarioFaixa,
+      despesas_vaga: Number(despesasVaga),
       especificacoes,
       observacoes_internas: observacoesInternas,
     }
@@ -366,6 +370,18 @@ export default function VacancyForm() {
                   placeholder="Ex: R$ 8.000,00 - R$ 10.000,00 ou A Combinar"
                   value={salarioFaixa}
                   onChange={(e) => setSalarioFaixa(e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="despesasVaga" className="text-xs font-semibold text-slate-700">
+                  Despesas com a Vaga
+                </Label>
+                <CurrencyInput
+                  id="despesasVaga"
+                  value={despesasVaga}
+                  onChange={setDespesasVaga}
+                  className="text-sm"
                 />
               </div>
             </div>

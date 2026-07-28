@@ -148,7 +148,7 @@ export default function VacancyDetail() {
 
   // Total vacancy cost calculation
   const totalVacancyCosts = useMemo(() => {
-    return candidates.reduce((acc, c) => {
+    const candidateCosts = candidates.reduce((acc, c) => {
       return (
         acc +
         (c.custo_consultas || 0) +
@@ -157,7 +157,8 @@ export default function VacancyDetail() {
         (c.custo_extras || 0)
       )
     }, 0)
-  }, [candidates])
+    return candidateCosts + (vaga?.despesas_vaga || 0)
+  }, [candidates, vaga])
 
   // Indicator logic for this single vacancy
   const preApprovedCount = useMemo(() => {
@@ -577,6 +578,12 @@ export default function VacancyDetail() {
                 <span>Extras / Deslocamento:</span>
                 <span className="font-semibold">
                   {formatCurrency(candidates.reduce((a, b) => a + (b.custo_extras || 0), 0))}
+                </span>
+              </div>
+              <div className="flex justify-between py-1 border-t border-slate-200 mt-1 pt-2">
+                <span className="font-bold text-slate-700">Despesas da Vaga:</span>
+                <span className="font-semibold text-slate-900">
+                  {formatCurrency(vaga.despesas_vaga || 0)}
                 </span>
               </div>
             </div>
