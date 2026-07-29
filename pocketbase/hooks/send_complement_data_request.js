@@ -109,6 +109,15 @@ routerAdd(
       if (res.json && res.json.message) {
         errDetail = res.json.message
       }
+      try {
+        var failLogCol = $app.findCollectionByNameOrId('candidate_email_log')
+        var failLogRecord = new Record(failLogCol)
+        failLogRecord.set('candidate_id', candidateId)
+        failLogRecord.set('email_type', 'complement_data')
+        failLogRecord.set('sent_by', e.auth.id)
+        failLogRecord.set('error_message', errDetail)
+        $app.save(failLogRecord)
+      } catch (logErr2) {}
       return e.json(500, { error: 'Falha ao enviar email', details: errDetail })
     } catch (err) {
       return e.json(500, { error: 'Candidato não encontrado' })

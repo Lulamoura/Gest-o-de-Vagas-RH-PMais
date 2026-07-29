@@ -158,6 +158,7 @@ export interface CandidateEmailLogRecord extends RecordModel {
   candidate_id: string
   email_type: EmailType
   sent_by?: string
+  error_message?: string
   expand?: {
     candidate_id?: CandidateRecord
     sent_by?: UserRecord
