@@ -1,7 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getVacancy, updateVacancy, deleteVacancy } from '@/services/vacancies'
-import { getCandidates, createCandidate, updateCandidate } from '@/services/candidates'
+import {
+  getCandidates,
+  createCandidate,
+  updateCandidate,
+  sendComplementDataRequest,
+} from '@/services/candidates'
 import { getPipelineHistory, createPipelineHistory } from '@/services/pipeline_history'
 import { getCandidateHistory } from '@/services/candidate_history'
 import {
@@ -77,6 +82,7 @@ import {
   Star,
   Trash2,
   UserCheck,
+  Mail,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 import { CurrencyInput } from '@/components/CurrencyInput'
@@ -142,6 +148,9 @@ export default function VacancyDetail() {
   const [nomePaiCandidato, setNomePaiCandidato] = useState('')
   const [nomeMaeCandidato, setNomeMaeCandidato] = useState('')
   const [telefoneEmergenciaCandidato, setTelefoneEmergenciaCandidato] = useState('')
+
+  // Complement email
+  const [sendingEmail, setSendingEmail] = useState(false)
 
   // Status change
   const [statusChanging, setStatusChanging] = useState(false)
@@ -371,6 +380,25 @@ export default function VacancyDetail() {
       toast.error('Erro ao excluir vaga')
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const COMPLEMENT_STATUSES: CandidateStatus[] = [
+    'Análise do RH',
+    'Análise do gestor',
+    'Documentação e exame',
+  ]
+
+  const handleSendEmail = async () => {
+    if (!editingCandidate) return
+    setSendingEmail(true)
+    try {
+      await sendComplementDataRequest(editingCandidate.id)
+      toast.success('E-mail enviado com sucesso!')
+    } catch (err) {
+      toast.error('Erro ao enviar e-mail')
+    } finally {
+      setSendingEmail(false)
     }
   }
 
@@ -1416,6 +1444,21 @@ export default function VacancyDetail() {
                 </div>
               </div>
             </div>
+
+            {canEditCandidate && editingCandidate && COMPLEMENT_STATUSES.includes(editStatus) && (
+              <div className="pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendEmail}
+                  disabled={sendingEmail}
+                  className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
+                </Button>
+              </div>
+            )}
 
             <DialogFooter className="pt-3">
               <Button type="button" variant="outline" onClick={() => setEditModalOpen(false)}>
