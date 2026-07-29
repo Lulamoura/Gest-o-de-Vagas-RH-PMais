@@ -148,6 +148,12 @@ export interface CandidatoConsultaJuridicaRecord extends RecordModel {
 
 export type EmailType = 'complement_data' | 'disqualification'
 
+export interface EmailTemplateRecord extends RecordModel {
+  type: EmailType
+  subject: string
+  body: string
+}
+
 export interface CandidateEmailLogRecord extends RecordModel {
   candidate_id: string
   email_type: EmailType

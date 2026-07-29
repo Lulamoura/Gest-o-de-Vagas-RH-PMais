@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Database,
   KeyRound,
+  Mail,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -34,6 +35,9 @@ export function Layout() {
     ...(isAdmin || isSuperAdmin
       ? [{ label: 'Referências', path: '/referencias', icon: Database }]
       : []),
+    ...(isAdmin || isSuperAdmin
+      ? [{ label: 'Modelos de E-mail', path: '/modelos-email', icon: Mail }]
+      : []),
     { label: 'Relatórios', path: '/relatorios', icon: BarChart3 },
   ]
 
@@ -50,6 +54,7 @@ export function Layout() {
     if (pathname.startsWith('/vagas')) return 'Gestão de Vagas'
     if (pathname.startsWith('/candidatos')) return 'Gestão de Candidatos'
     if (pathname.startsWith('/usuarios')) return 'Gestão de Usuários'
+    if (pathname.startsWith('/modelos-email')) return 'Modelos de E-mail'
     if (pathname.startsWith('/relatorios')) return 'Relatórios de RH'
     return 'PMais RH'
   }

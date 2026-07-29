@@ -32,19 +32,45 @@ routerAdd(
       }
 
       var candidateName = candidate.getString('nome')
-      var subject = 'Aviso de Desclassicação – ' + vacancyTitle
+      var companyName = 'PMais Terceirização'
 
-      var htmlBody =
+      var defaultSubject = 'Aviso de Desclassicação – ' + vacancyTitle
+      var defaultBody =
         '<p>Olá ' +
         candidateName +
         ',</p>' +
         '<p>Agradecemos sua participação no processo seletivo para a vaga de <strong>' +
         vacancyTitle +
-        '</strong> na PMais Terceirização.</p>' +
+        '</strong> na ' +
+        companyName +
+        '.</p>' +
         '<p>Informamos que, desta vez, você não foi classificado(a) para a vaga em questão.</p>' +
         '<p>No entanto, seus dados permanecerão em nosso banco de talentos e poderão ser considerados para futuras oportunidades que sejam compatíveis com seu perfil profissional.</p>' +
         '<p>Agradecemos seu interesse e desejamos sucesso em sua trajetória.</p>' +
-        '<p>Atenciosamente,<br><strong>RH da PMais Terceirização.</strong></p>'
+        '<p>Atenciosamente,<br><strong>RH da ' +
+        companyName +
+        '.</strong></p>'
+
+      var emailSubject = defaultSubject
+      var emailBody = defaultBody
+
+      try {
+        var template = $app.findFirstRecordByData('email_templates', 'type', 'disqualification')
+        if (template) {
+          var tplSubject = template.getString('subject')
+          var tplBody = template.getString('body')
+          if (tplSubject && tplBody) {
+            emailSubject = tplSubject
+              .replace(/\{candidate_name\}/g, candidateName)
+              .replace(/\{vacancy_name\}/g, vacancyTitle)
+              .replace(/\{company_name\}/g, companyName)
+            emailBody = tplBody
+              .replace(/\{candidate_name\}/g, candidateName)
+              .replace(/\{vacancy_name\}/g, vacancyTitle)
+              .replace(/\{company_name\}/g, companyName)
+          }
+        }
+      } catch (_) {}
 
       var apiKey = $secrets.get('RESEND_API_KEY')
       if (!apiKey) return e.json(500, { error: 'RESEND_API_KEY não configurado' })
@@ -59,8 +85,8 @@ routerAdd(
         body: JSON.stringify({
           from: 'nao-responda@pmaisservicos.com.br',
           to: candidateEmail,
-          subject: subject,
-          html: htmlBody,
+          subject: emailSubject,
+          html: emailBody,
         }),
         timeout: 30,
       })

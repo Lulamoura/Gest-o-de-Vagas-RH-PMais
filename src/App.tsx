@@ -17,6 +17,7 @@ import Users from './pages/Users'
 import ReferenceData from './pages/ReferenceData'
 import WordPressLogs from './pages/WordPressLogs'
 import ChangePassword from './pages/ChangePassword'
+import EmailTemplates from './pages/EmailTemplates'
 import CandidatePublicForm from './pages/CandidatePublicForm'
 import CandidateDetail from './pages/CandidateDetail'
 import NotFound from './pages/NotFound'
@@ -43,6 +44,7 @@ const App = () => (
               <Route path="/candidatos/:id" element={<CandidateDetail />} />
               <Route path="/usuarios" element={<Users />} />
               <Route path="/referencias" element={<ReferenceData />} />
+              <Route path="/modelos-email" element={<EmailTemplates />} />
               <Route path="/wordpress" element={<WordPressLogs />} />
               <Route path="/relatorios" element={<Reports />} />
               <Route path="/profile/senha" element={<ChangePassword />} />

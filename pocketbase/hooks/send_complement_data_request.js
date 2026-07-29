@@ -12,26 +12,27 @@ routerAdd(
       if (!candidateEmail) return e.badRequestError('Candidato não possui email cadastrado')
 
       const vacancyId = candidate.getString('vacancy_id')
-      let vacancyTitle = 'Vaga'
+      var vacancyTitle = 'Vaga'
       if (vacancyId) {
         try {
-          const vacancy = $app.findRecordById('vacancies', vacancyId)
-          const cargoId = vacancy.getString('cargo')
+          var vacancy = $app.findRecordById('vacancies', vacancyId)
+          var cargoId = vacancy.getString('cargo')
           if (cargoId) {
             try {
-              const cargo = $app.findRecordById('cargos', cargoId)
+              var cargo = $app.findRecordById('cargos', cargoId)
               vacancyTitle = cargo.getString('nome')
             } catch (_) {}
           }
         } catch (_) {}
       }
 
-      const candidateName = candidate.getString('nome')
-      const publicUrl =
+      var candidateName = candidate.getString('nome')
+      var publicUrl =
         'https://vagaspmais.pmaisservicos.com.br/candidato/' + candidateId + '/preencher'
-      const subject = 'Próxima etapa do processo seletivo - ' + vacancyTitle
+      var companyName = 'PMais Terceirização'
 
-      const htmlBody =
+      var defaultSubject = 'Próxima etapa do processo seletivo - ' + vacancyTitle
+      var defaultBody =
         '<p>Olá ' +
         candidateName +
         ',</p>' +
@@ -46,12 +47,37 @@ routerAdd(
         publicUrl +
         '</a></p>' +
         '<p>O prazo para preenchimento é de 48 horas.</p>' +
-        '<p>Atenciosamente,<br><strong>RH da PMais Terceirização.</strong></p>'
+        '<p>Atenciosamente,<br><strong>RH da ' +
+        companyName +
+        '.</strong></p>'
 
-      const apiKey = $secrets.get('RESEND_API_KEY')
+      var emailSubject = defaultSubject
+      var emailBody = defaultBody
+
+      try {
+        var template = $app.findFirstRecordByData('email_templates', 'type', 'complement_data')
+        if (template) {
+          var tplSubject = template.getString('subject')
+          var tplBody = template.getString('body')
+          if (tplSubject && tplBody) {
+            emailSubject = tplSubject
+              .replace(/\{candidate_name\}/g, candidateName)
+              .replace(/\{vacancy_name\}/g, vacancyTitle)
+              .replace(/\{company_name\}/g, companyName)
+              .replace(/\{public_url\}/g, publicUrl)
+            emailBody = tplBody
+              .replace(/\{candidate_name\}/g, candidateName)
+              .replace(/\{vacancy_name\}/g, vacancyTitle)
+              .replace(/\{company_name\}/g, companyName)
+              .replace(/\{public_url\}/g, publicUrl)
+          }
+        }
+      } catch (_) {}
+
+      var apiKey = $secrets.get('RESEND_API_KEY')
       if (!apiKey) return e.json(500, { error: 'RESEND_API_KEY não configurado' })
 
-      const res = $http.send({
+      var res = $http.send({
         url: 'https://api.resend.com/emails',
         method: 'POST',
         headers: {
@@ -61,8 +87,8 @@ routerAdd(
         body: JSON.stringify({
           from: 'nao-responda@pmaisservicos.com.br',
           to: candidateEmail,
-          subject: subject,
-          html: htmlBody,
+          subject: emailSubject,
+          html: emailBody,
         }),
         timeout: 30,
       })

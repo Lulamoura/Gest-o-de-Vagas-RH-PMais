@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T19:40:30.421Z",
+  "generatedAt": "2026-07-29T19:51:44.602Z",
   "collections": [
     {
       "name": "users",
@@ -919,6 +919,53 @@
       "indexes": [
         "CREATE INDEX idx_candidate_email_log_candidate ON candidate_email_log (candidate_id)"
       ]
+    },
+    {
+      "name": "email_templates",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "view": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "create": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": ["complement_data", "disqualification"]
+        },
+        {
+          "name": "subject",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": ["CREATE UNIQUE INDEX idx_email_templates_type ON email_templates (type)"]
     }
   ]
 }
