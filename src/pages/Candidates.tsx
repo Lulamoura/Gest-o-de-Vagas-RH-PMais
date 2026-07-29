@@ -86,7 +86,7 @@ export default function Candidates() {
   const [nomePai, setNomePai] = useState('')
   const [nomeMae, setNomeMae] = useState('')
   const [telefoneEmergencia, setTelefoneEmergencia] = useState('')
-  const [observacao, setObservacao] = useState('')
+  const [observacoes, setObservacoes] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const isAdminOrSuper = user?.profile === 'admin' || user?.profile === 'superadmin'
 
@@ -131,7 +131,7 @@ export default function Candidates() {
     setNomePai('')
     setNomeMae('')
     setTelefoneEmergencia('')
-    setObservacao('')
+    setObservacoes('')
     setFieldErrors({})
     setEditingCandidate(null)
   }
@@ -164,7 +164,7 @@ export default function Candidates() {
     setNomePai(candidate.nome_pai || '')
     setNomeMae(candidate.nome_mae || '')
     setTelefoneEmergencia(candidate.telefone_emergencia || '')
-    setObservacao(candidate.observacao || '')
+    setObservacoes(candidate.observacoes || '')
     setModalOpen(true)
   }
 
@@ -212,7 +212,7 @@ export default function Candidates() {
         nome_pai: nomePai.trim() || undefined,
         nome_mae: nomeMae.trim() || undefined,
         telefone_emergencia: telefoneEmergencia.trim() || undefined,
-        observacao: isAdminOrSuper ? observacao.trim() || undefined : undefined,
+        observacoes: isAdminOrSuper ? observacoes.trim() || undefined : undefined,
       }
 
       if (editingCandidate) {
@@ -505,13 +505,13 @@ export default function Candidates() {
 
             {isAdminOrSuper && (
               <div className="space-y-1.5">
-                <Label htmlFor="observacao" className="text-xs font-bold text-slate-700">
-                  Observação
+                <Label htmlFor="observacoes" className="text-xs font-bold text-slate-700">
+                  Observações
                 </Label>
                 <Textarea
-                  id="observacao"
-                  value={observacao}
-                  onChange={(e) => setObservacao(e.target.value)}
+                  id="observacoes"
+                  value={observacoes}
+                  onChange={(e) => setObservacoes(e.target.value)}
                   placeholder="Adicione observações sobre o candidato..."
                   rows={3}
                 />
