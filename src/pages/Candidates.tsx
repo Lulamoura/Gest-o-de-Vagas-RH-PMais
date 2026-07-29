@@ -86,7 +86,7 @@ export default function Candidates() {
   const [nomePai, setNomePai] = useState('')
   const [nomeMae, setNomeMae] = useState('')
   const [telefoneEmergencia, setTelefoneEmergencia] = useState('')
-  const [observacoes, setObservacoes] = useState('')
+  const [observacao, setObservacao] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const isAdminOrSuper = user?.profile === 'admin' || user?.profile === 'superadmin'
 
@@ -131,7 +131,7 @@ export default function Candidates() {
     setNomePai('')
     setNomeMae('')
     setTelefoneEmergencia('')
-    setObservacoes('')
+    setObservacao('')
     setFieldErrors({})
     setEditingCandidate(null)
   }
@@ -164,7 +164,7 @@ export default function Candidates() {
     setNomePai(candidate.nome_pai || '')
     setNomeMae(candidate.nome_mae || '')
     setTelefoneEmergencia(candidate.telefone_emergencia || '')
-    setObservacoes(candidate.observacoes || '')
+    setObservacao(candidate.observacao || '')
     setModalOpen(true)
   }
 
@@ -212,7 +212,7 @@ export default function Candidates() {
         nome_pai: nomePai.trim() || undefined,
         nome_mae: nomeMae.trim() || undefined,
         telefone_emergencia: telefoneEmergencia.trim() || undefined,
-        observacoes: isAdminOrSuper ? observacoes.trim() || undefined : undefined,
+        observacao: isAdminOrSuper ? observacao.trim() || undefined : undefined,
       }
 
       if (editingCandidate) {
@@ -509,9 +509,9 @@ export default function Candidates() {
                   Observações
                 </Label>
                 <Textarea
-                  id="observacoes"
-                  value={observacoes}
-                  onChange={(e) => setObservacoes(e.target.value)}
+                  id="observacao"
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
                   placeholder="Adicione observações sobre o candidato..."
                   rows={3}
                 />
