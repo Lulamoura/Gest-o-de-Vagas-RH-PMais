@@ -44,6 +44,14 @@ export const sendComplementDataRequest = async (candidateId: string) => {
   })
 }
 
+export const sendDisqualificationNotice = async (candidateId: string) => {
+  return pb.send('/backend/v1/send-disqualification-notice', {
+    method: 'POST',
+    body: JSON.stringify({ candidate_id: candidateId }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+
 export const getCandidatePublicData = async (id: string) => {
   return pb.send(`/backend/v1/candidate-public-data/${id}`, { method: 'GET' })
 }

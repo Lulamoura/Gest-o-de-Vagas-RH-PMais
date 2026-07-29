@@ -1,6 +1,6 @@
 routerAdd(
   'POST',
-  '/backend/v1/send-complement-data-request',
+  '/backend/v1/send-disqualification-notice',
   (e) => {
     const body = e.requestInfo().body || {}
     const candidateId = body.candidate_id || ''
@@ -11,47 +11,45 @@ routerAdd(
       const candidateEmail = candidate.getString('email')
       if (!candidateEmail) return e.badRequestError('Candidato não possui email cadastrado')
 
+      const candidateStatus = candidate.getString('status_candidato')
+      if (candidateStatus !== 'Desclassificado' && candidateStatus !== 'Em banco') {
+        return e.badRequestError('Candidato não está desclassificado ou em banco')
+      }
+
       const vacancyId = candidate.getString('vacancy_id')
-      let vacancyTitle = 'Vaga'
+      var vacancyTitle = 'Vaga'
       if (vacancyId) {
         try {
-          const vacancy = $app.findRecordById('vacancies', vacancyId)
-          const cargoId = vacancy.getString('cargo')
+          var vacancy = $app.findRecordById('vacancies', vacancyId)
+          var cargoId = vacancy.getString('cargo')
           if (cargoId) {
             try {
-              const cargo = $app.findRecordById('cargos', cargoId)
+              var cargo = $app.findRecordById('cargos', cargoId)
               vacancyTitle = cargo.getString('nome')
             } catch (_) {}
           }
         } catch (_) {}
       }
 
-      const candidateName = candidate.getString('nome')
-      const publicUrl =
-        'https://vagaspmais.pmaisservicos.com.br/candidato/' + candidateId + '/preencher'
-      const subject = 'Próxima etapa do processo seletivo - ' + vacancyTitle
+      var candidateName = candidate.getString('nome')
+      var subject = 'Aviso de Desclassicação – ' + vacancyTitle
 
-      const htmlBody =
+      var htmlBody =
         '<p>Olá ' +
         candidateName +
         ',</p>' +
-        '<p>Parabéns por avançar no processo seletivo para a vaga de <strong>' +
+        '<p>Agradecemos sua participação no processo seletivo para a vaga de <strong>' +
         vacancyTitle +
-        '</strong>!</p>' +
-        '<p>Para darmos continuidade à próxima etapa, precisamos que você preencha algumas informações complementares (dados de uniformidade, contato de emergência, etc.).</p>' +
-        '<p>Por favor, acesse o link abaixo e preencha o formulário:</p>' +
-        '<p><a href="' +
-        publicUrl +
-        '">' +
-        publicUrl +
-        '</a></p>' +
-        '<p>O prazo para preenchimento é de 48 horas.</p>' +
+        '</strong> na PMais Terceirização.</p>' +
+        '<p>Informamos que, desta vez, você não foi classificado(a) para a vaga em questão.</p>' +
+        '<p>No entanto, seus dados permanecerão em nosso banco de talentos e poderão ser considerados para futuras oportunidades que sejam compatíveis com seu perfil profissional.</p>' +
+        '<p>Agradecemos seu interesse e desejamos sucesso em sua trajetória.</p>' +
         '<p>Atenciosamente,<br><strong>RH da PMais Terceirização.</strong></p>'
 
-      const apiKey = $secrets.get('RESEND_API_KEY')
+      var apiKey = $secrets.get('RESEND_API_KEY')
       if (!apiKey) return e.json(500, { error: 'RESEND_API_KEY não configurado' })
 
-      const res = $http.send({
+      var res = $http.send({
         url: 'https://api.resend.com/emails',
         method: 'POST',
         headers: {
@@ -72,7 +70,7 @@ routerAdd(
           var logCol = $app.findCollectionByNameOrId('candidate_email_log')
           var logRecord = new Record(logCol)
           logRecord.set('candidate_id', candidateId)
-          logRecord.set('email_type', 'complement_data')
+          logRecord.set('email_type', 'disqualification')
           logRecord.set('sent_by', e.auth.id)
           $app.save(logRecord)
         } catch (logErr) {}

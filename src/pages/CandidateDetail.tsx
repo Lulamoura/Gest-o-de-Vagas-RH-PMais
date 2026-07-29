@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getCandidate } from '@/services/candidates'
-import { CandidateRecord } from '@/types'
+import {
+  getCandidate,
+  sendComplementDataRequest,
+  sendDisqualificationNotice,
+} from '@/services/candidates'
+import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
+import { CandidateRecord, CandidateEmailLogRecord, CandidateStatus } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { CandidateLegalConsultation } from '@/components/CandidateLegalConsultation'
@@ -9,24 +14,37 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, getCandidateStatusBadgeClass } from '@/lib/status-utils'
-import { ArrowLeft, Mail, Phone, MapPin, CreditCard, Briefcase } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, MapPin, CreditCard, Briefcase, Check } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 import { toast } from 'sonner'
+
+const COMPLEMENT_STATUSES: CandidateStatus[] = [
+  'Análise do RH',
+  'Análise do gestor',
+  'Documentação e exame',
+]
+
+const DISQUALIFICATION_STATUSES: CandidateStatus[] = ['Desclassificado', 'Em banco']
 
 export default function CandidateDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { isAdmin, isSuperAdmin } = useAuth()
-  const canConsult = isAdmin || isSuperAdmin
+  const canEdit = isAdmin || isSuperAdmin
 
   const [candidate, setCandidate] = useState<CandidateRecord | null>(null)
+  const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [sendingDisqual, setSendingDisqual] = useState(false)
 
   const loadData = async () => {
     if (!id) return
     try {
       const data = await getCandidate(id)
       setCandidate(data)
+      const logs = await getEmailLogsForCandidate(id)
+      setEmailLogs(logs)
     } catch {
       toast.error('Erro ao carregar candidato')
     } finally {
@@ -39,7 +57,43 @@ export default function CandidateDetail() {
   }, [id])
 
   useRealtime('candidates', () => loadData())
+  useRealtime('candidate_email_log', () => {
+    if (id)
+      getEmailLogsForCandidate(id)
+        .then(setEmailLogs)
+        .catch(() => {})
+  })
   useRealtime('candidato_consultas_juridicas', () => loadData())
+
+  const handleSendEmail = async () => {
+    if (!candidate) return
+    setSendingEmail(true)
+    try {
+      await sendComplementDataRequest(candidate.id)
+      toast.success('E-mail enviado com sucesso!')
+      const logs = await getEmailLogsForCandidate(candidate.id)
+      setEmailLogs(logs)
+    } catch {
+      toast.error('Erro ao enviar e-mail')
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
+  const handleSendDisqualification = async () => {
+    if (!candidate) return
+    setSendingDisqual(true)
+    try {
+      await sendDisqualificationNotice(candidate.id)
+      toast.success('E-mail enviado com sucesso!')
+      const logs = await getEmailLogsForCandidate(candidate.id)
+      setEmailLogs(logs)
+    } catch {
+      toast.error('Erro ao enviar e-mail')
+    } finally {
+      setSendingDisqual(false)
+    }
+  }
 
   if (loading || !candidate) {
     return (
@@ -55,6 +109,9 @@ export default function CandidateDetail() {
     (candidate.custo_exames || 0) +
     (candidate.custo_testes || 0) +
     (candidate.custo_extras || 0)
+
+  const showComplementBtn = canEdit && COMPLEMENT_STATUSES.includes(candidate.status_candidato)
+  const showDisqualBtn = canEdit && DISQUALIFICATION_STATUSES.includes(candidate.status_candidato)
 
   return (
     <div className="space-y-6">
@@ -111,6 +168,43 @@ export default function CandidateDetail() {
             </Badge>
             {candidate.rank != null && <StarRating value={candidate.rank} readOnly size={14} />}
           </div>
+
+          {(showComplementBtn || showDisqualBtn) && (
+            <div className="pt-2 border-t border-slate-100 space-y-2">
+              {showComplementBtn && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendEmail}
+                  disabled={sendingEmail || !candidate.email}
+                  className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                  title={!candidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
+                  {hasEmailBeenSent(emailLogs, 'complement_data') && (
+                    <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                  )}
+                </Button>
+              )}
+              {showDisqualBtn && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleSendDisqualification}
+                  disabled={sendingDisqual || !candidate.email}
+                  className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+                  title={!candidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {sendingDisqual ? 'Enviando...' : 'Aviso de Desclassificação/Banco'}
+                  {hasEmailBeenSent(emailLogs, 'disqualification') && (
+                    <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                  )}
+                </Button>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -118,7 +212,7 @@ export default function CandidateDetail() {
         candidateId={candidate.id}
         cpf={candidate.cpf}
         nome={candidate.nome}
-        canConsult={canConsult}
+        canConsult={canEdit}
       />
     </div>
   )

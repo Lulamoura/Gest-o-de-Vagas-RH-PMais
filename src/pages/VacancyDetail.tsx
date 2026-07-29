@@ -6,7 +6,9 @@ import {
   createCandidate,
   updateCandidate,
   sendComplementDataRequest,
+  sendDisqualificationNotice,
 } from '@/services/candidates'
+import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
 import { getPipelineHistory, createPipelineHistory } from '@/services/pipeline_history'
 import { getCandidateHistory } from '@/services/candidate_history'
 import {
@@ -16,6 +18,7 @@ import {
   CandidateHistoryRecord,
   VacancyStatus,
   CandidateStatus,
+  CandidateEmailLogRecord,
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -83,6 +86,7 @@ import {
   Trash2,
   UserCheck,
   Mail,
+  Check,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 import { CurrencyInput } from '@/components/CurrencyInput'
@@ -151,6 +155,8 @@ export default function VacancyDetail() {
 
   // Complement email
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [sendingDisqualEmail, setSendingDisqualEmail] = useState(false)
+  const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
 
   // Status change
   const [statusChanging, setStatusChanging] = useState(false)
@@ -294,6 +300,10 @@ export default function VacancyDetail() {
     setEditTelefoneEmergencia(candidate.telefone_emergencia || '')
     setEditObservacao(candidate.observacao || '')
     setEditFieldErrors({})
+    setEmailLogs([])
+    getEmailLogsForCandidate(candidate.id)
+      .then(setEmailLogs)
+      .catch(() => {})
     setEditModalOpen(true)
   }
 
@@ -389,16 +399,35 @@ export default function VacancyDetail() {
     'Documentação e exame',
   ]
 
+  const DISQUALIFICATION_STATUSES: CandidateStatus[] = ['Desclassificado', 'Em banco']
+
   const handleSendEmail = async () => {
     if (!editingCandidate) return
     setSendingEmail(true)
     try {
       await sendComplementDataRequest(editingCandidate.id)
       toast.success('E-mail enviado com sucesso!')
+      const logs = await getEmailLogsForCandidate(editingCandidate.id)
+      setEmailLogs(logs)
     } catch (err) {
       toast.error('Erro ao enviar e-mail')
     } finally {
       setSendingEmail(false)
+    }
+  }
+
+  const handleSendDisqualification = async () => {
+    if (!editingCandidate) return
+    setSendingDisqualEmail(true)
+    try {
+      await sendDisqualificationNotice(editingCandidate.id)
+      toast.success('E-mail enviado com sucesso!')
+      const logs = await getEmailLogsForCandidate(editingCandidate.id)
+      setEmailLogs(logs)
+    } catch (err) {
+      toast.error('Erro ao enviar e-mail')
+    } finally {
+      setSendingDisqualEmail(false)
     }
   }
 
@@ -1450,18 +1479,40 @@ export default function VacancyDetail() {
               </div>
             </div>
 
-            {canEditCandidate && editingCandidate && COMPLEMENT_STATUSES.includes(editStatus) && (
-              <div className="pt-2 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleSendEmail}
-                  disabled={sendingEmail}
-                  className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
-                </Button>
+            {canEditCandidate && editingCandidate && (
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                {COMPLEMENT_STATUSES.includes(editStatus) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendEmail}
+                    disabled={sendingEmail || !editingCandidate.email}
+                    className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                    title={!editingCandidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
+                    {hasEmailBeenSent(emailLogs, 'complement_data') && (
+                      <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                    )}
+                  </Button>
+                )}
+                {DISQUALIFICATION_STATUSES.includes(editStatus) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendDisqualification}
+                    disabled={sendingDisqualEmail || !editingCandidate.email}
+                    className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+                    title={!editingCandidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {sendingDisqualEmail ? 'Enviando...' : 'Aviso de Desclassificação/Banco'}
+                    {hasEmailBeenSent(emailLogs, 'disqualification') && (
+                      <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                    )}
+                  </Button>
+                )}
               </div>
             )}
 

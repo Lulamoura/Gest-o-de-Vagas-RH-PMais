@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Mail, Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Mail, Plus, Pencil, Trash2, Search, Check } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
@@ -29,9 +29,11 @@ import {
   updateCandidate,
   deleteCandidate,
   sendComplementDataRequest,
+  sendDisqualificationNotice,
 } from '@/services/candidates'
+import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
 import { getVacancies } from '@/services/vacancies'
-import { CandidateRecord, CandidateStatus, VacancyRecord } from '@/types'
+import { CandidateRecord, CandidateStatus, VacancyRecord, CandidateEmailLogRecord } from '@/types'
 import { toast } from '@/components/ui/use-toast'
 import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
 import { getErrorMessage, extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
@@ -41,6 +43,8 @@ const COMPLEMENT_STATUSES: CandidateStatus[] = [
   'Análise do gestor',
   'Documentação e exame',
 ]
+
+const DISQUALIFICATION_STATUSES: CandidateStatus[] = ['Desclassificado', 'Em banco']
 
 const CANDIDATE_STATUSES: CandidateStatus[] = [
   'Análise do RH',
@@ -62,6 +66,8 @@ export default function Candidates() {
   const [editingCandidate, setEditingCandidate] = useState<CandidateRecord | null>(null)
   const [saving, setSaving] = useState(false)
   const [sendingEmail, setSendingEmail] = useState(false)
+  const [sendingDisqualEmail, setSendingDisqualEmail] = useState(false)
+  const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterVacancyId, setFilterVacancyId] = useState<string>('all')
 
@@ -133,6 +139,7 @@ export default function Candidates() {
     setTelefoneEmergencia('')
     setObservacao('')
     setFieldErrors({})
+    setEmailLogs([])
     setEditingCandidate(null)
   }
 
@@ -165,6 +172,10 @@ export default function Candidates() {
     setNomeMae(candidate.nome_mae || '')
     setTelefoneEmergencia(candidate.telefone_emergencia || '')
     setObservacao(candidate.observacao || '')
+    setEmailLogs([])
+    getEmailLogsForCandidate(candidate.id)
+      .then(setEmailLogs)
+      .catch(() => {})
     setModalOpen(true)
   }
 
@@ -248,10 +259,27 @@ export default function Candidates() {
     try {
       await sendComplementDataRequest(editingCandidate.id)
       toast({ title: 'Sucesso', description: 'E-mail enviado com sucesso!' })
+      const logs = await getEmailLogsForCandidate(editingCandidate.id)
+      setEmailLogs(logs)
     } catch (err) {
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
     } finally {
       setSendingEmail(false)
+    }
+  }
+
+  const handleSendDisqualification = async () => {
+    if (!editingCandidate) return
+    setSendingDisqualEmail(true)
+    try {
+      await sendDisqualificationNotice(editingCandidate.id)
+      toast({ title: 'Sucesso', description: 'E-mail enviado com sucesso!' })
+      const logs = await getEmailLogsForCandidate(editingCandidate.id)
+      setEmailLogs(logs)
+    } catch (err) {
+      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+    } finally {
+      setSendingDisqualEmail(false)
     }
   }
 
@@ -622,22 +650,42 @@ export default function Candidates() {
               </div>
             </div>
 
-            {editingCandidate &&
-              isAdminOrSuper &&
-              COMPLEMENT_STATUSES.includes(editingCandidate.status_candidato) && (
-                <div className="pt-2 border-t border-slate-100">
+            {editingCandidate && isAdminOrSuper && (
+              <div className="pt-2 border-t border-slate-100 space-y-2">
+                {COMPLEMENT_STATUSES.includes(editingCandidate.status_candidato) && (
                   <Button
                     type="button"
                     variant="outline"
                     onClick={handleSendEmail}
-                    disabled={sendingEmail}
+                    disabled={sendingEmail || !editingCandidate.email}
                     className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                    title={!editingCandidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
                   >
                     <Mail className="h-4 w-4 mr-2" />
                     {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
+                    {hasEmailBeenSent(emailLogs, 'complement_data') && (
+                      <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                    )}
                   </Button>
-                </div>
-              )}
+                )}
+                {DISQUALIFICATION_STATUSES.includes(editingCandidate.status_candidato) && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendDisqualification}
+                    disabled={sendingDisqualEmail || !editingCandidate.email}
+                    className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+                    title={!editingCandidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {sendingDisqualEmail ? 'Enviando...' : 'Aviso de Desclassificação/Banco'}
+                    {hasEmailBeenSent(emailLogs, 'disqualification') && (
+                      <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
 
             <DialogFooter className="pt-3">
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>

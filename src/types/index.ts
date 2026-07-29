@@ -146,6 +146,18 @@ export interface CandidatoConsultaJuridicaRecord extends RecordModel {
   }
 }
 
+export type EmailType = 'complement_data' | 'disqualification'
+
+export interface CandidateEmailLogRecord extends RecordModel {
+  candidate_id: string
+  email_type: EmailType
+  sent_by?: string
+  expand?: {
+    candidate_id?: CandidateRecord
+    sent_by?: UserRecord
+  }
+}
+
 export type WordpressImportStatus = 'sucesso' | 'duplicada' | 'erro'
 
 export interface WordpressImportLogRecord extends RecordModel {
