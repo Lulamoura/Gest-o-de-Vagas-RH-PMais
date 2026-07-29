@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getVacancy, updateVacancy, deleteVacancy } from '@/services/vacancies'
-import { getCandidates, createCandidate } from '@/services/candidates'
+import { getCandidates, createCandidate, updateCandidate } from '@/services/candidates'
 import { getPipelineHistory, createPipelineHistory } from '@/services/pipeline_history'
 import { getCandidateHistory } from '@/services/candidate_history'
 import {
@@ -79,11 +79,15 @@ import {
   UserCheck,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
+import { CurrencyInput } from '@/components/CurrencyInput'
+import { Textarea } from '@/components/ui/textarea'
+import { extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { user, isSuperAdmin, canEditVacancy } = useAuth()
+  const { user, isSuperAdmin, isAdmin, canEditVacancy } = useAuth()
+  const canEditCandidate = isAdmin || isSuperAdmin
 
   const [vaga, setVaga] = useState<VacancyRecord | null>(null)
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
@@ -104,6 +108,32 @@ export default function VacancyDetail() {
   const [rankCandidato, setRankCandidato] = useState<number | null>(null)
   const [rankError, setRankError] = useState('')
   const [savingCandidate, setSavingCandidate] = useState(false)
+
+  // Edit Candidate Modal
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [editingCandidate, setEditingCandidate] = useState<CandidateRecord | null>(null)
+  const [editNome, setEditNome] = useState('')
+  const [editEmail, setEditEmail] = useState('')
+  const [editTelefone, setEditTelefone] = useState('')
+  const [editCpf, setEditCpf] = useState('')
+  const [editCidade, setEditCidade] = useState('')
+  const [editBairro, setEditBairro] = useState('')
+  const [editStatus, setEditStatus] = useState<CandidateStatus>('Análise do RH')
+  const [editRank, setEditRank] = useState<number | null>(null)
+  const [editCustoConsultas, setEditCustoConsultas] = useState(0)
+  const [editCustoExames, setEditCustoExames] = useState(0)
+  const [editCustoTestes, setEditCustoTestes] = useState(0)
+  const [editCustoExtras, setEditCustoExtras] = useState(0)
+  const [editRg, setEditRg] = useState('')
+  const [editTamanhoFardamento, setEditTamanhoFardamento] = useState('')
+  const [editTamanhoSapato, setEditTamanhoSapato] = useState('')
+  const [editValeTransporte, setEditValeTransporte] = useState(0)
+  const [editNomePai, setEditNomePai] = useState('')
+  const [editNomeMae, setEditNomeMae] = useState('')
+  const [editTelefoneEmergencia, setEditTelefoneEmergencia] = useState('')
+  const [editObservacao, setEditObservacao] = useState('')
+  const [editFieldErrors, setEditFieldErrors] = useState<FieldErrors>({})
+  const [savingEdit, setSavingEdit] = useState(false)
 
   const [rgCandidato, setRgCandidato] = useState('')
   const [tamanhoFardamentoCandidato, setTamanhoFardamentoCandidato] = useState('')
@@ -229,6 +259,76 @@ export default function VacancyDetail() {
       toast.error('Erro ao salvar candidato')
     } finally {
       setSavingCandidate(false)
+    }
+  }
+
+  const handleEditCandidate = (candidate: CandidateRecord) => {
+    setEditingCandidate(candidate)
+    setEditNome(candidate.nome || '')
+    setEditEmail(candidate.email || '')
+    setEditTelefone(candidate.telefone || '')
+    setEditCpf(candidate.cpf || '')
+    setEditCidade(candidate.cidade || '')
+    setEditBairro(candidate.bairro || '')
+    setEditStatus(candidate.status_candidato || 'Análise do RH')
+    setEditRank(candidate.rank ?? null)
+    setEditCustoConsultas(candidate.custo_consultas || 0)
+    setEditCustoExames(candidate.custo_exames || 0)
+    setEditCustoTestes(candidate.custo_testes || 0)
+    setEditCustoExtras(candidate.custo_extras || 0)
+    setEditRg(candidate.rg || '')
+    setEditTamanhoFardamento(candidate.tamanho_fardamento || '')
+    setEditTamanhoSapato(candidate.tamanho_sapato || '')
+    setEditValeTransporte(candidate.vale_transporte_qtd || 0)
+    setEditNomePai(candidate.nome_pai || '')
+    setEditNomeMae(candidate.nome_mae || '')
+    setEditTelefoneEmergencia(candidate.telefone_emergencia || '')
+    setEditObservacao(candidate.observacao || '')
+    setEditFieldErrors({})
+    setEditModalOpen(true)
+  }
+
+  const handleUpdateCandidate = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingCandidate) return
+    if (!editNome.trim()) {
+      setEditFieldErrors({ nome: 'Nome é obrigatório' })
+      return
+    }
+    setEditFieldErrors({})
+    setSavingEdit(true)
+    try {
+      await updateCandidate(editingCandidate.id, {
+        nome: editNome.trim(),
+        email: editEmail.trim() || undefined,
+        telefone: editTelefone.trim() || undefined,
+        cpf: editCpf.trim() || undefined,
+        cidade: editCidade.trim() || undefined,
+        bairro: editBairro.trim() || undefined,
+        status_candidato: editStatus,
+        rank: editRank ?? null,
+        custo_consultas: editCustoConsultas,
+        custo_exames: editCustoExames,
+        custo_testes: editCustoTestes,
+        custo_extras: editCustoExtras,
+        rg: editRg.trim() || undefined,
+        tamanho_fardamento: editTamanhoFardamento || undefined,
+        tamanho_sapato: editTamanhoSapato.trim() || undefined,
+        vale_transporte_qtd: editValeTransporte || undefined,
+        nome_pai: editNomePai.trim() || undefined,
+        nome_mae: editNomeMae.trim() || undefined,
+        telefone_emergencia: editTelefoneEmergencia.trim() || undefined,
+        observacao: editObservacao.trim() || undefined,
+      })
+      toast.success('Candidato atualizado com sucesso!')
+      setEditModalOpen(false)
+      setEditingCandidate(null)
+      loadData()
+    } catch (err) {
+      setEditFieldErrors(extractFieldErrors(err))
+      toast.error('Erro ao atualizar candidato')
+    } finally {
+      setSavingEdit(false)
     }
   }
 
@@ -616,13 +716,21 @@ export default function VacancyDetail() {
                   <TableHead className="text-xs font-semibold text-slate-600 text-right">
                     Custo Total
                   </TableHead>
+                  {canEditCandidate && (
+                    <TableHead className="text-xs font-semibold text-slate-600 text-center">
+                      Ações
+                    </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {candidates.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center py-6 text-slate-500 text-sm">
-                      Nenhum candidato vinculado a esta vaga ainda.
+                    <TableCell
+                      colSpan={canEditCandidate ? 6 : 5}
+                      className="text-center py-6 text-slate-500 text-sm"
+                    >
+                      Nenhum candidato vinculado a esta vaga ainda.{' '}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -660,6 +768,18 @@ export default function VacancyDetail() {
                         <TableCell className="text-right font-medium text-slate-900 text-sm">
                           {formatCurrency(candidateTotal)}
                         </TableCell>
+                        {canEditCandidate && (
+                          <TableCell className="text-center">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              onClick={() => handleEditCandidate(cand)}
+                              className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                            >
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
+                        )}
                       </TableRow>
                     )
                   })
@@ -1037,6 +1157,276 @@ export default function VacancyDetail() {
                 className="bg-indigo-600 hover:bg-indigo-500 text-white"
               >
                 {savingCandidate ? 'Salvando...' : 'Adicionar Candidato'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Candidate Modal */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Editar Candidato</DialogTitle>
+            <DialogDescription>
+              Atualizar informações de{' '}
+              <strong className="text-slate-900">{editingCandidate?.nome || ''}</strong>
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleUpdateCandidate} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="eNome" className="text-xs font-bold text-slate-700">
+                Nome Completo <span className="text-rose-500">*</span>
+              </Label>
+              <Input
+                id="eNome"
+                placeholder="Ex: Juliana Rocha"
+                value={editNome}
+                onChange={(e) => setEditNome(e.target.value)}
+                required
+              />
+              {editFieldErrors.nome && (
+                <p className="text-xs text-rose-500 mt-0.5">{editFieldErrors.nome}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="eEmail" className="text-xs font-semibold text-slate-700">
+                  Email
+                </Label>
+                <Input
+                  id="eEmail"
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={editEmail}
+                  onChange={(e) => setEditEmail(e.target.value)}
+                />
+                {editFieldErrors.email && (
+                  <p className="text-xs text-rose-500 mt-0.5">{editFieldErrors.email}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="eTelefone" className="text-xs font-semibold text-slate-700">
+                  Telefone
+                </Label>
+                <Input
+                  id="eTelefone"
+                  placeholder="(00) 00000-0000"
+                  value={editTelefone}
+                  onChange={(e) => setEditTelefone(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="eCpf" className="text-xs font-semibold text-slate-700">
+                  CPF
+                </Label>
+                <Input
+                  id="eCpf"
+                  placeholder="000.000.000-00"
+                  value={editCpf}
+                  onChange={(e) => setEditCpf(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="eCidade" className="text-xs font-semibold text-slate-700">
+                  Cidade
+                </Label>
+                <Input
+                  id="eCidade"
+                  value={editCidade}
+                  onChange={(e) => setEditCidade(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="eBairro" className="text-xs font-semibold text-slate-700">
+                  Bairro
+                </Label>
+                <Input
+                  id="eBairro"
+                  value={editBairro}
+                  onChange={(e) => setEditBairro(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Status do Candidato</Label>
+              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as CandidateStatus)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Análise do RH">Análise do RH</SelectItem>
+                  <SelectItem value="Análise do gestor">Análise do gestor</SelectItem>
+                  <SelectItem value="Documentação e exame">Documentação e exame</SelectItem>
+                  <SelectItem value="Cadastro DP">Cadastro DP</SelectItem>
+                  <SelectItem value="Integrado">Integrado</SelectItem>
+                  <SelectItem value="Desistente">Desistente</SelectItem>
+                  <SelectItem value="Desclassificado">Desclassificado</SelectItem>
+                  <SelectItem value="Em banco">Em banco</SelectItem>
+                </SelectContent>
+              </Select>
+              {editFieldErrors.status_candidato && (
+                <p className="text-xs text-rose-500 mt-0.5">{editFieldErrors.status_candidato}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Ranking (1-5 estrelas)</Label>
+              <StarRating value={editRank} onChange={setEditRank} size={28} />
+            </div>
+
+            {canEditCandidate && (
+              <div className="space-y-1.5">
+                <Label htmlFor="eObs" className="text-xs font-bold text-slate-700">
+                  Observações
+                </Label>
+                <Textarea
+                  id="eObs"
+                  value={editObservacao}
+                  onChange={(e) => setEditObservacao(e.target.value)}
+                  placeholder="Adicione observações sobre o candidato..."
+                  rows={3}
+                />
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-700 block mb-2">
+                Custos com o Candidato (R$)
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <Label htmlFor="eCons" className="text-[10px] text-slate-500">
+                    Consultas
+                  </Label>
+                  <CurrencyInput
+                    id="eCons"
+                    value={editCustoConsultas}
+                    onChange={setEditCustoConsultas}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="eExam" className="text-[10px] text-slate-500">
+                    Exames
+                  </Label>
+                  <CurrencyInput id="eExam" value={editCustoExames} onChange={setEditCustoExames} />
+                </div>
+                <div>
+                  <Label htmlFor="eTest" className="text-[10px] text-slate-500">
+                    Testes
+                  </Label>
+                  <CurrencyInput id="eTest" value={editCustoTestes} onChange={setEditCustoTestes} />
+                </div>
+                <div>
+                  <Label htmlFor="eExtr" className="text-[10px] text-slate-500">
+                    Extras
+                  </Label>
+                  <CurrencyInput id="eExtr" value={editCustoExtras} onChange={setEditCustoExtras} />
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 border-t border-slate-100">
+              <span className="text-xs font-bold text-slate-700 block mb-2">
+                Dados Complementares
+              </span>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <Label htmlFor="eRg" className="text-[10px] text-slate-500">
+                    RG
+                  </Label>
+                  <Input id="eRg" value={editRg} onChange={(e) => setEditRg(e.target.value)} />
+                </div>
+                <div>
+                  <Label className="text-[10px] text-slate-500">Tamanho Fardamento</Label>
+                  <Select value={editTamanhoFardamento} onValueChange={setEditTamanhoFardamento}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PP">PP</SelectItem>
+                      <SelectItem value="P">P</SelectItem>
+                      <SelectItem value="M">M</SelectItem>
+                      <SelectItem value="G">G</SelectItem>
+                      <SelectItem value="GG">GG</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="eSapato" className="text-[10px] text-slate-500">
+                    Tamanho Sapato
+                  </Label>
+                  <Input
+                    id="eSapato"
+                    value={editTamanhoSapato}
+                    onChange={(e) => setEditTamanhoSapato(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="eVt" className="text-[10px] text-slate-500">
+                    Vale-transporte (qtd/dia)
+                  </Label>
+                  <Input
+                    id="eVt"
+                    type="number"
+                    min={0}
+                    value={editValeTransporte}
+                    onChange={(e) => setEditValeTransporte(Number(e.target.value))}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="ePai" className="text-[10px] text-slate-500">
+                    Nome do Pai
+                  </Label>
+                  <Input
+                    id="ePai"
+                    value={editNomePai}
+                    onChange={(e) => setEditNomePai(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="eMae" className="text-[10px] text-slate-500">
+                    Nome da Mãe
+                  </Label>
+                  <Input
+                    id="eMae"
+                    value={editNomeMae}
+                    onChange={(e) => setEditNomeMae(e.target.value)}
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="eEmergencia" className="text-[10px] text-slate-500">
+                    Telefone para Emergência
+                  </Label>
+                  <Input
+                    id="eEmergencia"
+                    value={editTelefoneEmergencia}
+                    onChange={(e) => setEditTelefoneEmergencia(e.target.value)}
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <DialogFooter className="pt-3">
+              <Button type="button" variant="outline" onClick={() => setEditModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={savingEdit}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white"
+              >
+                {savingEdit ? 'Salvando...' : 'Salvar Alterações'}
               </Button>
             </DialogFooter>
           </form>
