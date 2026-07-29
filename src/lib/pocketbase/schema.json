@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-07-29T14:35:42.293Z",
+  "generatedAt": "2026-07-29T18:46:06.361Z",
   "collections": [
     {
       "name": "users",
@@ -750,6 +750,124 @@
         }
       ],
       "indexes": ["CREATE INDEX idx_candidate_history_vacancy ON candidate_history (vacancy_id)"]
+    },
+    {
+      "name": "candidato_consultas_juridicas",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id != ''",
+        "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "candidato_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "candidates"
+        },
+        {
+          "name": "cpf_consultado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "nome_consultado",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "provider",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_consulta",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["sucesso", "erro", "sem_resultados"]
+        },
+        {
+          "name": "total_processos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_processos_ativos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "total_processos_inativos",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "resumo_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "estatisticas_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "processos_json",
+          "type": "json",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "consultado_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "consultado_em",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "erro",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_consultas_juridicas_candidato ON candidato_consultas_juridicas (candidato_id)"
+      ]
     }
   ]
 }

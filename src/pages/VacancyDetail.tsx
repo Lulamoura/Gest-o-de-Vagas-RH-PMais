@@ -772,7 +772,12 @@ export default function VacancyDetail() {
                     return (
                       <TableRow key={cand.id}>
                         <TableCell className="font-semibold text-slate-900 text-sm">
-                          {cand.nome}
+                          <Link
+                            to={`/candidatos/${cand.id}`}
+                            className="hover:text-indigo-600 hover:underline"
+                          >
+                            {cand.nome}
+                          </Link>
                         </TableCell>
                         <TableCell>
                           {cand.rank ? (

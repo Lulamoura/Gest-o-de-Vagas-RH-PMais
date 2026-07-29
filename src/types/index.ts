@@ -125,6 +125,27 @@ export interface CandidateHistoryRecord extends RecordModel {
   }
 }
 
+export interface CandidatoConsultaJuridicaRecord extends RecordModel {
+  candidato_id: string
+  cpf_consultado?: string
+  nome_consultado?: string
+  provider?: string
+  status_consulta: 'sucesso' | 'erro' | 'sem_resultados'
+  total_processos?: number
+  total_processos_ativos?: number
+  total_processos_inativos?: number
+  resumo_json?: Record<string, any>
+  estatisticas_json?: Record<string, any> | null
+  processos_json?: any[]
+  consultado_por?: string
+  consultado_em?: string
+  erro?: string
+  expand?: {
+    candidato_id?: CandidateRecord
+    consultado_por?: UserRecord
+  }
+}
+
 export type WordpressImportStatus = 'sucesso' | 'duplicada' | 'erro'
 
 export interface WordpressImportLogRecord extends RecordModel {
