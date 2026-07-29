@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { StarRating } from '@/components/StarRating'
@@ -34,6 +35,12 @@ import { CandidateRecord, CandidateStatus, VacancyRecord } from '@/types'
 import { toast } from '@/components/ui/use-toast'
 import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
 import { getErrorMessage, extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
+
+const COMPLEMENT_STATUSES: CandidateStatus[] = [
+  'Análise do RH',
+  'Análise do gestor',
+  'Documentação e exame',
+]
 
 const CANDIDATE_STATUSES: CandidateStatus[] = [
   'Análise do RH',
@@ -79,7 +86,9 @@ export default function Candidates() {
   const [nomePai, setNomePai] = useState('')
   const [nomeMae, setNomeMae] = useState('')
   const [telefoneEmergencia, setTelefoneEmergencia] = useState('')
+  const [observacao, setObservacao] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+  const isAdminOrSuper = user?.profile === 'admin' || user?.profile === 'superadmin'
 
   const loadData = useCallback(async () => {
     try {
@@ -122,6 +131,7 @@ export default function Candidates() {
     setNomePai('')
     setNomeMae('')
     setTelefoneEmergencia('')
+    setObservacao('')
     setFieldErrors({})
     setEditingCandidate(null)
   }
@@ -154,6 +164,7 @@ export default function Candidates() {
     setNomePai(candidate.nome_pai || '')
     setNomeMae(candidate.nome_mae || '')
     setTelefoneEmergencia(candidate.telefone_emergencia || '')
+    setObservacao(candidate.observacao || '')
     setModalOpen(true)
   }
 
@@ -201,6 +212,7 @@ export default function Candidates() {
         nome_pai: nomePai.trim() || undefined,
         nome_mae: nomeMae.trim() || undefined,
         telefone_emergencia: telefoneEmergencia.trim() || undefined,
+        observacao: isAdminOrSuper ? observacao.trim() || undefined : undefined,
       }
 
       if (editingCandidate) {
@@ -491,6 +503,21 @@ export default function Candidates() {
               {rankError && <p className="text-xs text-rose-500 mt-1">{rankError}</p>}
             </div>
 
+            {isAdminOrSuper && (
+              <div className="space-y-1.5">
+                <Label htmlFor="observacao" className="text-xs font-bold text-slate-700">
+                  Observação
+                </Label>
+                <Textarea
+                  id="observacao"
+                  value={observacao}
+                  onChange={(e) => setObservacao(e.target.value)}
+                  placeholder="Adicione observações sobre o candidato..."
+                  rows={3}
+                />
+              </div>
+            )}
+
             <div className="pt-2 border-t border-slate-100">
               <span className="text-xs font-bold text-slate-700 block mb-2">Custos (R$)</span>
               <div className="grid grid-cols-2 gap-2 text-xs">
@@ -595,20 +622,22 @@ export default function Candidates() {
               </div>
             </div>
 
-            {editingCandidate && (
-              <div className="pt-2 border-t border-slate-100">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleSendEmail}
-                  disabled={sendingEmail}
-                  className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                >
-                  <Mail className="h-4 w-4 mr-2" />
-                  {sendingEmail ? 'Enviando...' : 'Enviar e-mail de solicitação'}
-                </Button>
-              </div>
-            )}
+            {editingCandidate &&
+              isAdminOrSuper &&
+              COMPLEMENT_STATUSES.includes(editingCandidate.status_candidato) && (
+                <div className="pt-2 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendEmail}
+                    disabled={sendingEmail}
+                    className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
+                  </Button>
+                </div>
+              )}
 
             <DialogFooter className="pt-3">
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>
