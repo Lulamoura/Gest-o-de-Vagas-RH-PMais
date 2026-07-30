@@ -66,17 +66,30 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
       setDetail(result)
     } catch (err: any) {
       let msg = 'Erro ao carregar detalhes. Tente novamente mais tarde.'
-      if (err?.status === 404 || err?.response?.status === 404) {
-        msg = 'Processo não encontrado na base do Escavador.'
-      } else if (err?.response?.error) {
-        msg = err.response.error
-      } else if (err?.data?.error) {
-        msg = err.data.error
-      } else if (
-        err?.message &&
-        (err.message.includes('não encontrado') || err.message.includes('404'))
+
+      const status = err?.status || err?.response?.status || err?.statusCode
+      const serverMsg =
+        err?.response?.error || err?.data?.error || err?.response?.data?.error || err?.message
+
+      if (
+        status === 404 ||
+        (typeof serverMsg === 'string' &&
+          (serverMsg.includes('não encontrado') || serverMsg.includes('404')))
       ) {
         msg = 'Processo não encontrado na base do Escavador.'
+      } else if (
+        status === 429 ||
+        (typeof serverMsg === 'string' && serverMsg.includes('excedido'))
+      ) {
+        msg = 'Limite de consultas excedido na API Escavador. Tente novamente em alguns minutos.'
+      } else if (status === 503 || (typeof serverMsg === 'string' && serverMsg.includes('Token'))) {
+        msg = typeof serverMsg === 'string' ? serverMsg : 'Serviço do Escavador não disponível.'
+      } else if (
+        typeof serverMsg === 'string' &&
+        serverMsg.trim().length > 0 &&
+        !serverMsg.includes('ClientResponseError')
+      ) {
+        msg = serverMsg
       }
       setError(msg)
     } finally {
@@ -104,7 +117,14 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
 
     const addParty = (p: any) => {
       if (!p || typeof p !== 'object') return
-      const nome = getField(p, 'nome', 'razao_social', 'nome_completo', 'nome_normalizado')
+      const nome = getField(
+        p,
+        'nome',
+        'razao_social',
+        'nome_completo',
+        'nome_normalizado',
+        'nome_parte',
+      )
       if (!nome || nome === '—') return
 
       const tipo = getField(
@@ -116,26 +136,54 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
         'polo',
         'categoria',
         'relacao',
+        'papel',
       )
-      const categoria = getNestedField(p, 'pessoa.tipo', 'pessoa.categoria', 'oab', 'oab_uf')
+      const categoria = getNestedField(
+        p,
+        'pessoa.tipo',
+        'pessoa.categoria',
+        'oab',
+        'oab_uf',
+        'advogado',
+        'oab_numero',
+      )
 
-      const key = `${nome.toLowerCase()}_${tipo.toLowerCase()}`
+      const key = `${nome.toLowerCase().trim()}_${tipo.toLowerCase().trim()}`
       if (seen.has(key)) return
       seen.add(key)
 
       parties.push({ nome, tipo, categoria })
     }
 
-    if (Array.isArray(data.partes)) data.partes.forEach(addParty)
-    if (Array.isArray(data.envolvidos)) data.envolvidos.forEach(addParty)
-    if (Array.isArray(data.capa?.partes)) data.capa.partes.forEach(addParty)
+    const parseList = (list: any) => {
+      if (Array.isArray(list)) list.forEach(addParty)
+    }
+
+    parseList(data.partes)
+    parseList(data.envolvidos)
+    parseList(data.capa?.partes)
+    parseList(data.capa?.envolvidos)
+
+    if (Array.isArray(data.polos)) {
+      data.polos.forEach((poloObj: any) => {
+        if (!poloObj) return
+        const poloTipo = poloObj.tipo || poloObj.polo || 'Parte'
+        if (Array.isArray(poloObj.partes)) {
+          poloObj.partes.forEach((p: any) => {
+            if (p && typeof p === 'object' && !p.tipo) p.tipo = poloTipo
+            addParty(p)
+          })
+        }
+      })
+    }
 
     if (Array.isArray(data.fontes)) {
       for (const f of data.fontes) {
         if (!f) continue
-        if (Array.isArray(f.envolvidos)) f.envolvidos.forEach(addParty)
-        if (Array.isArray(f.partes)) f.partes.forEach(addParty)
-        if (Array.isArray(f.capa?.partes)) f.capa.partes.forEach(addParty)
+        parseList(f.envolvidos)
+        parseList(f.partes)
+        parseList(f.capa?.partes)
+        parseList(f.capa?.envolvidos)
       }
     }
 
@@ -148,8 +196,19 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
 
     const addMov = (m: any) => {
       if (!m || typeof m !== 'object') return
-      const dt = getField(m, 'data', 'data_movimento', 'data_hora', 'data_andamento') || '—'
-      const desc = getField(m, 'descricao', 'nome', 'titulo', 'complemento', 'conteudo', 'texto')
+      const dt =
+        getField(m, 'data', 'data_movimento', 'data_hora', 'data_andamento', 'data_publicacao') ||
+        '—'
+      const desc = getField(
+        m,
+        'descricao',
+        'nome',
+        'titulo',
+        'complemento',
+        'conteudo',
+        'texto',
+        'resumo',
+      )
       if (!desc || desc === '—') return
       const key = `${dt}_${desc}`
       if (seen.has(key)) return
@@ -157,15 +216,20 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
       movements.push({ data: dt, descricao: desc })
     }
 
-    if (Array.isArray(data.movimentacoes)) data.movimentacoes.forEach(addMov)
-    if (Array.isArray(data.movimentos)) data.movimentos.forEach(addMov)
-    if (Array.isArray(data.andamentos)) data.andamentos.forEach(addMov)
+    const parseList = (list: any) => {
+      if (Array.isArray(list)) list.forEach(addMov)
+    }
+
+    parseList(data.movimentacoes)
+    parseList(data.movimentos)
+    parseList(data.andamentos)
 
     if (Array.isArray(data.fontes)) {
       for (const f of data.fontes) {
         if (!f) continue
-        if (Array.isArray(f.movimentacoes)) f.movimentacoes.forEach(addMov)
-        if (Array.isArray(f.andamentos)) f.andamentos.forEach(addMov)
+        parseList(f.movimentacoes)
+        parseList(f.movimentos)
+        parseList(f.andamentos)
       }
     }
 
@@ -189,8 +253,10 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
         'status',
         'situacao',
         'capa.status',
+        'capa.situacao',
         'fontes.0.status',
         'fontes.0.capa.status',
+        'fontes.0.situacao',
       )
     : '—'
   const valorCausa = realDetail
@@ -202,6 +268,7 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
         'capa.valor',
         'fontes.0.valor_causa',
         'fontes.0.capa.valor_causa',
+        'fontes.0.capa.valor',
       )
     : '—'
   const juiz = realDetail
@@ -210,8 +277,10 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
         'juiz',
         'capa.juiz',
         'magistrado',
+        'capa.magistrado',
         'fontes.0.juiz',
         'fontes.0.capa.juiz',
+        'fontes.0.magistrado',
       )
     : '—'
   const orgaoJulgador = realDetail ? getProcessVara(realDetail) : '—'
