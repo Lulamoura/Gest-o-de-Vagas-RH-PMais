@@ -21,34 +21,42 @@ routerAdd(
     }
 
     let processos = []
-    var procRaw = consulta.get('processos_json')
-    if (typeof procRaw === 'string') {
+    var procRawStr = ''
+    try {
+      procRawStr = consulta.getString('processos_json')
+    } catch (_) {}
+
+    if (procRawStr && procRawStr.trim()) {
       try {
-        processos = JSON.parse(procRaw) || []
-      } catch (parseErr) {
-        processos = []
-      }
-    } else if (procRaw != null) {
-      try {
-        processos = JSON.parse(JSON.stringify(procRaw)) || []
+        processos = JSON.parse(procRawStr) || []
       } catch (_) {
         processos = []
       }
     }
 
     var procEncontrado = null
+    var matchedProcNum = numeroProcesso
     var cleanSearchNum = numeroProcesso.replace(/[^\d]/g, '')
-    for (var i = 0; i < processos.length; i++) {
-      var p = processos[i]
-      if (!p || typeof p !== 'object') continue
-      var num =
-        p.numero_cnj || p.numero || p.numero_processo || p.titulo || (p.capa && p.capa.numero) || ''
-      if (
-        num === numeroProcesso ||
-        (cleanSearchNum && String(num).replace(/[^\d]/g, '') === cleanSearchNum)
-      ) {
-        procEncontrado = p
-        break
+
+    if (Array.isArray(processos)) {
+      for (var i = 0; i < processos.length; i++) {
+        var p = processos[i]
+        if (!p || typeof p !== 'object') continue
+        var num =
+          p.numero_cnj ||
+          p.numero ||
+          p.numero_processo ||
+          p.titulo ||
+          (p.capa && p.capa.numero) ||
+          ''
+        var numStr = String(num).trim()
+        var cleanNum = numStr.replace(/[^\d]/g, '')
+
+        if (numStr === numeroProcesso || (cleanSearchNum && cleanNum === cleanSearchNum)) {
+          procEncontrado = p
+          if (numStr) matchedProcNum = numStr
+          break
+        }
       }
     }
 
@@ -109,41 +117,53 @@ routerAdd(
       })
     }
 
+    summary = summary.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, '').trim()
+
     try {
       var freshRecord = $app.findRecordById('candidato_consultas_juridicas', consultaId)
 
-      function toJsObject(raw) {
-        if (!raw) return {}
-        if (typeof raw === 'string') {
-          if (!raw.trim()) return {}
-          try {
-            var p = JSON.parse(raw)
-            return p && typeof p === 'object' && !Array.isArray(p) ? p : {}
-          } catch (_) {
-            return {}
+      function parseResumoObject(rec) {
+        if (!rec) return {}
+        var str = ''
+        try {
+          str = rec.getString('resumo_json')
+        } catch (_) {}
+        if (!str || !str.trim()) return {}
+        try {
+          var parsed = JSON.parse(str)
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            return parsed
           }
-        }
-        if (typeof raw === 'object') {
-          try {
-            var s = JSON.stringify(raw)
-            var p2 = JSON.parse(s)
-            return p2 && typeof p2 === 'object' && !Array.isArray(p2) ? p2 : {}
-          } catch (_) {
-            return {}
-          }
-        }
+        } catch (_) {}
         return {}
       }
 
-      var resumoRaw = freshRecord.get('resumo_json')
-      var resumoJson = toJsObject(resumoRaw)
+      var resumoJson = parseResumoObject(freshRecord)
 
-      if (!resumoJson.processo_resumos || typeof resumoJson.processo_resumos !== 'object') {
+      if (
+        !resumoJson.processo_resumos ||
+        typeof resumoJson.processo_resumos !== 'object' ||
+        Array.isArray(resumoJson.processo_resumos)
+      ) {
         resumoJson.processo_resumos = {}
       }
+
       resumoJson.processo_resumos[numeroProcesso] = summary
 
-      freshRecord.set('resumo_json', resumoJson)
+      if (matchedProcNum && matchedProcNum !== numeroProcesso) {
+        resumoJson.processo_resumos[matchedProcNum] = summary
+      }
+
+      if (
+        cleanSearchNum &&
+        cleanSearchNum !== numeroProcesso &&
+        cleanSearchNum !== matchedProcNum
+      ) {
+        resumoJson.processo_resumos[cleanSearchNum] = summary
+      }
+
+      var stringifiedJson = JSON.stringify(resumoJson)
+      freshRecord.set('resumo_json', stringifiedJson)
 
       try {
         $app.save(freshRecord)
@@ -163,13 +183,16 @@ routerAdd(
       }
 
       var verifyRecord = $app.findRecordById('candidato_consultas_juridicas', consultaId)
-      var verifyJson = toJsObject(verifyRecord.get('resumo_json'))
+      var verifyJson = parseResumoObject(verifyRecord)
 
-      if (
-        !verifyJson ||
-        !verifyJson.processo_resumos ||
-        !verifyJson.processo_resumos[numeroProcesso]
-      ) {
+      var savedSummary =
+        verifyJson &&
+        verifyJson.processo_resumos &&
+        (verifyJson.processo_resumos[numeroProcesso] ||
+          (matchedProcNum && verifyJson.processo_resumos[matchedProcNum]) ||
+          (cleanSearchNum && verifyJson.processo_resumos[cleanSearchNum]))
+
+      if (!savedSummary) {
         $app
           .logger()
           .error(

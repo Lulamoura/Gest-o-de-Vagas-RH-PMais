@@ -140,26 +140,42 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       for (const [num, rawSummary] of Object.entries(processoResumos)) {
         const summary = extractSummaryText(rawSummary)
         if (summary) {
-          merged[num] = {
+          const itemState = {
             summary,
             loading: false,
             expanded: interactionStates[num]?.expanded ?? false,
             error: undefined,
+          }
+          merged[num] = itemState
+          const cleanKey = num.replace(/[^\d]/g, '')
+          if (cleanKey && cleanKey !== num && !merged[cleanKey]) {
+            merged[cleanKey] = itemState
           }
         }
       }
     }
 
     for (const [num, state] of Object.entries(interactionStates)) {
+      const cleanKey = num.replace(/[^\d]/g, '')
       if (state.loading || state.error) {
         merged[num] = state
+        if (cleanKey && cleanKey !== num) {
+          merged[cleanKey] = state
+        }
       } else if (state.summary) {
-        merged[num] = {
+        const itemState = {
           ...state,
           expanded: state.expanded ?? merged[num]?.expanded ?? true,
         }
+        merged[num] = itemState
+        if (cleanKey && cleanKey !== num) {
+          merged[cleanKey] = itemState
+        }
       } else if (merged[num]) {
         merged[num] = { ...merged[num], expanded: state.expanded }
+        if (cleanKey && cleanKey !== num && merged[cleanKey]) {
+          merged[cleanKey] = { ...merged[cleanKey], expanded: state.expanded }
+        }
       }
     }
 
@@ -168,6 +184,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
 
   const handleFetchSummary = async (numeroProcesso: string) => {
     if (!selectedConsulta) return
+    const cleanKey = numeroProcesso.replace(/[^\d]/g, '')
 
     setInteractionStates((prev) => ({
       ...prev,
@@ -177,9 +194,21 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
         error: undefined,
         expanded: true,
       },
+      ...(cleanKey && cleanKey !== numeroProcesso
+        ? {
+            [cleanKey]: {
+              ...prev[cleanKey],
+              loading: true,
+              error: undefined,
+              expanded: true,
+            },
+          }
+        : {}),
     }))
+
     try {
       const result = await getProcessoResumoIA(numeroProcesso, selectedConsulta.id)
+
       setInteractionStates((prev) => ({
         ...prev,
         [numeroProcesso]: {
@@ -188,19 +217,50 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
           expanded: true,
           error: undefined,
         },
+        ...(cleanKey && cleanKey !== numeroProcesso
+          ? {
+              [cleanKey]: {
+                summary: result.summary,
+                loading: false,
+                expanded: true,
+                error: undefined,
+              },
+            }
+          : {}),
       }))
+
       setSelectedConsulta((prev) => {
         if (!prev) return prev
         const resumoJson = parseResumoJson(prev.resumo_json) || {}
-        const processoResumos = resumoJson.processo_resumos || {}
+        const processoResumos = { ...(resumoJson.processo_resumos || {}) }
+        processoResumos[numeroProcesso] = result.summary
+        if (cleanKey) processoResumos[cleanKey] = result.summary
         return {
           ...prev,
           resumo_json: {
             ...resumoJson,
-            processo_resumos: { ...processoResumos, [numeroProcesso]: result.summary },
+            processo_resumos: processoResumos,
           },
         }
       })
+
+      setHistory((prevHistory) =>
+        prevHistory.map((item) => {
+          if (item.id !== selectedConsulta.id) return item
+          const resumoJson = parseResumoJson(item.resumo_json) || {}
+          const processoResumos = { ...(resumoJson.processo_resumos || {}) }
+          processoResumos[numeroProcesso] = result.summary
+          if (cleanKey) processoResumos[cleanKey] = result.summary
+          return {
+            ...item,
+            resumo_json: {
+              ...resumoJson,
+              processo_resumos: processoResumos,
+            },
+          }
+        }),
+      )
+
       toast.success('Resumo gerado com sucesso!')
     } catch (err: any) {
       const errorMsg =
@@ -219,17 +279,41 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
           error: errorMsg,
           expanded: prev[numeroProcesso]?.expanded ?? false,
         },
+        ...(cleanKey && cleanKey !== numeroProcesso
+          ? {
+              [cleanKey]: {
+                summary: prev[cleanKey]?.summary,
+                loading: false,
+                error: errorMsg,
+                expanded: prev[cleanKey]?.expanded ?? false,
+              },
+            }
+          : {}),
       }))
     }
   }
 
   const toggleSummaryExpanded = (numeroProcesso: string) => {
+    const cleanKey = numeroProcesso.replace(/[^\d]/g, '')
+    const currentExpanded =
+      summaryStates[numeroProcesso]?.expanded ??
+      (cleanKey ? summaryStates[cleanKey]?.expanded : false) ??
+      false
+
     setInteractionStates((prev) => ({
       ...prev,
       [numeroProcesso]: {
         ...prev[numeroProcesso],
-        expanded: !summaryStates[numeroProcesso]?.expanded,
+        expanded: !currentExpanded,
       },
+      ...(cleanKey && cleanKey !== numeroProcesso
+        ? {
+            [cleanKey]: {
+              ...prev[cleanKey],
+              expanded: !currentExpanded,
+            },
+          }
+        : {}),
     }))
   }
 
@@ -457,7 +541,9 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                       const statusProc = getField(proc, 'status', 'situacao')
                       const isInactive = statusProc.toLowerCase().includes('inativo')
                       const processLink = getProcessLink(proc)
-                      const currentSummaryState = summaryStates[numero]
+                      const cleanNum = numero.replace(/[^\d]/g, '')
+                      const currentSummaryState =
+                        summaryStates[numero] || (cleanNum ? summaryStates[cleanNum] : undefined)
 
                       return (
                         <div
