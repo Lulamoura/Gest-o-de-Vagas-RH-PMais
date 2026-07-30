@@ -45,7 +45,6 @@ import {
   Sparkles,
   Loader2,
   ChevronDown,
-  ExternalLink,
   FileSearch,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -282,11 +281,6 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
         errorMsg = err.message
       }
 
-      console.error('[CandidateLegalConsultation] Erro ao buscar resumo da IA:', {
-        numeroProcesso,
-        consultaId: selectedConsulta?.id,
-        error: err,
-      })
       toast.error(errorMsg)
       setInteractionStates((prev) => ({
         ...prev,
@@ -351,10 +345,6 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
       toast.error('Não foi possível identificar o número ou ID do processo')
       return
     }
-    if (!selectedConsulta) {
-      toast.error('Nenhuma consulta selecionada')
-      return
-    }
 
     setCapaModalLoading(true)
     setCapaModalError(null)
@@ -365,16 +355,26 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
     try {
       const result = await getProcessoDetalhes(
         procIdentifier,
-        selectedConsulta.id,
+        selectedConsulta?.id,
         numeroProc !== '—' ? numeroProc : undefined,
+        candidateId,
+        cpf || selectedConsulta?.cpf_consultado,
       )
       if (!result || result.error) {
-        setCapaModalError('Não foi possível carregar os detalhes do processo.')
+        if (processData && typeof processData === 'object' && Object.keys(processData).length > 0) {
+          setCapaData(processData)
+        } else {
+          setCapaModalError('Não foi possível carregar os detalhes do processo.')
+        }
       } else {
         setCapaData(result)
       }
     } catch (err: any) {
-      setCapaModalError('Não foi possível carregar os detalhes do processo.')
+      if (processData && typeof processData === 'object' && Object.keys(processData).length > 0) {
+        setCapaData(processData)
+      } else {
+        setCapaModalError('Não foi possível carregar os detalhes do processo.')
+      }
     } finally {
       setCapaModalLoading(false)
     }
@@ -758,7 +758,6 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
         </CardContent>
       </Card>
 
-      {/* Histórico de Consultas Jurídicas Section */}
       <Card className="border-slate-200 shadow-2xs">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-bold text-slate-900 flex items-center justify-between">

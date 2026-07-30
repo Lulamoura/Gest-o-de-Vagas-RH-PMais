@@ -54,11 +54,15 @@ export const getProcessoDetalhes = async (
   processoId: string,
   consultaId?: string,
   numeroProcesso?: string,
+  candidatoId?: string,
+  cpf?: string,
 ): Promise<any> => {
   const cleanId = encodeURIComponent(processoId.trim())
   const params = new URLSearchParams()
   if (consultaId) params.append('consulta_id', consultaId)
   if (numeroProcesso) params.append('numero_processo', numeroProcesso)
+  if (candidatoId) params.append('candidato_id', candidatoId)
+  if (cpf) params.append('cpf', cpf)
   const queryStr = params.toString() ? `?${params.toString()}` : ''
 
   const headers: Record<string, string> = {}

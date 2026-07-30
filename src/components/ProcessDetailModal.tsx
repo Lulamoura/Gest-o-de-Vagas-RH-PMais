@@ -63,7 +63,7 @@ function CapaSection({
   children: ReactNode
 }) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4">
+    <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-2xs">
       <div className="flex items-center gap-2 mb-3">
         <span className="text-indigo-600">{icon}</span>
         <h3 className="text-sm font-bold text-slate-800">{title}</h3>
@@ -82,7 +82,7 @@ function isCandidateMatch(parteNome: string, candidateNome?: string): boolean {
   if (cn.length > 3 && pn.includes(cn)) return true
   if (pn.length > 3 && cn.includes(pn)) return true
   const cnParts = cn.split(' ').filter((p) => p.length > 2)
-  return cnParts.every((p) => pn.includes(p))
+  return cnParts.length > 0 && cnParts.every((p) => pn.includes(p))
 }
 
 export function ProcessDetailModal({
@@ -117,7 +117,7 @@ export function ProcessDetailModal({
 
         <div className="flex-1 overflow-hidden flex flex-col p-6">
           {loading && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 py-12 text-slate-500">
               <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
               <span className="text-sm font-medium">Buscando capa do processo...</span>
               <span className="text-xs text-slate-400">Consultando a API Escavador.</span>
@@ -143,10 +143,10 @@ export function ProcessDetailModal({
                       label="Tribunal"
                       value={tribunalInfo?.display || '—'}
                     />
-                    {tribunalInfo?.nome && tribunalInfo.nome !== tribunalInfo.sigla && (
+                    {vara !== '—' && (
                       <InfoRow
                         icon={<MapPin className="h-4 w-4" />}
-                        label="Vara / Órgão"
+                        label="Vara / Órgão Julgador"
                         value={vara}
                       />
                     )}
@@ -160,7 +160,7 @@ export function ProcessDetailModal({
                 <CapaSection icon={<Tag className="h-4 w-4" />} title="Assuntos">
                   <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
                     {assuntos !== '—' ? (
-                      assuntos.split(',').map((a, i) => (
+                      assuntos.split(/[,;]/).map((a, i) => (
                         <Badge
                           key={i}
                           variant="outline"
@@ -182,11 +182,13 @@ export function ProcessDetailModal({
                       label="Distribuição"
                       value={dataDistribuicao}
                     />
-                    <InfoRow
-                      icon={<Banknote className="h-4 w-4" />}
-                      label="Valor da Causa"
-                      value={valorCausa}
-                    />
+                    {valorCausa !== '—' && (
+                      <InfoRow
+                        icon={<Banknote className="h-4 w-4" />}
+                        label="Valor da Causa"
+                        value={valorCausa}
+                      />
+                    )}
                   </div>
                 </CapaSection>
 
