@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   getConsultaJuridicaHistory,
   performConsultaJuridica,
+  getProcessoResumoIA,
 } from '@/services/candidato_consultas_juridicas'
 import { CandidatoConsultaJuridicaRecord } from '@/types'
 import { validateCPF, formatCPF } from '@/lib/cpf-utils'
@@ -11,7 +12,6 @@ import {
   getProcessClass,
   getProcessData,
   getProcessAssunto,
-  getProcessLink,
   getField,
   getTopAssuntos,
   formatDateTime,
@@ -36,11 +36,13 @@ import {
   RefreshCw,
   AlertCircle,
   Search,
-  ExternalLink,
   History,
   CheckCircle2,
   XCircle,
   HelpCircle,
+  Sparkles,
+  Loader2,
+  ChevronDown,
 } from 'lucide-react'
 
 interface Props {
@@ -59,6 +61,9 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   )
   const [error, setError] = useState<string | null>(null)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
+  const [summaryStates, setSummaryStates] = useState<
+    Record<string, { summary?: string; loading: boolean; error?: string; expanded: boolean }>
+  >({})
 
   const cpfValido = cpf ? validateCPF(cpf) : false
 
@@ -85,6 +90,60 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   useRealtime('candidato_consultas_juridicas', () => {
     loadData()
   })
+
+  useEffect(() => {
+    if (!selectedConsulta) return
+    const resumoJson = selectedConsulta.resumo_json as Record<string, any> | null
+    const processoResumos = resumoJson?.processo_resumos || {}
+    setSummaryStates((prev) => {
+      const next = { ...prev }
+      for (const [num, summary] of Object.entries(processoResumos)) {
+        if (!next[num] && typeof summary === 'string') {
+          next[num] = { summary, loading: false, expanded: false }
+        }
+      }
+      return next
+    })
+  }, [selectedConsulta?.id])
+
+  const handleFetchSummary = async (numeroProcesso: string) => {
+    if (!selectedConsulta) return
+    setSummaryStates((prev) => ({
+      ...prev,
+      [numeroProcesso]: {
+        ...prev[numeroProcesso],
+        loading: true,
+        error: undefined,
+        expanded: true,
+      },
+    }))
+    try {
+      const result = await getProcessoResumoIA(numeroProcesso, selectedConsulta.id)
+      setSummaryStates((prev) => ({
+        ...prev,
+        [numeroProcesso]: { summary: result.summary, loading: false, expanded: true },
+      }))
+    } catch (err: any) {
+      setSummaryStates((prev) => ({
+        ...prev,
+        [numeroProcesso]: {
+          ...prev[numeroProcesso],
+          loading: false,
+          error: err?.message || 'Não foi possível obter o resumo. Tente novamente mais tarde.',
+        },
+      }))
+    }
+  }
+
+  const toggleSummaryExpanded = (numeroProcesso: string) => {
+    setSummaryStates((prev) => ({
+      ...prev,
+      [numeroProcesso]: {
+        ...prev[numeroProcesso],
+        expanded: !prev[numeroProcesso]?.expanded,
+      },
+    }))
+  }
 
   const handleConsultar = async () => {
     setConsultando(true)
@@ -307,7 +366,6 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                       const classe = getProcessClass(proc)
                       const dataAjuiz = getProcessData(proc)
                       const assunto = getProcessAssunto(proc)
-                      const link = getProcessLink(proc)
                       const statusProc = getField(proc, 'status', 'situacao')
                       const isInactive = statusProc.toLowerCase().includes('inativo')
 
@@ -321,17 +379,20 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                               <p className="text-sm font-bold text-slate-900 break-all">{numero}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              {link && (
+                              {numero !== '—' && (
                                 <Button
-                                  asChild
                                   size="sm"
                                   variant="outline"
+                                  onClick={() => handleFetchSummary(numero)}
+                                  disabled={summaryStates[numero]?.loading}
                                   className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
                                 >
-                                  <a href={link} target="_blank" rel="noopener noreferrer">
-                                    Ver no Escavador
-                                    <ExternalLink className="h-3 w-3 ml-1.5" />
-                                  </a>
+                                  {summaryStates[numero]?.loading ? (
+                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  ) : (
+                                    <Sparkles className="h-3 w-3 mr-1" />
+                                  )}
+                                  {summaryStates[numero]?.loading ? 'Gerando...' : 'Resumo da IA'}
                                 </Button>
                               )}
                               <Badge
@@ -368,6 +429,37 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                             <span className="text-slate-400">Assunto: </span>
                             <span className="text-slate-800 font-medium">{assunto}</span>
                           </div>
+
+                          {summaryStates[numero]?.summary && (
+                            <div className="border-t border-slate-100 pt-2">
+                              <button
+                                type="button"
+                                onClick={() => toggleSummaryExpanded(numero)}
+                                className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
+                              >
+                                <ChevronDown
+                                  className={`h-3 w-3 transition-transform ${
+                                    summaryStates[numero]?.expanded ? 'rotate-180' : ''
+                                  }`}
+                                />
+                                {summaryStates[numero]?.expanded
+                                  ? 'Ocultar resumo da IA'
+                                  : 'Ver resumo da IA'}
+                              </button>
+                              {summaryStates[numero]?.expanded && (
+                                <div className="mt-2 p-3 bg-indigo-50/50 rounded-lg border border-indigo-100 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                                  {summaryStates[numero]?.summary}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {summaryStates[numero]?.error && (
+                            <div className="flex items-center gap-1.5 text-xs text-rose-600">
+                              <AlertCircle className="h-3 w-3 shrink-0" />
+                              <span>{summaryStates[numero]?.error}</span>
+                            </div>
+                          )}
                         </div>
                       )
                     })}

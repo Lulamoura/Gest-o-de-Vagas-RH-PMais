@@ -35,3 +35,21 @@ export const performConsultaJuridica = async (candidateId: string) => {
     throw new Error(message)
   }
 }
+
+export const getProcessoResumoIA = async (numeroProcesso: string, consultaId: string) => {
+  try {
+    return await pb.send('/backend/v1/processo/resumo-ia', {
+      method: 'POST',
+      body: JSON.stringify({ numero_processo: numeroProcesso, consulta_id: consultaId }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+  } catch (err: any) {
+    const resp = err?.response || {}
+    const message =
+      resp.error ||
+      resp.message ||
+      err?.message ||
+      'Não foi possível obter o resumo. Tente novamente mais tarde.'
+    throw new Error(message)
+  }
+}
