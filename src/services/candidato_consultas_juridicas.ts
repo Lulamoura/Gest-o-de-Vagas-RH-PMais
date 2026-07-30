@@ -48,9 +48,25 @@ export const getProcessoResumoIA = async (
   numeroProcesso: string,
   consultaId?: string,
 ): Promise<{ summary: string }> => {
+  if (!numeroProcesso || !consultaId) {
+    throw new Error('Número do processo e ID da consulta são obrigatórios')
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (pb.authStore.token) {
+    headers['Authorization'] = pb.authStore.token
+  }
+
   return pb.send(`/backend/v1/processo/resumo-ia`, {
     method: 'POST',
-    body: JSON.stringify({ numeroProcesso, consultaId }),
-    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      numero_processo: numeroProcesso,
+      consulta_id: consultaId,
+      numeroProcesso,
+      consultaId,
+    }),
+    headers,
   })
 }

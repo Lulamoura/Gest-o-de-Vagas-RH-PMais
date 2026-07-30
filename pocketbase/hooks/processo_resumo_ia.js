@@ -3,8 +3,10 @@ routerAdd(
   '/backend/v1/processo/resumo-ia',
   (e) => {
     const body = e.requestInfo().body || {}
-    const numeroProcesso = String(body.numero_processo || '').trim()
-    const consultaId = String(body.consulta_id || '').trim()
+    const numeroProcesso = String(
+      body.numero_processo || body.numeroProcesso || body.processo || '',
+    ).trim()
+    const consultaId = String(body.consulta_id || body.consultaId || '').trim()
 
     if (!numeroProcesso || !consultaId) {
       return e.badRequestError('numero_processo e consulta_id são obrigatórios')
@@ -52,7 +54,11 @@ routerAdd(
         var numStr = String(num).trim()
         var cleanNum = numStr.replace(/[^\d]/g, '')
 
-        if (numStr === numeroProcesso || (cleanSearchNum && cleanNum === cleanSearchNum)) {
+        if (
+          numStr === numeroProcesso ||
+          (cleanSearchNum && cleanNum === cleanSearchNum) ||
+          (procId && (procId === numeroProcesso || procId === cleanSearchNum))
+        ) {
           procEncontrado = p
           if (numStr) matchedProcNum = numStr
           break
@@ -60,10 +66,37 @@ routerAdd(
       }
     }
 
-    var contexto = 'Número do processo: ' + numeroProcesso
-    if (procEncontrado) {
+    var detalhesEscavador = null
+    var escavadorToken = $secrets.get('ESCAVADOR_API_TOKEN') || ''
+    var escavadorProcId = procEncontrado && (procEncontrado.id || procEncontrado.processo_id)
+
+    if (escavadorProcId && escavadorToken) {
       try {
-        contexto += '\n\nDados do processo:\n' + JSON.stringify(procEncontrado, null, 2)
+        var resDet = $http.send({
+          url: 'https://api.escavador.com/api/v2/processos/' + escavadorProcId,
+          method: 'GET',
+          headers: {
+            Authorization: 'Bearer ' + escavadorToken,
+            'X-Requested-With': 'XMLHttpRequest',
+            Accept: 'application/json',
+          },
+          timeout: 8,
+        })
+        if (resDet && resDet.statusCode === 200 && resDet.json) {
+          detalhesEscavador = resDet.json.resposta || resDet.json.data || resDet.json
+        }
+      } catch (escErr) {
+        $app
+          .logger()
+          .warn('Erro ao buscar detalhes adicionais no Escavador para IA', 'error', String(escErr))
+      }
+    }
+
+    var objetoAnalise = detalhesEscavador || procEncontrado
+    var contexto = 'Número do processo: ' + numeroProcesso
+    if (objetoAnalise) {
+      try {
+        contexto += '\n\nDados do processo:\n' + JSON.stringify(objetoAnalise, null, 2)
       } catch (serializeErr) {
         $app.logger().error('Erro ao serializar dados do processo', 'error', String(serializeErr))
       }

@@ -270,7 +270,10 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       toast.success('Resumo gerado com sucesso!')
     } catch (err: any) {
       const errorMsg =
-        err?.message || 'Não foi possível obter o resumo. Tente novamente mais tarde.'
+        err?.response?.error ||
+        err?.response?.message ||
+        err?.message ||
+        'Não foi possível obter o resumo. Tente novamente mais tarde.'
       console.error('[CandidateLegalConsultation] Erro ao buscar resumo da IA:', {
         numeroProcesso,
         consultaId: selectedConsulta?.id,
@@ -564,7 +567,17 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                 ) : (
                   <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                     {processos.map((proc: any, i: number) => {
-                      const numero = getProcessNumber(proc)
+                      const rawNum = getProcessNumber(proc)
+                      const procIdStr = proc?.id ? String(proc.id) : ''
+                      const numero =
+                        rawNum !== '—'
+                          ? rawNum
+                          : proc.numero_cnj ||
+                            proc.numero ||
+                            proc.numero_processo ||
+                            procIdStr ||
+                            '—'
+                      const procIdentifier = numero !== '—' ? numero : procIdStr
                       const tribunalInfo = getTribunalInfo(proc)
                       const classe = getProcessClass(proc)
                       const dataAjuiz = getProcessData(proc)
@@ -573,7 +586,10 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                       const isInactive = statusProc.toLowerCase().includes('inativo')
                       const cleanNum = numero.replace(/[^\d]/g, '')
                       const currentSummaryState =
-                        summaryStates[numero] || (cleanNum ? summaryStates[cleanNum] : undefined)
+                        summaryStates[procIdentifier] ||
+                        summaryStates[numero] ||
+                        (cleanNum ? summaryStates[cleanNum] : undefined) ||
+                        (procIdStr ? summaryStates[procIdStr] : undefined)
 
                       return (
                         <div
@@ -587,12 +603,12 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                               </span>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              {numero !== '—' &&
+                              {procIdentifier !== '' &&
                                 (currentSummaryState?.summary ? (
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => toggleSummaryExpanded(numero)}
+                                    onClick={() => toggleSummaryExpanded(procIdentifier)}
                                     className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
                                   >
                                     <ChevronDown
@@ -618,7 +634,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => handleFetchSummary(numero)}
+                                    onClick={() => handleFetchSummary(procIdentifier)}
                                     className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
                                   >
                                     <Sparkles className="h-3 w-3 mr-1" />
@@ -673,7 +689,11 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
 
                           {currentSummaryState?.summary && currentSummaryState?.expanded && (
                             <div className="border-t border-slate-100 pt-2">
-                              <div className="p-3 bg-indigo-50/50 rounded-lg border border-indigo-100 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                              <div className="p-3.5 bg-indigo-50/70 rounded-lg border border-indigo-100 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                                <div className="flex items-center gap-1.5 font-bold text-indigo-900 mb-1.5">
+                                  <Sparkles className="h-3.5 w-3.5 text-indigo-600 shrink-0" />
+                                  <span>Resumo da IA</span>
+                                </div>
                                 {currentSummaryState.summary}
                               </div>
                             </div>
