@@ -5,7 +5,7 @@ import {
 } from '@/services/candidato_consultas_juridicas'
 import { CandidatoConsultaJuridicaRecord } from '@/types'
 import { validateCPF, formatCPF } from '@/lib/cpf-utils'
-import { getField, getTopAssuntos, formatDateTime } from '@/lib/legal-utils'
+import { getField, getNestedField, getTopAssuntos, formatDateTime } from '@/lib/legal-utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -252,19 +252,37 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                             <span>
                               Tribunal:{' '}
                               <strong className="text-slate-700">
-                                {getField(proc, 'tribunal', 'orgao', 'tribunal_sigla')}
+                                {getNestedField(
+                                  proc,
+                                  'tribunal.sigla',
+                                  'tribunal.nome',
+                                  'orgao',
+                                  'tribunal_sigla',
+                                )}
                               </strong>
                             </span>
                             <span>
                               Classe:{' '}
                               <strong className="text-slate-700">
-                                {getField(proc, 'classe', 'classe_processual', 'classe_nome')}
+                                {getNestedField(
+                                  proc,
+                                  'classe.nome',
+                                  'classe_processual',
+                                  'classe_nome',
+                                  'classe',
+                                )}
                               </strong>
                             </span>
                             <span>
                               Início:{' '}
                               <strong className="text-slate-700">
-                                {getField(proc, 'data_ajuizamento', 'data_inicio', 'data')}
+                                {getNestedField(
+                                  proc,
+                                  'data_ajuizamento',
+                                  'data_inicio',
+                                  'capa.data_ajuizamento',
+                                  'data',
+                                )}
                               </strong>
                             </span>
                           </div>
@@ -272,11 +290,35 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                             <span>
                               Assunto:{' '}
                               <strong className="text-slate-700">
-                                {Array.isArray(proc.assuntos)
-                                  ? proc.assuntos
-                                      .map((a: any) => (typeof a === 'string' ? a : a?.nome || ''))
+                                {(() => {
+                                  const fromArray = Array.isArray(proc.assuntos)
+                                    ? proc.assuntos
+                                        .map((a: any) =>
+                                          typeof a === 'string' ? a : a?.nome || a?.descricao || '',
+                                        )
+                                        .filter(Boolean)
+                                        .join(', ')
+                                    : ''
+                                  if (fromArray) return fromArray
+                                  const fromCapa = getNestedField(
+                                    proc,
+                                    'capa.assunto',
+                                    'capa.assunto_principal',
+                                  )
+                                  if (fromCapa !== '—') return fromCapa
+                                  if (Array.isArray(proc.fontes)) {
+                                    const fontesAssuntos = proc.fontes
+                                      .map((f: any) =>
+                                        typeof f === 'string'
+                                          ? f
+                                          : f?.assunto || f?.descricao || '',
+                                      )
+                                      .filter(Boolean)
                                       .join(', ')
-                                  : getField(proc, 'assunto')}
+                                    if (fontesAssuntos) return fontesAssuntos
+                                  }
+                                  return getField(proc, 'assunto')
+                                })()}
                               </strong>
                             </span>
                           </div>

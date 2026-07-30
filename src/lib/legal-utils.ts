@@ -6,6 +6,27 @@ export function getField(obj: Record<string, any> | null | undefined, ...keys: s
   return '—'
 }
 
+export function getNestedField(
+  obj: Record<string, any> | null | undefined,
+  ...paths: string[]
+): string {
+  if (!obj) return '—'
+  for (const path of paths) {
+    const parts = path.split('.')
+    let cur: any = obj
+    let found = true
+    for (const p of parts) {
+      if (cur == null || typeof cur !== 'object') {
+        found = false
+        break
+      }
+      cur = cur[p]
+    }
+    if (found && cur != null && cur !== '') return String(cur)
+  }
+  return '—'
+}
+
 export function getTopAssuntos(processos: any[]): { label: string; count: number }[] {
   const counts: Record<string, number> = {}
   processos.forEach((p) => {
@@ -16,7 +37,11 @@ export function getTopAssuntos(processos: any[]): { label: string; count: number
         if (text && text !== '—') counts[text] = (counts[text] || 0) + 1
       })
     }
-    const classe = getField(p, 'classe', 'classe_processual', 'classe_nome')
+    if (!Array.isArray(assuntos)) {
+      const capaAssunto = getNestedField(p, 'capa.assunto', 'capa.assunto_principal')
+      if (capaAssunto !== '—') counts[capaAssunto] = (counts[capaAssunto] || 0) + 1
+    }
+    const classe = getNestedField(p, 'classe.nome', 'classe_processual', 'classe_nome', 'classe')
     if (classe !== '—') counts[classe] = (counts[classe] || 0) + 1
   })
   return Object.entries(counts)
