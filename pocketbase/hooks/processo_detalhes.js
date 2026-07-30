@@ -31,9 +31,9 @@ routerAdd(
     }
 
     const cnjCandidates = []
-    if (formattedCNJ && !cnjCandidates.includes(formattedCNJ)) cnjCandidates.push(formattedCNJ)
-    if (digitsOnly && !cnjCandidates.includes(digitsOnly)) cnjCandidates.push(digitsOnly)
-    if (cleanNumero && !cnjCandidates.includes(cleanNumero)) cnjCandidates.push(cleanNumero)
+    if (formattedCNJ && cnjCandidates.indexOf(formattedCNJ) < 0) cnjCandidates.push(formattedCNJ)
+    if (digitsOnly && cnjCandidates.indexOf(digitsOnly) < 0) cnjCandidates.push(digitsOnly)
+    if (cleanNumero && cnjCandidates.indexOf(cleanNumero) < 0) cnjCandidates.push(cleanNumero)
 
     $app
       .logger()
@@ -53,9 +53,45 @@ routerAdd(
         'candidato_consultas_juridicas',
         "id != ''",
         '-created',
-        200,
+        500,
         0,
       )
+
+      function checkProcMatch(proc) {
+        if (!proc || typeof proc !== 'object') return false
+        const candList = [
+          proc.numero_cnj,
+          proc.numero,
+          proc.numero_processo,
+          proc.titulo,
+          proc.id,
+          proc.capa && proc.capa.numero,
+          proc.capa && proc.capa.numero_cnj,
+          proc.resposta && proc.resposta.numero_cnj,
+          proc.resposta && proc.resposta.numero,
+        ]
+
+        if (Array.isArray(proc.fontes)) {
+          for (let f = 0; f < proc.fontes.length; f++) {
+            const fonte = proc.fontes[f]
+            if (!fonte) continue
+            if (fonte.numero_processo) candList.push(fonte.numero_processo)
+            if (fonte.numero) candList.push(fonte.numero)
+            if (fonte.capa && fonte.capa.numero) candList.push(fonte.capa.numero)
+            if (fonte.capa && fonte.capa.numero_cnj) candList.push(fonte.capa.numero_cnj)
+          }
+        }
+
+        for (let c = 0; c < candList.length; c++) {
+          if (!candList[c]) continue
+          const candStr = String(candList[c]).trim()
+          const candDigits = candStr.replace(/\D/g, '')
+
+          if (digitsOnly && candDigits && digitsOnly === candDigits) return true
+          if (candStr === formattedCNJ || candStr === cleanNumero) return true
+        }
+        return false
+      }
 
       for (let r = 0; r < records.length; r++) {
         const rec = records[r]
@@ -73,33 +109,10 @@ routerAdd(
 
         for (let p = 0; p < procList.length; p++) {
           const proc = procList[p]
-          if (!proc || typeof proc !== 'object') continue
-
-          const pCnjList = [
-            proc.numero_cnj,
-            proc.numero,
-            proc.numero_processo,
-            proc.titulo,
-            proc.capa && proc.capa.numero,
-            proc.capa && proc.capa.numero_cnj,
-            proc.fontes && proc.fontes[0] && proc.fontes[0].numero_processo,
-            proc.fontes && proc.fontes[0] && proc.fontes[0].capa && proc.fontes[0].capa.numero,
-            proc.resposta && proc.resposta.numero_cnj,
-          ].filter(Boolean)
-
-          for (let c = 0; c < pCnjList.length; c++) {
-            const pCnj = String(pCnjList[c]).trim()
-            const pDigits = pCnj.replace(/\D/g, '')
-
-            const isExactDigitsMatch = digitsOnly && pDigits && digitsOnly === pDigits
-            const isExactCNJMatch = pCnj === formattedCNJ || pCnj === cleanNumero
-
-            if (isExactDigitsMatch || isExactCNJMatch) {
-              localMatch = proc
-              break
-            }
+          if (checkProcMatch(proc)) {
+            localMatch = proc
+            break
           }
-          if (localMatch) break
         }
         if (localMatch) break
       }
@@ -107,11 +120,9 @@ routerAdd(
       $app.logger().error('Erro ao buscar processo no banco local', 'error', String(errDb))
     }
 
-    if (localMatch) {
-      $app.logger().info('Processo encontrado na base local', 'cnj', cleanNumero)
-    }
-
     const token = $secrets.get('ESCAVADOR_API_TOKEN')
+    let apiErrorMsg = ''
+
     if (token) {
       const baseUrl = 'https://api.escavador.com'
       const endpointsToTry = []
@@ -121,6 +132,7 @@ routerAdd(
         endpointsToTry.push(baseUrl + '/api/v2/processos/numero-cnj/' + encodeURIComponent(cnj))
         endpointsToTry.push(baseUrl + '/api/v2/processos/numero/' + encodeURIComponent(cnj))
         endpointsToTry.push(baseUrl + '/api/v2/processos?q=' + encodeURIComponent(cnj))
+        endpointsToTry.push(baseUrl + '/api/v2/processos?numero_cnj=' + encodeURIComponent(cnj))
       }
 
       for (let j = 0; j < endpointsToTry.length; j++) {
@@ -138,26 +150,14 @@ routerAdd(
             timeout: 25,
           })
 
-          $app
-            .logger()
-            .info(
-              'Resposta da API Escavador',
-              'url',
-              url,
-              'statusCode',
-              procRes.statusCode,
-              'bodySnippet',
-              JSON.stringify(procRes.json || {}).substring(0, 300),
-            )
-
           if (procRes.statusCode === 401 || procRes.statusCode === 403) {
-            $app
-              .logger()
-              .error('Erro de autenticação na API Escavador', 'status', procRes.statusCode)
+            apiErrorMsg = 'Erro de autenticação na API Escavador (HTTP ' + procRes.statusCode + ')'
             break
           }
 
           if (procRes.statusCode === 429) {
+            apiErrorMsg = 'Limite de consultas excedido na API Escavador'
+            if (localMatch) return e.json(200, localMatch)
             return e.json(429, {
               error:
                 'Limite de consultas excedido na API Escavador. Tente novamente em alguns minutos.',
@@ -206,16 +206,40 @@ routerAdd(
                 return e.json(200, procData)
               }
             }
+          } else if (procRes.statusCode === 404) {
+            apiErrorMsg = 'API returned 404 (Processo não encontrado)'
           }
         } catch (err) {
+          apiErrorMsg = 'Exceção de conexão: ' + String(err)
           $app.logger().error('Exceção ao chamar API Escavador', 'url', url, 'error', String(err))
         }
       }
     }
 
     if (localMatch) {
+      $app.logger().info('Retornando processo encontrado no banco local', 'cnj', formattedCNJ)
       return e.json(200, localMatch)
     }
+
+    try {
+      const records = $app.findRecordsByFilter(
+        'candidato_consultas_juridicas',
+        "id != ''",
+        '-created',
+        1,
+        0,
+      )
+      if (records.length > 0) {
+        const lastRec = records[0]
+        const currErro = lastRec.getString('erro') || ''
+        const newReason =
+          'Processo ' + formattedCNJ + ' não encontrado (' + (apiErrorMsg || '404') + ')'
+        if (currErro.indexOf(newReason) < 0) {
+          lastRec.set('erro', currErro ? currErro + ' | ' + newReason : newReason)
+          $app.saveNoValidate(lastRec)
+        }
+      }
+    } catch (_) {}
 
     if (!token) {
       return e.json(503, { error: 'Token da API Escavador não configurado. Contate o suporte.' })

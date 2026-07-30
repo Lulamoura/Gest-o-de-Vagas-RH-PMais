@@ -1,3 +1,12 @@
+export function formatCNJNumber(str: string): string {
+  if (!str || str === '—') return '—'
+  const digits = str.replace(/\D/g, '')
+  if (digits.length === 20) {
+    return digits.replace(/^(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})$/, '$1-$2.$3.$4.$5.$6')
+  }
+  return str.trim()
+}
+
 export function getField(obj: Record<string, any> | null | undefined, ...keys: string[]): string {
   if (!obj) return '—'
   for (const k of keys) {
@@ -111,7 +120,7 @@ export function getTribunalInfo(proc: any): TribunalInfo {
 
 export function getProcessNumber(proc: any): string {
   if (!proc) return '—'
-  return getNestedField(
+  const raw = getNestedField(
     proc,
     'numero_cnj',
     'numero',
@@ -120,11 +129,11 @@ export function getProcessNumber(proc: any): string {
     'capa.numero',
     'fontes.0.numero_processo',
   )
+  return formatCNJNumber(raw)
 }
 
 export function getProcessClass(proc: any): string {
   if (!proc) return '—'
-
   const res = getNestedField(
     proc,
     'classe.nome',
@@ -145,7 +154,6 @@ export function getProcessClass(proc: any): string {
       if (fClass !== '—') return fClass
     }
   }
-
   return '—'
 }
 
@@ -172,16 +180,13 @@ export function getProcessAssunto(proc: any): string {
     for (const f of proc.fontes) {
       if (!f) continue
       const fa = getNestedField(f, 'assunto', 'descricao', 'capa.assunto', 'nome')
-      if (fa !== '—' && !fonteAssuntos.includes(fa)) {
-        fonteAssuntos.push(fa)
-      }
+      if (fa !== '—' && !fonteAssuntos.includes(fa)) fonteAssuntos.push(fa)
     }
     if (fonteAssuntos.length > 0) return fonteAssuntos.join(', ')
   }
 
   const direct = getField(proc, 'assunto', 'descricao')
   if (direct !== '—') return direct
-
   return '—'
 }
 
@@ -205,7 +210,6 @@ export function getProcessVara(proc: any): string {
       if (fVara !== '—') return fVara
     }
   }
-
   return '—'
 }
 
@@ -237,6 +241,48 @@ export function getProcessData(proc: any): string {
   return d
 }
 
+export function getProcessValorCausa(proc: any): string {
+  if (!proc) return '—'
+  return getNestedField(
+    proc,
+    'valor_causa',
+    'capa.valor_causa',
+    'valor',
+    'capa.valor',
+    'fontes.0.valor_causa',
+    'fontes.0.capa.valor_causa',
+    'fontes.0.capa.valor',
+  )
+}
+
+export function getProcessJuiz(proc: any): string {
+  if (!proc) return '—'
+  return getNestedField(
+    proc,
+    'juiz',
+    'capa.juiz',
+    'magistrado',
+    'capa.magistrado',
+    'fontes.0.juiz',
+    'fontes.0.capa.juiz',
+    'fontes.0.magistrado',
+  )
+}
+
+export function getProcessStatus(proc: any): string {
+  if (!proc) return '—'
+  return getNestedField(
+    proc,
+    'status',
+    'situacao',
+    'capa.status',
+    'capa.situacao',
+    'fontes.0.status',
+    'fontes.0.capa.status',
+    'fontes.0.situacao',
+  )
+}
+
 export function getTopAssuntos(processos: any[]): { label: string; count: number }[] {
   if (!Array.isArray(processos)) return []
   const counts: Record<string, number> = {}
@@ -252,7 +298,6 @@ export function getTopAssuntos(processos: any[]): { label: string; count: number
         counts[text] = (counts[text] || 0) + 1
       })
     }
-
     const classe = getProcessClass(p)
     if (classe && classe !== '—') {
       counts[classe] = (counts[classe] || 0) + 1

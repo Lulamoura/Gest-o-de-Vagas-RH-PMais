@@ -18,8 +18,8 @@ routerAdd(
       return e.json(404, { error: 'Candidato não encontrado' })
     }
 
-    const cpfRaw = candidate.getString('cpf')
-    const nome = candidate.getString('nome')
+    const cpfRaw = candidate.getString('cpf') || ''
+    const nome = candidate.getString('nome') || ''
     const cleanCpf = cpfRaw.replace(/\D/g, '')
 
     if (!cleanCpf || cleanCpf.length !== 11 || /^(\d)\1{10}$/.test(cleanCpf)) {
@@ -82,6 +82,12 @@ routerAdd(
         } else if (procData.data && Array.isArray(procData.data)) {
           items = procData.data
           total = procData.total || items.length
+        } else if (procData.resposta && Array.isArray(procData.resposta.items)) {
+          items = procData.resposta.items
+          total = procData.resposta.total || items.length
+        } else if (procData.resposta && Array.isArray(procData.resposta)) {
+          items = procData.resposta
+          total = items.length
         } else if (Array.isArray(procData)) {
           items = procData
           total = items.length

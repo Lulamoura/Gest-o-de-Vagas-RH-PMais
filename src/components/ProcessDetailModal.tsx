@@ -9,6 +9,10 @@ import {
   getProcessAssunto,
   getProcessVara,
   getProcessNumber,
+  getProcessValorCausa,
+  getProcessJuiz,
+  getProcessStatus,
+  formatCNJNumber,
 } from '@/lib/legal-utils'
 import {
   Dialog,
@@ -41,10 +45,6 @@ interface Props {
   onOpenChange: (open: boolean) => void
 }
 
-interface ProcessDetail {
-  [key: string]: any
-}
-
 interface Party {
   nome: string
   tipo: string
@@ -54,7 +54,7 @@ interface Party {
 export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [detail, setDetail] = useState<ProcessDetail | null>(null)
+  const [detail, setDetail] = useState<any>(null)
   const [activeTab, setActiveTab] = useState<string>('geral')
 
   const fetchData = useCallback(async (processNum: string) => {
@@ -66,8 +66,7 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
       const result = await getProcessoDetalhes(processNum)
       setDetail(result)
     } catch (err: any) {
-      let msg = 'Erro ao carregar detalhes. Tente novamente mais tarde.'
-
+      let msg = 'Erro ao carregar detalhes do processo. Tente novamente.'
       const status = err?.status || err?.response?.status || err?.statusCode
       const serverMsg =
         err?.response?.error || err?.data?.error || err?.response?.data?.error || err?.message
@@ -241,6 +240,7 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
     parseList(data.movimentacoes)
     parseList(data.movimentos)
     parseList(data.andamentos)
+    parseList(data.ultimas_movimentacoes)
 
     if (Array.isArray(data.fontes)) {
       for (const f of data.fontes) {
@@ -259,48 +259,17 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
   const procNumDisplay = realDetail
     ? getProcessNumber(realDetail) !== '—'
       ? getProcessNumber(realDetail)
-      : getField(realDetail, 'numero_cnj', 'numero', 'numero_processo', 'titulo')
-    : numeroProcesso || '—'
+      : formatCNJNumber(getField(realDetail, 'numero_cnj', 'numero', 'numero_processo', 'titulo'))
+    : numeroProcesso
+      ? formatCNJNumber(numeroProcesso)
+      : '—'
 
   const tribunalInfo = realDetail ? getTribunalInfo(realDetail) : { display: '—' }
   const classe = realDetail ? getProcessClass(realDetail) : '—'
   const dataAjuiz = realDetail ? getProcessData(realDetail) : '—'
-  const statusProc = realDetail
-    ? getNestedField(
-        realDetail,
-        'status',
-        'situacao',
-        'capa.status',
-        'capa.situacao',
-        'fontes.0.status',
-        'fontes.0.capa.status',
-        'fontes.0.situacao',
-      )
-    : '—'
-  const valorCausa = realDetail
-    ? getNestedField(
-        realDetail,
-        'valor_causa',
-        'capa.valor_causa',
-        'valor',
-        'capa.valor',
-        'fontes.0.valor_causa',
-        'fontes.0.capa.valor_causa',
-        'fontes.0.capa.valor',
-      )
-    : '—'
-  const juiz = realDetail
-    ? getNestedField(
-        realDetail,
-        'juiz',
-        'capa.juiz',
-        'magistrado',
-        'capa.magistrado',
-        'fontes.0.juiz',
-        'fontes.0.capa.juiz',
-        'fontes.0.magistrado',
-      )
-    : '—'
+  const statusProc = realDetail ? getProcessStatus(realDetail) : '—'
+  const valorCausa = realDetail ? getProcessValorCausa(realDetail) : '—'
+  const juiz = realDetail ? getProcessJuiz(realDetail) : '—'
   const orgaoJulgador = realDetail ? getProcessVara(realDetail) : '—'
   const assunto = realDetail ? getProcessAssunto(realDetail) : '—'
 
