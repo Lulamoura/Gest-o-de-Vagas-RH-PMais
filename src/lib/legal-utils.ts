@@ -257,11 +257,18 @@ export function getProcessLink(proc: any): string | null {
 
   const num = getProcessNumber(proc)
   if (num && num !== '—') {
-    const cleanNum = num.replace(/[^\d]/g, '')
-    if (cleanNum.length >= 10) {
-      return `https://www.escavador.com/processos/${cleanNum}`
+    const trimmedNum = num.trim()
+    const digitsOnly = trimmedNum.replace(/[^\d]/g, '')
+
+    if (digitsOnly.length === 20) {
+      if (trimmedNum.includes('-') || trimmedNum.includes('.')) {
+        return `https://www.escavador.com/processos/${trimmedNum}`
+      }
+      const formatted = `${digitsOnly.slice(0, 7)}-${digitsOnly.slice(7, 9)}.${digitsOnly.slice(9, 13)}.${digitsOnly.slice(13, 14)}.${digitsOnly.slice(14, 16)}.${digitsOnly.slice(16, 20)}`
+      return `https://www.escavador.com/processos/${formatted}`
     }
-    return `https://www.escavador.com/busca?q=${encodeURIComponent(num)}`
+
+    return `https://www.escavador.com/busca?q=${encodeURIComponent(trimmedNum)}`
   }
 
   return null
