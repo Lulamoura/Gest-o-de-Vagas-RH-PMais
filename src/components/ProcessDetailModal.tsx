@@ -6,7 +6,9 @@ import {
   getTribunalInfo,
   getProcessClass,
   getProcessData,
-  formatDateTime,
+  getProcessAssunto,
+  getProcessVara,
+  getProcessNumber,
 } from '@/lib/legal-utils'
 import {
   Dialog,
@@ -60,7 +62,12 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
       const result = await getProcessoDetalhes(processNum)
       setDetail(result)
     } catch (err: any) {
-      setError(err?.message || 'Não foi possível carregar os detalhes do processo.')
+      const msg =
+        err?.response?.error ||
+        err?.data?.error ||
+        err?.message ||
+        'Não foi possível carregar os detalhes do processo.'
+      setError(msg)
     } finally {
       setLoading(false)
     }
@@ -82,37 +89,42 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
 
   const renderParties = (data: any): Party[] => {
     const parties: Party[] = []
+    const seen = new Set<string>()
 
-    if (Array.isArray(data.partes)) {
-      for (const p of data.partes) {
-        if (!p || typeof p !== 'object') continue
-        parties.push({
-          nome: getField(p, 'nome', 'razao_social', 'nome_completo'),
-          tipo: getField(p, 'tipo', 'tipo_parte', 'categoria', 'qualificacao'),
-          categoria: getNestedField(p, 'pessoa.tipo', 'pessoa.categoria'),
-        })
-      }
+    const addParty = (p: any) => {
+      if (!p || typeof p !== 'object') return
+      const nome = getField(p, 'nome', 'razao_social', 'nome_completo', 'nome_normalizado')
+      if (!nome || nome === '—') return
+
+      const tipo = getField(
+        p,
+        'tipo',
+        'tipo_parte',
+        'tipo_normalizado',
+        'qualificacao',
+        'polo',
+        'categoria',
+        'relacao',
+      )
+      const categoria = getNestedField(p, 'pessoa.tipo', 'pessoa.categoria', 'oab', 'oab_uf')
+
+      const key = `${nome.toLowerCase()}_${tipo.toLowerCase()}`
+      if (seen.has(key)) return
+      seen.add(key)
+
+      parties.push({ nome, tipo, categoria })
     }
 
-    if (Array.isArray(data.envolvidos)) {
-      for (const p of data.envolvidos) {
-        if (!p || typeof p !== 'object') continue
-        parties.push({
-          nome: getField(p, 'nome', 'razao_social'),
-          tipo: getField(p, 'tipo', 'tipo_envolvido', 'qualificacao', 'relacao'),
-          categoria: getNestedField(p, 'pessoa.tipo'),
-        })
-      }
-    }
+    if (Array.isArray(data.partes)) data.partes.forEach(addParty)
+    if (Array.isArray(data.envolvidos)) data.envolvidos.forEach(addParty)
+    if (Array.isArray(data.capa?.partes)) data.capa.partes.forEach(addParty)
 
-    if (Array.isArray(data.capa?.partes)) {
-      for (const p of data.capa.partes) {
-        if (!p || typeof p !== 'object') continue
-        parties.push({
-          nome: getField(p, 'nome', 'razao_social'),
-          tipo: getField(p, 'tipo', 'tipo_parte', 'qualificacao'),
-          categoria: getNestedField(p, 'pessoa.tipo'),
-        })
+    if (Array.isArray(data.fontes)) {
+      for (const f of data.fontes) {
+        if (!f) continue
+        if (Array.isArray(f.envolvidos)) f.envolvidos.forEach(addParty)
+        if (Array.isArray(f.partes)) f.partes.forEach(addParty)
+        if (Array.isArray(f.capa?.partes)) f.capa.partes.forEach(addParty)
       }
     }
 
@@ -121,50 +133,81 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
 
   const renderMovements = (data: any): { data: string; descricao: string }[] => {
     const movements: { data: string; descricao: string }[] = []
+    const seen = new Set<string>()
 
-    if (Array.isArray(data.movimentos)) {
-      for (const m of data.movimentos) {
-        if (!m || typeof m !== 'object') continue
-        movements.push({
-          data: getField(m, 'data', 'data_movimento', 'data_hora') || '—',
-          descricao: getField(m, 'descricao', 'nome', 'titulo', 'complemento'),
-        })
-      }
+    const addMov = (m: any) => {
+      if (!m || typeof m !== 'object') return
+      const dt = getField(m, 'data', 'data_movimento', 'data_hora', 'data_andamento') || '—'
+      const desc = getField(m, 'descricao', 'nome', 'titulo', 'complemento', 'conteudo', 'texto')
+      if (!desc || desc === '—') return
+      const key = `${dt}_${desc}`
+      if (seen.has(key)) return
+      seen.add(key)
+      movements.push({ data: dt, descricao: desc })
     }
 
-    if (Array.isArray(data.andamentos)) {
-      for (const m of data.andamentos) {
-        if (!m || typeof m !== 'object') continue
-        movements.push({
-          data: getField(m, 'data', 'data_andamento', 'data_hora') || '—',
-          descricao: getField(m, 'descricao', 'nome', 'titulo', 'conteudo'),
-        })
+    if (Array.isArray(data.movimentacoes)) data.movimentacoes.forEach(addMov)
+    if (Array.isArray(data.movimentos)) data.movimentos.forEach(addMov)
+    if (Array.isArray(data.andamentos)) data.andamentos.forEach(addMov)
+
+    if (Array.isArray(data.fontes)) {
+      for (const f of data.fontes) {
+        if (!f) continue
+        if (Array.isArray(f.movimentacoes)) f.movimentacoes.forEach(addMov)
+        if (Array.isArray(f.andamentos)) f.andamentos.forEach(addMov)
       }
     }
 
     return movements
   }
 
-  const numero = detail
-    ? getField(detail, 'numero_cnj', 'numero', 'numero_processo', 'titulo')
-    : numeroProcesso || '—'
-  const tribunalInfo = detail ? getTribunalInfo(detail) : { display: '—' }
-  const classe = detail ? getProcessClass(detail) : '—'
-  const dataAjuiz = detail ? getProcessData(detail) : '—'
-  const statusProc = detail ? getField(detail, 'status', 'situacao') : '—'
-  const valorCausa = detail
-    ? getNestedField(detail, 'valor_causa', 'capa.valor_causa', 'valor', 'capa.valor')
-    : '—'
-  const juiz = detail ? getNestedField(detail, 'juiz', 'capa.juiz', 'magistrado') : '—'
-  const orgaoJulgador = detail
-    ? getNestedField(detail, 'capa.orgao_julgador', 'orgao_julgador', 'vara')
-    : '—'
-  const assunto = detail
-    ? getNestedField(detail, 'assunto', 'capa.assunto', 'assunto_principal')
-    : '—'
+  const realDetail = detail?.resposta || detail?.data || detail
 
-  const parties = detail ? renderParties(detail) : []
-  const movements = detail ? renderMovements(detail) : []
+  const procNumDisplay = realDetail
+    ? getProcessNumber(realDetail) !== '—'
+      ? getProcessNumber(realDetail)
+      : getField(realDetail, 'numero_cnj', 'numero', 'numero_processo', 'titulo')
+    : numeroProcesso || '—'
+
+  const tribunalInfo = realDetail ? getTribunalInfo(realDetail) : { display: '—' }
+  const classe = realDetail ? getProcessClass(realDetail) : '—'
+  const dataAjuiz = realDetail ? getProcessData(realDetail) : '—'
+  const statusProc = realDetail
+    ? getNestedField(
+        realDetail,
+        'status',
+        'situacao',
+        'capa.status',
+        'fontes.0.status',
+        'fontes.0.capa.status',
+      )
+    : '—'
+  const valorCausa = realDetail
+    ? getNestedField(
+        realDetail,
+        'valor_causa',
+        'capa.valor_causa',
+        'valor',
+        'capa.valor',
+        'fontes.0.valor_causa',
+        'fontes.0.capa.valor_causa',
+      )
+    : '—'
+  const juiz = realDetail
+    ? getNestedField(
+        realDetail,
+        'juiz',
+        'capa.juiz',
+        'magistrado',
+        'fontes.0.juiz',
+        'fontes.0.capa.juiz',
+      )
+    : '—'
+  const orgaoJulgador = realDetail ? getProcessVara(realDetail) : '—'
+  const assunto = realDetail ? getProcessAssunto(realDetail) : '—'
+
+  const parties = realDetail ? renderParties(realDetail) : []
+  const movements = realDetail ? renderMovements(realDetail) : []
 
   const formatValor = (val: string): string => {
     if (!val || val === '—') return '—'
@@ -207,7 +250,7 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
             Detalhes do Processo
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500 break-all">
-            {numero}
+            {procNumDisplay}
           </DialogDescription>
         </DialogHeader>
 
@@ -235,7 +278,7 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
             </div>
           )}
 
-          {!loading && !error && detail && (
+          {!loading && !error && realDetail && (
             <div className="space-y-6 pb-4">
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
@@ -261,7 +304,7 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
                   <Info className="h-4 w-4 text-indigo-600" /> Informações Gerais
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <InfoRow label="Número CNJ" value={numero} />
+                  <InfoRow label="Número CNJ" value={procNumDisplay} />
                   <InfoRow label="Tribunal" value={tribunalInfo.display} />
                   <InfoRow label="Classe" value={classe} />
                   <InfoRow label="Assunto" value={assunto} />
