@@ -368,14 +368,13 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
         selectedConsulta.id,
         numeroProc !== '—' ? numeroProc : undefined,
       )
-      setCapaData(result)
+      if (!result || result.error) {
+        setCapaModalError('Não foi possível carregar os detalhes do processo.')
+      } else {
+        setCapaData(result)
+      }
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.error ||
-        err?.response?.message ||
-        err?.message ||
-        'Não foi possível obter a capa do processo.'
-      setCapaModalError(errorMsg)
+      setCapaModalError('Não foi possível carregar os detalhes do processo.')
     } finally {
       setCapaModalLoading(false)
     }

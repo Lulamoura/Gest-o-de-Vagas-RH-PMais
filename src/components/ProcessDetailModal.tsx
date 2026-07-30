@@ -124,16 +124,16 @@ export function ProcessDetailModal({
             </div>
           )}
 
-          {!loading && error && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-rose-600">
-              <AlertCircle className="h-8 w-8" />
-              <span className="text-sm font-medium text-center px-4">
-                {error || 'Não foi possível obter a capa do processo.'}
+          {!loading && (error || !processData || processData?.error) && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 py-12 text-rose-600">
+              <AlertCircle className="h-10 w-10 text-rose-600" />
+              <span className="text-sm font-semibold text-center px-4 text-rose-600">
+                Não foi possível carregar os detalhes do processo.
               </span>
             </div>
           )}
 
-          {!loading && !error && processData && (
+          {!loading && !error && processData && !processData.error && (
             <ScrollArea className="flex-1 pr-2">
               <div className="space-y-4">
                 <CapaSection icon={<Building2 className="h-4 w-4" />} title="Tribunal">
@@ -244,15 +244,6 @@ export function ProcessDetailModal({
                 </CapaSection>
               </div>
             </ScrollArea>
-          )}
-
-          {!loading && !error && !processData && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
-              <AlertCircle className="h-8 w-8" />
-              <span className="text-sm font-medium text-center px-4">
-                Não foi possível obter a capa do processo.
-              </span>
-            </div>
           )}
         </div>
       </DialogContent>

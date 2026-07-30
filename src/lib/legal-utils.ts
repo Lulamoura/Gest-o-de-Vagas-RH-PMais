@@ -1,16 +1,16 @@
 export function formatCNJNumber(str: string): string {
-  if (!str || str === '—') return '—'
-  const digits = str.replace(/\D/g, '')
-  if (digits.length === 20) {
-    return digits.replace(/^(\d{7})(\d{2})(\d{4})(\d{1})(\d{2})(\d{4})$/, '$1-$2.$3.$4.$5.$6')
-  }
-  return str.trim()
+  if (!str) return '—'
+  const clean = str.replace(/[^\d]/g, '')
+  if (clean.length !== 20) return str
+  return `${clean.slice(0, 7)}-${clean.slice(7, 9)}.${clean.slice(9, 13)}.${clean.slice(13, 14)}.${clean.slice(14, 16)}.${clean.slice(16, 20)}`
 }
 
 export function getField(obj: Record<string, any> | null | undefined, ...keys: string[]): string {
-  if (!obj) return '—'
+  if (!obj || typeof obj !== 'object') return '—'
   for (const k of keys) {
-    if (obj[k] != null && obj[k] !== '' && obj[k] !== '—') return String(obj[k])
+    if (obj[k] != null && String(obj[k]).trim() !== '') {
+      return String(obj[k]).trim()
+    }
   }
   return '—'
 }
@@ -19,19 +19,21 @@ export function getNestedField(
   obj: Record<string, any> | null | undefined,
   ...paths: string[]
 ): string {
-  if (!obj) return '—'
-  for (const path of paths) {
-    const parts = path.split('.')
-    let cur: any = obj
-    let found = true
-    for (const p of parts) {
-      if (cur == null || typeof cur !== 'object') {
-        found = false
+  if (!obj || typeof obj !== 'object') return '—'
+  for (const p of paths) {
+    const parts = p.split('.')
+    let current: any = obj
+    for (const part of parts) {
+      if (current && typeof current === 'object' && part in current) {
+        current = current[part]
+      } else {
+        current = null
         break
       }
-      cur = cur[p]
     }
-    if (found && cur != null && cur !== '' && cur !== '—') return String(cur)
+    if (current != null && typeof current !== 'object' && String(current).trim() !== '') {
+      return String(current).trim()
+    }
   }
   return '—'
 }
@@ -43,244 +45,165 @@ export interface TribunalInfo {
 }
 
 export function getTribunalInfo(proc: any): TribunalInfo {
-  if (!proc) return { sigla: '', nome: '', display: '—' }
+  if (!proc || typeof proc !== 'object') {
+    return { sigla: '—', nome: '—', display: '—' }
+  }
 
-  let sigla = ''
-  let nome = ''
+  let sigla = '—'
+  let nome = '—'
 
-  if (proc.tribunal) {
-    if (typeof proc.tribunal === 'object') {
-      sigla =
-        proc.tribunal.sigla || proc.tribunal.sigla_tribunal || proc.tribunal.sigla_normalizada || ''
-      nome = proc.tribunal.nome || proc.tribunal.nome_tribunal || ''
-    } else if (typeof proc.tribunal === 'string') {
-      sigla = proc.tribunal
+  if (typeof proc.tribunal === 'object' && proc.tribunal !== null) {
+    sigla = proc.tribunal.sigla || proc.tribunal.nome || '—'
+    nome = proc.tribunal.nome || proc.tribunal.sigla || '—'
+  } else if (typeof proc.tribunal === 'string' && proc.tribunal.trim()) {
+    sigla = proc.tribunal.trim()
+    nome = proc.tribunal.trim()
+  } else if (proc.orgao_julgador) {
+    if (typeof proc.orgao_julgador === 'object') {
+      nome = proc.orgao_julgador.nome || proc.orgao_julgador.sigla || '—'
+      sigla = proc.orgao_julgador.sigla || proc.orgao_julgador.nome || '—'
+    } else if (typeof proc.orgao_julgador === 'string') {
+      nome = proc.orgao_julgador
+      sigla = proc.orgao_julgador
+    }
+  } else if (proc.unidade_jurisdicional) {
+    if (typeof proc.unidade_jurisdicional === 'object') {
+      nome = proc.unidade_jurisdicional.nome || '—'
+      sigla = proc.unidade_jurisdicional.sigla || '—'
     }
   }
 
-  if (!sigla && proc.tribunal_sigla) sigla = String(proc.tribunal_sigla)
-  if (!nome && proc.tribunal_nome) nome = String(proc.tribunal_nome)
+  if (sigla === '—' && proc.tribunal_sigla) sigla = String(proc.tribunal_sigla)
+  if (nome === '—' && proc.tribunal_nome) nome = String(proc.tribunal_nome)
 
-  if (proc.capa) {
-    if (proc.capa.tribunal) {
-      if (typeof proc.capa.tribunal === 'object') {
-        if (!sigla) sigla = proc.capa.tribunal.sigla || ''
-        if (!nome) nome = proc.capa.tribunal.nome || ''
-      } else if (typeof proc.capa.tribunal === 'string' && !sigla) {
-        sigla = proc.capa.tribunal
-      }
-    }
-    if (!sigla && proc.capa.orgao_julgador) {
-      const oj = String(proc.capa.orgao_julgador)
-      if (oj.length <= 10 && oj.toUpperCase() === oj) sigla = oj
-      else if (!nome) nome = oj
-    }
-  }
+  const display =
+    sigla !== '—' && nome !== '—' && sigla !== nome
+      ? `${sigla} - ${nome}`
+      : sigla !== '—'
+        ? sigla
+        : nome !== '—'
+          ? nome
+          : '—'
 
-  if (Array.isArray(proc.fontes)) {
-    for (const f of proc.fontes) {
-      if (!f) continue
-      if (f.tribunal && typeof f.tribunal === 'object') {
-        if (!sigla) sigla = f.tribunal.sigla || ''
-        if (!nome) nome = f.tribunal.nome || ''
-      }
-      if (!sigla && f.sigla) sigla = String(f.sigla)
-      if (
-        !nome &&
-        f.nome &&
-        typeof f.nome === 'string' &&
-        f.nome.toLowerCase().includes('tribunal')
-      ) {
-        nome = f.nome
-      }
-      if (!sigla && f.nome && typeof f.nome === 'string') {
-        const match = f.nome.match(/\b(TJ[A-Z]{2}|TRT\d{1,2}|TRF\d|STF|STJ|TST|TSE|STM)\b/i)
-        if (match) sigla = match[1].toUpperCase()
-      }
-    }
-  }
-
-  if (!sigla && proc.orgao) {
-    const o = String(proc.orgao)
-    if (o.length <= 10 && o.toUpperCase() === o) sigla = o
-    else if (!nome) nome = o
-  }
-
-  sigla = sigla.trim()
-  nome = nome.trim()
-
-  if (sigla && nome && sigla.toLowerCase() !== nome.toLowerCase()) {
-    return { sigla, nome, display: `${sigla} — ${nome}` }
-  }
-  if (sigla) return { sigla, nome: '', display: sigla }
-  if (nome) return { sigla: '', nome, display: nome }
-
-  return { sigla: '', nome: '', display: '—' }
+  return { sigla, nome, display }
 }
 
 export function getProcessNumber(proc: any): string {
-  if (!proc) return '—'
-  const raw = getNestedField(
-    proc,
-    'numero_cnj',
-    'numero',
-    'numero_processo',
-    'titulo',
-    'capa.numero',
-    'fontes.0.numero_processo',
-  )
-  return formatCNJNumber(raw)
+  if (!proc || typeof proc !== 'object') return '—'
+  const num =
+    proc.numero_cnj || proc.numero || proc.numero_processo || proc.titulo || proc.id || '—'
+  if (num === '—') return '—'
+  return String(num).trim()
 }
 
 export function getProcessClass(proc: any): string {
-  if (!proc) return '—'
-  const res = getNestedField(
-    proc,
-    'classe.nome',
-    'classe.descricao',
-    'classe_processual',
-    'classe_nome',
-    'capa.classe',
-    'capa.classe_nome',
-    'fontes.0.classe.nome',
-    'fontes.0.capa.classe',
-    'classe',
-  )
-  if (res !== '—') return res
-
-  if (Array.isArray(proc.fontes)) {
-    for (const f of proc.fontes) {
-      const fClass = getNestedField(f, 'classe.nome', 'capa.classe', 'classe')
-      if (fClass !== '—') return fClass
-    }
+  if (!proc || typeof proc !== 'object') return '—'
+  if (typeof proc.classe === 'object' && proc.classe !== null) {
+    return proc.classe.nome || proc.classe.descricao || proc.classe.sigla || '—'
   }
-  return '—'
+  if (typeof proc.classe === 'string' && proc.classe.trim()) {
+    return proc.classe.trim()
+  }
+  if (typeof proc.classe_principal === 'object' && proc.classe_principal !== null) {
+    return proc.classe_principal.nome || '—'
+  }
+  return getField(proc, 'classe_nome', 'classe_cnj', 'natureza', 'tipo')
 }
 
 export function getProcessAssunto(proc: any): string {
-  if (!proc) return '—'
+  if (!proc || typeof proc !== 'object') return '—'
 
   if (Array.isArray(proc.assuntos) && proc.assuntos.length > 0) {
-    const list = proc.assuntos
-      .map((a: any) => (typeof a === 'string' ? a : a?.nome || a?.descricao || a?.titulo || ''))
-      .filter((s: string) => s && s !== '—')
-    if (list.length > 0) return list.join(', ')
+    const names = proc.assuntos
+      .map((a: any) => {
+        if (typeof a === 'string') return a.trim()
+        if (typeof a === 'object' && a !== null) return a.nome || a.descricao || a.titulo || ''
+        return ''
+      })
+      .filter(Boolean)
+    if (names.length > 0) return names.join(', ')
   }
 
-  const capaAssunto = getNestedField(
-    proc,
-    'capa.assunto',
-    'capa.assunto_principal',
-    'capa.assuntos',
-  )
-  if (capaAssunto !== '—') return capaAssunto
-
-  if (Array.isArray(proc.fontes) && proc.fontes.length > 0) {
-    const fonteAssuntos: string[] = []
-    for (const f of proc.fontes) {
-      if (!f) continue
-      const fa = getNestedField(f, 'assunto', 'descricao', 'capa.assunto', 'nome')
-      if (fa !== '—' && !fonteAssuntos.includes(fa)) fonteAssuntos.push(fa)
-    }
-    if (fonteAssuntos.length > 0) return fonteAssuntos.join(', ')
+  if (typeof proc.assuntos === 'string' && proc.assuntos.trim()) {
+    return proc.assuntos.trim()
   }
 
-  const direct = getField(proc, 'assunto', 'descricao')
-  if (direct !== '—') return direct
-  return '—'
+  if (typeof proc.assunto_principal === 'object' && proc.assunto_principal !== null) {
+    return proc.assunto_principal.nome || proc.assunto_principal.descricao || '—'
+  }
+
+  if (typeof proc.assunto === 'object' && proc.assunto !== null) {
+    return proc.assunto.nome || proc.assunto.descricao || '—'
+  }
+
+  return getField(proc, 'assunto', 'assunto_normalizado', 'ramo_direito')
 }
 
 export function getProcessVara(proc: any): string {
-  if (!proc) return '—'
-  const res = getNestedField(
-    proc,
-    'capa.orgao_julgador',
-    'orgao_julgador',
-    'vara',
-    'unidade',
-    'capa.vara',
-    'fontes.0.orgao_julgador',
-    'fontes.0.vara',
-  )
-  if (res !== '—') return res
-
-  if (Array.isArray(proc.fontes)) {
-    for (const f of proc.fontes) {
-      const fVara = getNestedField(f, 'orgao_julgador', 'vara', 'unidade')
-      if (fVara !== '—') return fVara
-    }
+  if (!proc || typeof proc !== 'object') return '—'
+  if (typeof proc.orgao_julgador === 'object' && proc.orgao_julgador !== null) {
+    return proc.orgao_julgador.nome || proc.orgao_julgador.descricao || '—'
   }
-  return '—'
+  if (typeof proc.unidade_jurisdicional === 'object' && proc.unidade_jurisdicional !== null) {
+    return proc.unidade_jurisdicional.nome || '—'
+  }
+  return getField(proc, 'orgao_julgador', 'vara', 'unidade_jurisdicional', 'foro')
 }
 
 export function getProcessData(proc: any): string {
-  if (!proc) return '—'
-  const d = getNestedField(
-    proc,
-    'data_ajuizamento',
-    'data_distribuicao',
-    'data_inicio',
-    'capa.data_ajuizamento',
-    'capa.data_distribuicao',
-    'data',
-    'fontes.0.data_ajuizamento',
-    'fontes.0.data_distribuicao',
-    'fontes.0.data_inicio',
-  )
-  if (d === '—') return '—'
+  if (!proc || typeof proc !== 'object') return '—'
 
-  if (d.includes('T') || d.match(/^\d{4}-\d{2}-\d{2}/)) {
-    try {
-      const [datePart] = d.split('T')
-      const [yyyy, mm, dd] = datePart.split('-')
-      if (yyyy && mm && dd) return `${dd}/${mm}/${yyyy}`
-    } catch {
-      /* noop */
-    }
+  const rawDate =
+    proc.data_distribuicao ||
+    proc.data_inicio ||
+    proc.data_ajuizamento ||
+    proc.data_abertura ||
+    proc.created_at ||
+    proc.data_ultima_movimentacao
+
+  if (!rawDate || rawDate === '—') return '—'
+
+  const str = String(rawDate).trim()
+  if (str.includes('T')) {
+    const parts = str.split('T')[0].split('-')
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
   }
-  return d
+  if (str.includes('-')) {
+    const parts = str.split('-')
+    if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`
+  }
+  return str
 }
 
 export function getProcessValorCausa(proc: any): string {
-  if (!proc) return '—'
-  return getNestedField(
-    proc,
-    'valor_causa',
-    'capa.valor_causa',
-    'valor',
-    'capa.valor',
-    'fontes.0.valor_causa',
-    'fontes.0.capa.valor_causa',
-    'fontes.0.capa.valor',
-  )
+  if (!proc || typeof proc !== 'object') return '—'
+  if (typeof proc.valor_causa === 'object' && proc.valor_causa !== null) {
+    const val = proc.valor_causa.valor || proc.valor_causa.quantia
+    if (val != null) {
+      const num = Number(val)
+      if (!isNaN(num)) {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num)
+      }
+    }
+    if (proc.valor_causa.valor_formatado) return String(proc.valor_causa.valor_formatado)
+  }
+  if (typeof proc.valor_causa === 'number') {
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+      proc.valor_causa,
+    )
+  }
+  if (typeof proc.valor_causa === 'string' && proc.valor_causa.trim()) {
+    return proc.valor_causa.trim()
+  }
+  return getField(proc, 'valor_causa', 'valor')
 }
 
 export function getProcessJuiz(proc: any): string {
-  if (!proc) return '—'
-  return getNestedField(
-    proc,
-    'juiz',
-    'capa.juiz',
-    'magistrado',
-    'capa.magistrado',
-    'fontes.0.juiz',
-    'fontes.0.capa.juiz',
-    'fontes.0.magistrado',
-  )
+  return getField(proc, 'juiz', 'magistrado', 'relator')
 }
 
 export function getProcessStatus(proc: any): string {
-  if (!proc) return '—'
-  return getNestedField(
-    proc,
-    'status',
-    'situacao',
-    'capa.status',
-    'capa.situacao',
-    'fontes.0.status',
-    'fontes.0.capa.status',
-    'fontes.0.situacao',
-  )
+  return getField(proc, 'status', 'situacao', 'estado')
 }
 
 export function getTopAssuntos(processos: any[]): { label: string; count: number }[] {
@@ -288,26 +211,22 @@ export function getTopAssuntos(processos: any[]): { label: string; count: number
   const counts: Record<string, number> = {}
 
   processos.forEach((p) => {
-    const assunto = getProcessAssunto(p)
-    if (assunto && assunto !== '—') {
-      const parts = assunto
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-      parts.forEach((text) => {
-        counts[text] = (counts[text] || 0) + 1
+    const assuntoStr = getProcessAssunto(p)
+    if (assuntoStr && assuntoStr !== '—') {
+      const parts = assuntoStr.split(',')
+      parts.forEach((pt) => {
+        const cleaned = pt.trim()
+        if (cleaned) {
+          counts[cleaned] = (counts[cleaned] || 0) + 1
+        }
       })
-    }
-    const classe = getProcessClass(p)
-    if (classe && classe !== '—') {
-      counts[classe] = (counts[classe] || 0) + 1
     }
   })
 
   return Object.entries(counts)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 5)
     .map(([label, count]) => ({ label, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5)
 }
 
 export interface ProcessParte {
@@ -317,57 +236,53 @@ export interface ProcessParte {
 }
 
 export function getProcessPartes(proc: any): ProcessParte[] {
-  if (!proc) return []
+  if (!proc || typeof proc !== 'object') return []
 
-  let partesRaw: any[] | null = null
+  const list = proc.partes || proc.envolvidos || proc.polos || []
+  if (!Array.isArray(list)) return []
 
-  if (Array.isArray(proc.partes) && proc.partes.length > 0) {
-    partesRaw = proc.partes
-  } else if (proc.capa && Array.isArray(proc.capa.partes) && proc.capa.partes.length > 0) {
-    partesRaw = proc.capa.partes
-  } else if (Array.isArray(proc.envolvidos) && proc.envolvidos.length > 0) {
-    partesRaw = proc.envolvidos
-  } else if (proc.capa && Array.isArray(proc.capa.envolvidos) && proc.capa.envolvidos.length > 0) {
-    partesRaw = proc.capa.envolvidos
-  }
+  return list
+    .map((item: any) => {
+      if (!item) return null
+      if (typeof item === 'string') {
+        return { nome: item.trim(), tipo: 'Parte', advogados: [] }
+      }
+      const nome =
+        item.nome || item.nome_normalizado || item.nome_espelho || item.razao_social || '—'
 
-  if (!partesRaw) return []
+      let tipo =
+        item.tipo || item.papel || item.qualificacao || item.tipo_atuacao || item.polo || 'Parte'
 
-  return partesRaw
-    .map((p: any) => {
-      let nome = ''
-      let tipo = ''
-      let advogados: string[] = []
-
-      if (typeof p === 'string') {
-        nome = p
-      } else if (typeof p === 'object' && p !== null) {
-        nome =
-          p.nome || p.nome_completo || p.fisica?.nome || p.juridica?.nome || p.pessoa?.nome || ''
-        tipo = p.tipo || p.tipo_nome || p.qualificacao || p.polo || p.tipo_parte || ''
-
-        if (Array.isArray(p.advogados)) {
-          advogados = p.advogados
-            .map((a: any) => (typeof a === 'string' ? a : a?.nome || a?.nome_completo || ''))
-            .filter(Boolean)
-        }
+      if (typeof tipo === 'object' && tipo !== null) {
+        tipo = tipo.nome || tipo.descricao || 'Parte'
       }
 
-      return { nome, tipo, advogados }
+      const advs: string[] = []
+      if (Array.isArray(item.advogados)) {
+        item.advogados.forEach((adv: any) => {
+          if (typeof adv === 'string') advs.push(adv.trim())
+          else if (typeof adv === 'object' && adv !== null && adv.nome) advs.push(adv.nome.trim())
+        })
+      }
+
+      return {
+        nome: String(nome).trim(),
+        tipo: String(tipo).trim(),
+        advogados: advs,
+      }
     })
-    .filter((p) => p.nome)
+    .filter((p): p is ProcessParte => p !== null && p.nome !== '—')
 }
 
 export function formatDateTime(dateStr?: string): string {
   if (!dateStr) return '—'
   try {
-    return new Date(dateStr).toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    return new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short',
+    }).format(d)
   } catch {
     return dateStr
   }
