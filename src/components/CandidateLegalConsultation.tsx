@@ -14,6 +14,7 @@ import {
   getProcessAssunto,
   getField,
   getTopAssuntos,
+  getProcessLink,
   formatDateTime,
 } from '@/lib/legal-utils'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -43,6 +44,7 @@ import {
   Sparkles,
   Loader2,
   ChevronDown,
+  ExternalLink,
 } from 'lucide-react'
 
 interface Props {
@@ -430,6 +432,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                       const assunto = getProcessAssunto(proc)
                       const statusProc = getField(proc, 'status', 'situacao')
                       const isInactive = statusProc.toLowerCase().includes('inativo')
+                      const processLink = getProcessLink(proc)
 
                       return (
                         <div
@@ -438,7 +441,19 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                         >
                           <div className="flex items-start justify-between gap-2 flex-wrap sm:flex-nowrap">
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-bold text-slate-900 break-all">{numero}</p>
+                              <p className="text-sm font-bold text-slate-900 break-all">
+                                {numero}
+                                {processLink && (
+                                  <a
+                                    href={processLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center ml-1 text-indigo-600 hover:text-indigo-700"
+                                  >
+                                    <ExternalLink className="h-3.5 w-3.5" />
+                                  </a>
+                                )}
+                              </p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               {numero !== '—' &&

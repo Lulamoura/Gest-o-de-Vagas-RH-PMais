@@ -82,8 +82,11 @@ routerAdd(
       })
     }
 
+    // Re-fetch the record right before saving to avoid stale state
     try {
-      var resumoRaw = consulta.get('resumo_json')
+      var freshRecord = $app.findRecordById('candidato_consultas_juridicas', consultaId)
+
+      var resumoRaw = freshRecord.get('resumo_json')
       var resumoJson = {}
       if (resumoRaw != null) {
         if (typeof resumoRaw === 'string') {
@@ -102,8 +105,8 @@ routerAdd(
       }
       resumoJson.processo_resumos[numeroProcesso] = summary
 
-      consulta.set('resumo_json', resumoJson)
-      $app.saveNoValidate(consulta)
+      freshRecord.set('resumo_json', resumoJson)
+      $app.saveNoValidate(freshRecord)
     } catch (err) {
       $app
         .logger()
@@ -116,6 +119,9 @@ routerAdd(
           'processo',
           numeroProcesso,
         )
+      return e.json(500, {
+        error: 'Não foi possível salvar o resumo. Tente novamente.',
+      })
     }
 
     return e.json(200, { summary: summary })
