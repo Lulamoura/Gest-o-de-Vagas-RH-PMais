@@ -46,6 +46,7 @@ import {
   ChevronDown,
   ExternalLink,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 interface Props {
   candidateId: string
@@ -88,6 +89,11 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  const selectedConsultaId = selectedConsulta?.id
+  useEffect(() => {
+    setInteractionStates({})
+  }, [selectedConsultaId])
 
   useRealtime('candidato_consultas_juridicas', () => {
     loadData()
@@ -188,12 +194,20 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
         }
       })
     } catch (err: any) {
+      const errorMsg =
+        err?.message || 'Não foi possível obter o resumo. Tente novamente mais tarde.'
+      console.error('[CandidateLegalConsultation] Erro ao buscar resumo da IA:', {
+        numeroProcesso,
+        consultaId: selectedConsulta?.id,
+        error: err,
+      })
+      toast.error(errorMsg)
       setInteractionStates((prev) => ({
         ...prev,
         [numeroProcesso]: {
           ...prev[numeroProcesso],
           loading: false,
-          error: err?.message || 'Não foi possível obter o resumo. Tente novamente mais tarde.',
+          error: errorMsg,
         },
       }))
     }

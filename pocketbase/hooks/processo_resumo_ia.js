@@ -14,6 +14,9 @@ routerAdd(
     try {
       consulta = $app.findRecordById('candidato_consultas_juridicas', consultaId)
     } catch (err) {
+      $app
+        .logger()
+        .error('Consulta jurídica não encontrada', 'error', String(err), 'consulta_id', consultaId)
       return e.json(404, { error: 'Consulta jurídica não encontrada' })
     }
 
@@ -22,11 +25,20 @@ routerAdd(
     if (typeof procRaw === 'string') {
       try {
         processos = JSON.parse(procRaw) || []
-      } catch (_) {
+      } catch (parseErr) {
+        $app
+          .logger()
+          .error(
+            'Erro ao parsear processos_json',
+            'error',
+            String(parseErr),
+            'consulta_id',
+            consultaId,
+          )
         processos = []
       }
     } else if (Array.isArray(procRaw)) {
-      processos = procRaw
+      processos = JSON.parse(JSON.stringify(procRaw))
     }
 
     var procEncontrado = null
@@ -45,7 +57,19 @@ routerAdd(
     if (procEncontrado) {
       try {
         contexto += '\n\nDados do processo:\n' + JSON.stringify(procEncontrado, null, 2)
-      } catch (_) {}
+      } catch (serializeErr) {
+        $app
+          .logger()
+          .error(
+            'Erro ao serializar dados do processo',
+            'error',
+            String(serializeErr),
+            'consulta_id',
+            consultaId,
+            'processo',
+            numeroProcesso,
+          )
+      }
     }
 
     var summary = ''
@@ -66,6 +90,17 @@ routerAdd(
       })
       summary = reply.choices[0].message.content
     } catch (err) {
+      $app
+        .logger()
+        .error(
+          'Erro ao gerar resumo via IA',
+          'error',
+          String(err),
+          'consulta_id',
+          consultaId,
+          'processo',
+          numeroProcesso,
+        )
       if (err instanceof SkipAiConfigError) {
         return e.json(503, {
           error: 'Serviço de IA temporariamente indisponível',
@@ -77,12 +112,14 @@ routerAdd(
     }
 
     if (!summary || !summary.trim()) {
+      $app
+        .logger()
+        .error('Resumo gerado está vazio', 'consulta_id', consultaId, 'processo', numeroProcesso)
       return e.json(500, {
         error: 'O resumo gerado está vazio. Tente novamente.',
       })
     }
 
-    // Re-fetch the record right before saving to avoid stale state
     try {
       var freshRecord = $app.findRecordById('candidato_consultas_juridicas', consultaId)
 
@@ -90,13 +127,38 @@ routerAdd(
       var resumoJson = {}
       if (resumoRaw != null) {
         if (typeof resumoRaw === 'string') {
-          try {
-            resumoJson = JSON.parse(resumoRaw) || {}
-          } catch (_) {
-            resumoJson = {}
+          if (resumoRaw.trim()) {
+            try {
+              var parsed = JSON.parse(resumoRaw)
+              resumoJson = typeof parsed === 'object' && parsed !== null ? parsed : {}
+            } catch (parseErr) {
+              $app
+                .logger()
+                .error(
+                  'Erro ao parsear resumo_json existente',
+                  'error',
+                  String(parseErr),
+                  'consulta_id',
+                  consultaId,
+                )
+              resumoJson = {}
+            }
           }
         } else if (typeof resumoRaw === 'object') {
-          resumoJson = JSON.parse(JSON.stringify(resumoRaw))
+          try {
+            resumoJson = JSON.parse(JSON.stringify(resumoRaw))
+          } catch (cloneErr) {
+            $app
+              .logger()
+              .error(
+                'Erro ao clonar resumo_json existente',
+                'error',
+                String(cloneErr),
+                'consulta_id',
+                consultaId,
+              )
+            resumoJson = {}
+          }
         }
       }
 
@@ -105,8 +167,81 @@ routerAdd(
       }
       resumoJson.processo_resumos[numeroProcesso] = summary
 
-      freshRecord.set('resumo_json', resumoJson)
-      $app.saveNoValidate(freshRecord)
+      var cleanJson
+      try {
+        cleanJson = JSON.parse(JSON.stringify(resumoJson))
+      } catch (cleanErr) {
+        $app
+          .logger()
+          .error(
+            'Erro ao limpar resumo_json antes de salvar',
+            'error',
+            String(cleanErr),
+            'consulta_id',
+            consultaId,
+          )
+        return e.json(500, {
+          error: 'Não foi possível salvar o resumo. Tente novamente.',
+        })
+      }
+
+      freshRecord.set('resumo_json', cleanJson)
+
+      try {
+        $app.save(freshRecord)
+      } catch (saveErr) {
+        $app
+          .logger()
+          .error(
+            'Erro ao salvar com validação, tentando saveNoValidate',
+            'error',
+            String(saveErr),
+            'consulta_id',
+            consultaId,
+            'processo',
+            numeroProcesso,
+          )
+        $app.saveNoValidate(freshRecord)
+      }
+
+      var verifyRecord = $app.findRecordById('candidato_consultas_juridicas', consultaId)
+      var verifyRaw = verifyRecord.get('resumo_json')
+      var verifyJson = null
+      if (typeof verifyRaw === 'string') {
+        try {
+          verifyJson = JSON.parse(verifyRaw)
+        } catch (_) {}
+      } else if (typeof verifyRaw === 'object') {
+        verifyJson = verifyRaw
+      }
+      if (
+        !verifyJson ||
+        !verifyJson.processo_resumos ||
+        !verifyJson.processo_resumos[numeroProcesso]
+      ) {
+        $app
+          .logger()
+          .error(
+            'Verificação pós-save falhou: resumo não persistido',
+            'consulta_id',
+            consultaId,
+            'processo',
+            numeroProcesso,
+          )
+        return e.json(500, {
+          error: 'Não foi possível salvar o resumo. Tente novamente.',
+        })
+      }
+
+      $app
+        .logger()
+        .info(
+          'Resumo IA salvo e verificado com sucesso',
+          'consulta_id',
+          consultaId,
+          'processo',
+          numeroProcesso,
+        )
     } catch (err) {
       $app
         .logger()
