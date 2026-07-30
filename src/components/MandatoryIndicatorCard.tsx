@@ -57,12 +57,17 @@ export function MandatoryIndicatorCard({
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
                 RAZÃO DE VAGAS EM SELEÇÃO
               </span>
-              <div className="flex items-baseline space-x-2">
-                <span className="text-2xl font-extrabold text-slate-900">
-                  {candidatosEmProcesso} / {totalPosicoes}
-                </span>
-                <span className="text-xs font-medium text-slate-500">
-                  – {formatPercent(percentual)}%
+              <div>
+                <div className="flex items-baseline space-x-2">
+                  <span className="text-2xl font-extrabold text-slate-900">
+                    {candidatosEmProcesso} / {totalPosicoes}
+                  </span>
+                  <span className="text-xs font-medium text-slate-500">
+                    – {formatPercent(percentual)}%
+                  </span>
+                </div>
+                <span className="text-[11px] text-slate-400 font-normal mt-0.5 block">
+                  Candidatos em processo / Total de posições de vagas
                 </span>
               </div>
             </div>
@@ -82,7 +87,6 @@ export function MandatoryIndicatorCard({
                 <span className="text-2xl font-extrabold text-indigo-700">
                   {candidatosIntegrados} / {totalPosicoes}
                 </span>
-                <span className="text-xs font-medium text-slate-500">– {formatPercent(taxa)}%</span>
               </div>
             </div>
             <div className="text-right">
