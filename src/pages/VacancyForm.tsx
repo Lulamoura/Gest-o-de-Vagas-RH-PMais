@@ -7,6 +7,7 @@ import { getCargos } from '@/services/cargos'
 import { getCidades } from '@/services/cidades'
 import { getTiposVaga } from '@/services/tipos_vaga'
 import { getTiposContrato } from '@/services/tipos_contrato'
+import { getCandidates } from '@/services/candidates'
 import {
   UserRecord,
   ClienteRecord,
@@ -14,12 +15,14 @@ import {
   CidadeRecord,
   TipoVagaRecord,
   TipoContratoRecord,
+  CandidateRecord,
   VacancyStatus,
   VacancyPriority,
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import {
   VACANCY_STATUS_OPTIONS,
+  VACANCY_STATUS_LABELS,
   toDateInputValue,
   getMissingRequiredFields,
 } from '@/lib/status-utils'
@@ -53,6 +56,7 @@ export default function VacancyForm() {
   const [tiposVagaList, setTiposVagaList] = useState<TipoVagaRecord[]>([])
   const [tiposContratoList, setTiposContratoList] = useState<TipoContratoRecord[]>([])
   const [tipoContrato, setTipoContrato] = useState('')
+  const [candidatesList, setCandidatesList] = useState<CandidateRecord[]>([])
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(isEditing)
 
@@ -108,6 +112,12 @@ export default function VacancyForm() {
   ])
 
   const isStatusDisabled = isEditing && missingRequiredFields.length > 0
+
+  const integradoCount = useMemo(
+    () => candidatesList.filter((c) => c.status_candidato === 'Integrado').length,
+    [candidatesList],
+  )
+  const canCloseVacancy = quantidadeVagas > 0 && integradoCount === quantidadeVagas
 
   const clienteOptions = useMemo(
     () => clientesList.map((c) => ({ value: c.id, label: c.nome })),
@@ -170,6 +180,9 @@ export default function VacancyForm() {
           setDespesasVaga(vaga.despesas_vaga || 0)
           setEspecificacoes(vaga.especificacoes || '')
           setObservacoesInternas(vaga.observacoes_internas || '')
+
+          const cands = await getCandidates(id)
+          setCandidatesList(cands)
         }
       } catch {
         toast.error('Erro ao carregar dados do formulário')
@@ -197,6 +210,15 @@ export default function VacancyForm() {
       return
     }
     setLoading(true)
+
+    if (statusVaga === 'Concluída' && !canCloseVacancy) {
+      toast.error(
+        'O número de candidatos integrados deve ser igual à quantidade de vagas para fechar a vaga.',
+      )
+      setLoading(false)
+      return
+    }
+
     const payload = {
       cliente,
       cargo,
@@ -403,12 +425,22 @@ export default function VacancyForm() {
                   </SelectTrigger>
                   <SelectContent>
                     {VACANCY_STATUS_OPTIONS.map((st) => (
-                      <SelectItem key={st} value={st}>
-                        {st}
+                      <SelectItem
+                        key={st}
+                        value={st}
+                        disabled={st === 'Concluída' && !canCloseVacancy}
+                      >
+                        {VACANCY_STATUS_LABELS[st]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {!canCloseVacancy && quantidadeVagas > 0 && (
+                  <p className="text-[11px] text-amber-600 mt-1">
+                    Para fechar a vaga, o número de candidatos integrados ({integradoCount}) deve
+                    ser igual à quantidade de vagas ({quantidadeVagas}).
+                  </p>
+                )}
               </div>
 
               <div className="space-y-1.5">

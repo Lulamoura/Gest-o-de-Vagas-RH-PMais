@@ -14,6 +14,12 @@ export type PipelinePhase = (typeof PIPELINE_PHASES)[number]
 
 export const VACANCY_STATUS_OPTIONS: VacancyStatus[] = ['Aberta', 'Concluída', 'Cancelada']
 
+export const VACANCY_STATUS_LABELS: Record<VacancyStatus, string> = {
+  Aberta: 'Aberta',
+  Concluída: 'Fechada',
+  Cancelada: 'Cancelada',
+}
+
 export const CANDIDATE_STATUS_TO_PHASE: Record<CandidateStatus, PipelinePhase | null> = {
   'Análise do RH': 'Triagem',
   'Análise do gestor': 'Entrevistas',

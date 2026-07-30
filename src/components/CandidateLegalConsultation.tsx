@@ -9,7 +9,6 @@ import {
   getProcessNumber,
   getTribunalInfo,
   getProcessClass,
-  getProcessVara,
   getProcessData,
   getProcessAssunto,
   getProcessLink,
@@ -306,7 +305,6 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                       const numero = getProcessNumber(proc)
                       const tribunalInfo = getTribunalInfo(proc)
                       const classe = getProcessClass(proc)
-                      const vara = getProcessVara(proc)
                       const dataAjuiz = getProcessData(proc)
                       const assunto = getProcessAssunto(proc)
                       const link = getProcessLink(proc)
@@ -359,10 +357,6 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                             <div>
                               <span className="text-slate-400">Classe: </span>
                               <strong className="text-slate-800 font-semibold">{classe}</strong>
-                            </div>
-                            <div>
-                              <span className="text-slate-400">Vara / Órgão: </span>
-                              <strong className="text-slate-800 font-semibold">{vara}</strong>
                             </div>
                             <div>
                               <span className="text-slate-400">Distribuição: </span>

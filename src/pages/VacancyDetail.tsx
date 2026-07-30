@@ -32,6 +32,7 @@ import {
   getCandidateStatusBadgeClass,
   PIPELINE_PHASES,
   VACANCY_STATUS_OPTIONS,
+  VACANCY_STATUS_LABELS,
   CANDIDATE_STATUS_TO_PHASE,
 } from '@/lib/status-utils'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
@@ -363,6 +364,15 @@ export default function VacancyDetail() {
 
   const handleStatusChange = async (newStatus: VacancyStatus) => {
     if (!vaga || newStatus === vaga.status_vaga) return
+    if (newStatus === 'Concluída') {
+      const integradoCount = candidates.filter((c) => c.status_candidato === 'Integrado').length
+      if (integradoCount !== (vaga.quantidade_vagas || 0)) {
+        toast.error(
+          'O número de candidatos integrados deve ser igual à quantidade de vagas para fechar a vaga.',
+        )
+        return
+      }
+    }
     setStatusChanging(true)
     try {
       await updateVacancy(vaga.id, {
@@ -523,8 +533,16 @@ export default function VacancyDetail() {
                 </SelectTrigger>
                 <SelectContent>
                   {VACANCY_STATUS_OPTIONS.map((st) => (
-                    <SelectItem key={st} value={st}>
-                      {st}
+                    <SelectItem
+                      key={st}
+                      value={st}
+                      disabled={
+                        st === 'Concluída' &&
+                        candidates.filter((c) => c.status_candidato === 'Integrado').length !==
+                          (vaga.quantidade_vagas || 0)
+                      }
+                    >
+                      {VACANCY_STATUS_LABELS[st]}
                     </SelectItem>
                   ))}
                 </SelectContent>
