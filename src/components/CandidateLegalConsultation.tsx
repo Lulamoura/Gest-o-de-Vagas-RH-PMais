@@ -1,11 +1,23 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
-  getLatestConsultaJuridica,
+  getConsultaJuridicaHistory,
   performConsultaJuridica,
 } from '@/services/candidato_consultas_juridicas'
 import { CandidatoConsultaJuridicaRecord } from '@/types'
 import { validateCPF, formatCPF } from '@/lib/cpf-utils'
-import { getField, getNestedField, getTopAssuntos, formatDateTime } from '@/lib/legal-utils'
+import {
+  getProcessNumber,
+  getTribunalInfo,
+  getProcessClass,
+  getProcessVara,
+  getProcessData,
+  getProcessAssunto,
+  getProcessLink,
+  getField,
+  getTopAssuntos,
+  formatDateTime,
+} from '@/lib/legal-utils'
+import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -20,7 +32,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { Scale, RefreshCw, AlertCircle, Search } from 'lucide-react'
+import {
+  Scale,
+  RefreshCw,
+  AlertCircle,
+  Search,
+  ExternalLink,
+  History,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+} from 'lucide-react'
 
 interface Props {
   candidateId: string
@@ -32,16 +54,24 @@ interface Props {
 export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Props) {
   const [loading, setLoading] = useState(true)
   const [consultando, setConsultando] = useState(false)
-  const [consulta, setConsulta] = useState<CandidatoConsultaJuridicaRecord | null>(null)
+  const [history, setHistory] = useState<CandidatoConsultaJuridicaRecord[]>([])
+  const [selectedConsulta, setSelectedConsulta] = useState<CandidatoConsultaJuridicaRecord | null>(
+    null,
+  )
   const [error, setError] = useState<string | null>(null)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
 
   const cpfValido = cpf ? validateCPF(cpf) : false
 
-  const loadConsulta = useCallback(async () => {
+  const loadData = useCallback(async () => {
     try {
-      const result = await getLatestConsultaJuridica(candidateId)
-      setConsulta(result)
+      const records = await getConsultaJuridicaHistory(candidateId)
+      setHistory(records)
+      setSelectedConsulta((prev) => {
+        if (!prev) return records[0] || null
+        const updated = records.find((r) => r.id === prev.id)
+        return updated || records[0] || null
+      })
     } catch {
       /* noop */
     } finally {
@@ -50,15 +80,19 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   }, [candidateId])
 
   useEffect(() => {
-    loadConsulta()
-  }, [loadConsulta])
+    loadData()
+  }, [loadData])
+
+  useRealtime('candidato_consultas_juridicas', () => {
+    loadData()
+  })
 
   const handleConsultar = async () => {
     setConsultando(true)
     setError(null)
     try {
       await performConsultaJuridica(candidateId)
-      await loadConsulta()
+      await loadData()
     } catch (err: any) {
       setError(err?.message || 'Erro ao realizar consulta jurídica')
     } finally {
@@ -109,7 +143,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
     )
   }
 
-  if (!consulta) {
+  if (history.length === 0 || !selectedConsulta) {
     return (
       <Card className="border-slate-200 shadow-2xs">
         <CardHeader className="pb-3">
@@ -133,249 +167,345 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
     )
   }
 
-  const processos = consulta.processos_json || []
+  const processos = selectedConsulta.processos_json || []
   const assuntos = getTopAssuntos(processos)
-  const hasError = consulta.status_consulta === 'erro'
+  const hasError = selectedConsulta.status_consulta === 'erro'
+
+  const renderStatusBadge = (status: string) => {
+    if (status === 'sucesso') {
+      return (
+        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">
+          <CheckCircle2 className="h-3 w-3 mr-1" /> Sucesso
+        </Badge>
+      )
+    }
+    if (status === 'sem_resultados') {
+      return (
+        <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-200">
+          <HelpCircle className="h-3 w-3 mr-1" /> Sem resultados
+        </Badge>
+      )
+    }
+    return (
+      <Badge variant="outline" className="bg-rose-50 text-rose-700 border-rose-200">
+        <XCircle className="h-3 w-3 mr-1" /> Erro
+      </Badge>
+    )
+  }
 
   return (
-    <Card className="border-slate-200 shadow-2xs">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
-          <Scale className="h-5 w-5 text-indigo-600" /> Consulta jurídica — Escavador
-        </CardTitle>
-        <CardDescription className="text-xs">
-          Resultados da consulta à base de processos
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {error && (
-          <Alert className="border-rose-200 bg-rose-50">
-            <AlertCircle className="h-4 w-4 text-rose-600" />
-            <AlertDescription className="text-rose-700">{error}</AlertDescription>
-          </Alert>
-        )}
-        {hasError && (
-          <Alert className="border-amber-200 bg-amber-50">
-            <AlertCircle className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="text-amber-700">
-              {consulta.erro || 'Erro na consulta'}
-            </AlertDescription>
-          </Alert>
-        )}
-        <div className="grid grid-cols-3 gap-2 text-xs">
-          <div className="bg-slate-50 p-2.5 rounded-lg">
-            <span className="text-slate-400 block">CPF consultado</span>
-            <span className="font-semibold text-slate-800">
-              {formatCPF(consulta.cpf_consultado || cpf || '')}
-            </span>
+    <div className="space-y-6">
+      <Card className="border-slate-200 shadow-2xs">
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <div>
+            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <Scale className="h-5 w-5 text-indigo-600" /> Consulta jurídica — Escavador
+            </CardTitle>
+            <CardDescription className="text-xs mt-1">
+              Resultados da consulta selecionada
+            </CardDescription>
           </div>
-          <div className="bg-slate-50 p-2.5 rounded-lg">
-            <span className="text-slate-400 block">Data da consulta</span>
-            <span className="font-semibold text-slate-800">
-              {formatDateTime(consulta.consultado_em || consulta.created)}
-            </span>
-          </div>
-          <div className="bg-slate-50 p-2.5 rounded-lg">
-            <span className="text-slate-400 block">Consultado por</span>
-            <span className="font-semibold text-slate-800">
-              {consulta.expand?.consultado_por?.name || '—'}
-            </span>
-          </div>
-        </div>
-        {!hasError && (
-          <>
-            <div className="grid grid-cols-3 gap-2">
-              <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl text-center">
-                <span className="text-[10px] font-semibold text-indigo-800 uppercase block">
-                  Total
-                </span>
-                <span className="text-2xl font-black text-indigo-700">
-                  {consulta.total_processos || 0}
-                </span>
-              </div>
-              <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl text-center">
-                <span className="text-[10px] font-semibold text-amber-800 uppercase block">
-                  Ativos
-                </span>
-                <span className="text-2xl font-black text-amber-700">
-                  {consulta.total_processos_ativos || 0}
-                </span>
-              </div>
-              <div className="bg-slate-100 border border-slate-200 p-3 rounded-xl text-center">
-                <span className="text-[10px] font-semibold text-slate-600 uppercase block">
-                  Inativos
-                </span>
-                <span className="text-2xl font-black text-slate-600">
-                  {consulta.total_processos_inativos || 0}
-                </span>
-              </div>
+          {renderStatusBadge(selectedConsulta.status_consulta)}
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && (
+            <Alert className="border-rose-200 bg-rose-50">
+              <AlertCircle className="h-4 w-4 text-rose-600" />
+              <AlertDescription className="text-rose-700">{error}</AlertDescription>
+            </Alert>
+          )}
+          {hasError && (
+            <Alert className="border-amber-200 bg-amber-50">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-700">
+                {selectedConsulta.erro || 'Erro na consulta'}
+              </AlertDescription>
+            </Alert>
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+              <span className="text-slate-400 block font-medium">CPF consultado</span>
+              <span className="font-semibold text-slate-800">
+                {formatCPF(selectedConsulta.cpf_consultado || cpf || '')}
+              </span>
             </div>
-            {assuntos.length > 0 && (
-              <div>
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide block mb-2">
-                  Assuntos / Classes principais
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {assuntos.map((a) => (
-                    <Badge
-                      key={a.label}
-                      variant="outline"
-                      className="bg-slate-50 text-slate-700 border-slate-200"
-                    >
-                      {a.label} ({a.count})
-                    </Badge>
-                  ))}
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+              <span className="text-slate-400 block font-medium">Data da consulta</span>
+              <span className="font-semibold text-slate-800">
+                {formatDateTime(selectedConsulta.consultado_em || selectedConsulta.created)}
+              </span>
+            </div>
+            <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
+              <span className="text-slate-400 block font-medium">Consultado por</span>
+              <span className="font-semibold text-slate-800 truncate block">
+                {selectedConsulta.expand?.consultado_por?.name || '—'}
+              </span>
+            </div>
+          </div>
+
+          {!hasError && (
+            <>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-indigo-50 border border-indigo-100 p-3 rounded-xl text-center">
+                  <span className="text-[10px] font-semibold text-indigo-800 uppercase block">
+                    Total
+                  </span>
+                  <span className="text-2xl font-black text-indigo-700">
+                    {selectedConsulta.total_processos || 0}
+                  </span>
+                </div>
+                <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl text-center">
+                  <span className="text-[10px] font-semibold text-amber-800 uppercase block">
+                    Ativos
+                  </span>
+                  <span className="text-2xl font-black text-amber-700">
+                    {selectedConsulta.total_processos_ativos || 0}
+                  </span>
+                </div>
+                <div className="bg-slate-100 border border-slate-200 p-3 rounded-xl text-center">
+                  <span className="text-[10px] font-semibold text-slate-600 uppercase block">
+                    Inativos
+                  </span>
+                  <span className="text-2xl font-black text-slate-600">
+                    {selectedConsulta.total_processos_inativos || 0}
+                  </span>
                 </div>
               </div>
-            )}
-            <div>
-              <span className="text-xs font-bold text-slate-700 uppercase tracking-wide block mb-2">
-                Processos
-              </span>
-              {processos.length === 0 ? (
-                <p className="text-sm text-slate-500 text-center py-4">
-                  Nenhum processo encontrado
-                </p>
-              ) : (
-                <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {processos.map((proc: any, i: number) => (
-                    <div
-                      key={i}
-                      className="border border-slate-200 rounded-lg p-3 bg-white hover:bg-slate-50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-900 truncate">
-                            {getField(proc, 'numero', 'numero_cnj', 'numero_processo')}
-                          </p>
-                          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-slate-500 mt-1">
-                            <span>
-                              Tribunal:{' '}
-                              <strong className="text-slate-700">
-                                {getNestedField(
-                                  proc,
-                                  'tribunal.sigla',
-                                  'tribunal.nome',
-                                  'orgao',
-                                  'tribunal_sigla',
-                                )}
-                              </strong>
-                            </span>
-                            <span>
-                              Classe:{' '}
-                              <strong className="text-slate-700">
-                                {getNestedField(
-                                  proc,
-                                  'classe.nome',
-                                  'classe_processual',
-                                  'classe_nome',
-                                  'classe',
-                                )}
-                              </strong>
-                            </span>
-                            <span>
-                              Início:{' '}
-                              <strong className="text-slate-700">
-                                {getNestedField(
-                                  proc,
-                                  'data_ajuizamento',
-                                  'data_inicio',
-                                  'capa.data_ajuizamento',
-                                  'data',
-                                )}
-                              </strong>
-                            </span>
-                          </div>
-                          <div className="text-xs text-slate-500 mt-0.5">
-                            <span>
-                              Assunto:{' '}
-                              <strong className="text-slate-700">
-                                {(() => {
-                                  const fromArray = Array.isArray(proc.assuntos)
-                                    ? proc.assuntos
-                                        .map((a: any) =>
-                                          typeof a === 'string' ? a : a?.nome || a?.descricao || '',
-                                        )
-                                        .filter(Boolean)
-                                        .join(', ')
-                                    : ''
-                                  if (fromArray) return fromArray
-                                  const fromCapa = getNestedField(
-                                    proc,
-                                    'capa.assunto',
-                                    'capa.assunto_principal',
-                                  )
-                                  if (fromCapa !== '—') return fromCapa
-                                  if (Array.isArray(proc.fontes)) {
-                                    const fontesAssuntos = proc.fontes
-                                      .map((f: any) =>
-                                        typeof f === 'string'
-                                          ? f
-                                          : f?.assunto || f?.descricao || '',
-                                      )
-                                      .filter(Boolean)
-                                      .join(', ')
-                                    if (fontesAssuntos) return fontesAssuntos
-                                  }
-                                  return getField(proc, 'assunto')
-                                })()}
-                              </strong>
-                            </span>
-                          </div>
-                        </div>
-                        <Badge
-                          variant="outline"
-                          className={
-                            getField(proc, 'status', 'situacao').toLowerCase().includes('inativo')
-                              ? 'bg-slate-100 text-slate-600 border-slate-200'
-                              : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                          }
-                        >
-                          {getField(proc, 'status', 'situacao')}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
+
+              {assuntos.length > 0 && (
+                <div>
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide block mb-2">
+                    Assuntos / Classes principais
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {assuntos.map((a) => (
+                      <Badge
+                        key={a.label}
+                        variant="outline"
+                        className="bg-slate-50 text-slate-700 border-slate-200"
+                      >
+                        {a.label} ({a.count})
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               )}
+
+              <div>
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide block mb-2">
+                  Processos ({processos.length})
+                </span>
+                {processos.length === 0 ? (
+                  <p className="text-sm text-slate-500 text-center py-4 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                    Nenhum processo encontrado para este candidato.
+                  </p>
+                ) : (
+                  <div className="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                    {processos.map((proc: any, i: number) => {
+                      const numero = getProcessNumber(proc)
+                      const tribunalInfo = getTribunalInfo(proc)
+                      const classe = getProcessClass(proc)
+                      const vara = getProcessVara(proc)
+                      const dataAjuiz = getProcessData(proc)
+                      const assunto = getProcessAssunto(proc)
+                      const link = getProcessLink(proc)
+                      const statusProc = getField(proc, 'status', 'situacao')
+                      const isInactive = statusProc.toLowerCase().includes('inativo')
+
+                      return (
+                        <div
+                          key={i}
+                          className="border border-slate-200 rounded-xl p-3.5 bg-white hover:border-slate-300 transition-all shadow-2xs space-y-2.5"
+                        >
+                          <div className="flex items-start justify-between gap-2 flex-wrap sm:flex-nowrap">
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm font-bold text-slate-900 break-all">{numero}</p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {link && (
+                                <Button
+                                  asChild
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                >
+                                  <a href={link} target="_blank" rel="noopener noreferrer">
+                                    Ver no Escavador
+                                    <ExternalLink className="h-3 w-3 ml-1.5" />
+                                  </a>
+                                </Button>
+                              )}
+                              <Badge
+                                variant="outline"
+                                className={
+                                  isInactive
+                                    ? 'bg-slate-100 text-slate-600 border-slate-200'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                }
+                              >
+                                {statusProc !== '—' ? statusProc : isInactive ? 'Inativo' : 'Ativo'}
+                              </Badge>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-1.5 text-xs text-slate-600 bg-slate-50/80 p-2.5 rounded-lg border border-slate-100">
+                            <div>
+                              <span className="text-slate-400">Tribunal: </span>
+                              <strong className="text-slate-800 font-semibold">
+                                {tribunalInfo.display}
+                              </strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400">Classe: </span>
+                              <strong className="text-slate-800 font-semibold">{classe}</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400">Vara / Órgão: </span>
+                              <strong className="text-slate-800 font-semibold">{vara}</strong>
+                            </div>
+                            <div>
+                              <span className="text-slate-400">Distribuição: </span>
+                              <strong className="text-slate-800 font-semibold">{dataAjuiz}</strong>
+                            </div>
+                          </div>
+
+                          <div className="text-xs text-slate-600">
+                            <span className="text-slate-400">Assunto: </span>
+                            <span className="text-slate-800 font-medium">{assunto}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+
+          {cpfValido && (
+            <div className="pt-2 border-t border-slate-100">
+              <Button
+                variant="outline"
+                onClick={() => setShowUpdateDialog(true)}
+                disabled={consultando}
+                className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              >
+                <RefreshCw className="h-4 w-4 mr-2" /> Realizar nova consulta
+              </Button>
             </div>
-          </>
-        )}
-        {cpfValido && (
-          <>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Histórico de Consultas Jurídicas Section */}
+      <Card className="border-slate-200 shadow-2xs">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-bold text-slate-900 flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <History className="h-5 w-5 text-indigo-600" /> Histórico de Consultas Jurídicas
+            </span>
+            <Badge variant="secondary" className="bg-slate-100 text-slate-700">
+              {history.length} {history.length === 1 ? 'registro' : 'registros'}
+            </Badge>
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Registro de todas as consultas já realizadas para este candidato
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {history.map((item) => {
+              const isSelected = item.id === selectedConsulta.id
+              const totalProc = item.total_processos || 0
+              const ativosProc = item.total_processos_ativos || 0
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedConsulta(item)}
+                  className={`p-3 rounded-xl border transition-all cursor-pointer flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                    isSelected
+                      ? 'border-indigo-500 bg-indigo-50/50 shadow-2xs'
+                      : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/80 bg-white'
+                  }`}
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-slate-900">
+                        {formatDateTime(item.consultado_em || item.created)}
+                      </span>
+                      {renderStatusBadge(item.status_consulta)}
+                      {isSelected && (
+                        <Badge className="bg-indigo-600 text-white text-[10px] h-5">
+                          Visualizando
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      <span>Realizado por: </span>
+                      <span className="font-medium text-slate-700">
+                        {item.expand?.consultado_por?.name || 'Sistema'}
+                      </span>
+                      <span className="mx-1.5">•</span>
+                      <span>CPF: {formatCPF(item.cpf_consultado || '')}</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between sm:justify-end gap-3 text-xs shrink-0">
+                    <div className="text-right">
+                      <span className="font-bold text-slate-800 block">
+                        {totalProc} {totalProc === 1 ? 'processo' : 'processos'}
+                      </span>
+                      <span className="text-[11px] text-slate-500">
+                        ({ativosProc} {ativosProc === 1 ? 'ativo' : 'ativos'})
+                      </span>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant={isSelected ? 'default' : 'ghost'}
+                      className={
+                        isSelected
+                          ? 'bg-indigo-600 text-white h-8 text-xs'
+                          : 'text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 h-8 text-xs'
+                      }
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setSelectedConsulta(item)
+                      }}
+                    >
+                      {isSelected ? 'Selecionado' : 'Ver detalhes'}
+                    </Button>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      <AlertDialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Atualizar consulta jurídica</AlertDialogTitle>
+            <AlertDialogDescription>
+              A última consulta foi realizada em{' '}
+              {formatDateTime(selectedConsulta.consultado_em || selectedConsulta.created)}. Deseja
+              realizar uma nova consulta na API Escavador?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <Button
-              variant="outline"
-              onClick={() => setShowUpdateDialog(true)}
+              onClick={handleConsultar}
               disabled={consultando}
-              className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white"
             >
-              <RefreshCw className="h-4 w-4 mr-2" /> Atualizar consulta
+              {consultando ? 'Consultando...' : 'Confirmar nova consulta'}
             </Button>
-            <AlertDialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Atualizar consulta jurídica</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    A última consulta foi realizada em{' '}
-                    {formatDateTime(consulta.consultado_em || consulta.created)}. Deseja realizar
-                    uma nova consulta à API Escavador?
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                  <Button
-                    onClick={handleConsultar}
-                    disabled={consultando}
-                    className="bg-indigo-600 hover:bg-indigo-500 text-white"
-                  >
-                    {consultando ? 'Consultando...' : 'Confirmar nova consulta'}
-                  </Button>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </>
-        )}
-      </CardContent>
-    </Card>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
   )
 }

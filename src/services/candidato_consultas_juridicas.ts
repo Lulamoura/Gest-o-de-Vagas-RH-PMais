@@ -12,6 +12,17 @@ export const getLatestConsultaJuridica = async (candidateId: string) => {
   return results.items[0] || null
 }
 
+export const getConsultaJuridicaHistory = async (candidateId: string) => {
+  const results = await pb
+    .collection<CandidatoConsultaJuridicaRecord>('candidato_consultas_juridicas')
+    .getFullList({
+      filter: `candidato_id = "${candidateId}"`,
+      sort: '-created',
+      expand: 'consultado_por',
+    })
+  return results
+}
+
 export const performConsultaJuridica = async (candidateId: string) => {
   try {
     return await pb.send(`/backend/v1/candidatos/${candidateId}/consulta-juridica`, {
