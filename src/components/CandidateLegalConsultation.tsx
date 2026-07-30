@@ -68,7 +68,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   const [error, setError] = useState<string | null>(null)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
   const [interactionStates, setInteractionStates] = useState<Record<string, SummaryState>>({})
-  const [detailModalProcess, setDetailModalProcess] = useState<string | null>(null)
+  const [detailModalProcess, setDetailModalProcess] = useState<any | null>(null)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
 
   const cpfValido = cpf ? validateCPF(cpf) : false
@@ -320,8 +320,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
     }))
   }
 
-  const handleOpenDetail = (numeroProcesso: string) => {
-    setDetailModalProcess(numeroProcesso)
+  const handleOpenDetail = (processData: any) => {
+    setDetailModalProcess(processData)
     setDetailModalOpen(true)
   }
 
@@ -606,7 +606,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                                 <Button
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => handleOpenDetail(numero)}
+                                  onClick={() => handleOpenDetail(proc)}
                                   className="h-7 px-2.5 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
                                 >
                                   <FileSearch className="h-3 w-3 mr-1" />
@@ -796,7 +796,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       </AlertDialog>
 
       <ProcessDetailModal
-        numeroProcesso={detailModalProcess}
+        processData={detailModalProcess}
         open={detailModalOpen}
         onOpenChange={setDetailModalOpen}
       />
