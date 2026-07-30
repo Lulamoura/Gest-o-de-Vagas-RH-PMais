@@ -152,22 +152,18 @@ export default function Dashboard() {
   }, [openVacancies])
 
   const mandatoryIndicatorData = useMemo(() => {
-    const vacanciesWithPreApproved = new Set(
-      filteredCandidates
-        .filter((c) => c.status_candidato === 'Documentação e exame')
-        .map((c) => c.vacancy_id),
-    )
-    const totalVacanciesWithoutPreApproved = openVacancies.filter(
-      (v) => !vacanciesWithPreApproved.has(v.id),
+    const totalPosicoes = openVacancies.reduce((acc, v) => acc + (v.quantidade_vagas || 0), 0)
+    const candidatosEmProcesso = filteredCandidates.filter(
+      (c) =>
+        c.vacancy_id && !['Desistente', 'Desclassificado', 'Em banco'].includes(c.status_candidato),
     ).length
-    const totalPreApprovedCandidates = filteredCandidates.filter(
-      (c) => c.status_candidato === 'Documentação e exame',
+    const candidatosIntegrados = filteredCandidates.filter(
+      (c) => c.status_candidato === 'Integrado',
     ).length
     return {
-      totalVacanciesWithoutPreApproved,
-      totalVacancies: openVacancies.length,
-      totalCandidates: filteredCandidates.length,
-      totalPreApprovedCandidates,
+      candidatosEmProcesso,
+      totalPosicoes,
+      candidatosIntegrados,
     }
   }, [openVacancies, filteredCandidates])
 
@@ -382,10 +378,9 @@ export default function Dashboard() {
       </Card>
 
       <MandatoryIndicatorCard
-        totalVacanciesWithoutPreApproved={mandatoryIndicatorData.totalVacanciesWithoutPreApproved}
-        totalVacancies={mandatoryIndicatorData.totalVacancies}
-        totalCandidates={mandatoryIndicatorData.totalCandidates}
-        totalPreApprovedCandidates={mandatoryIndicatorData.totalPreApprovedCandidates}
+        candidatosEmProcesso={mandatoryIndicatorData.candidatosEmProcesso}
+        totalPosicoes={mandatoryIndicatorData.totalPosicoes}
+        candidatosIntegrados={mandatoryIndicatorData.candidatosIntegrados}
       />
 
       {/* KPI Cards Row */}

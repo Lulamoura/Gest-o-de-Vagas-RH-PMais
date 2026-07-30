@@ -92,6 +92,7 @@ import { StarRating } from '@/components/StarRating'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { Textarea } from '@/components/ui/textarea'
 import { extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
+import { isCandidateStatusEnabled } from '@/lib/candidate-validation'
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
@@ -152,6 +153,9 @@ export default function VacancyDetail() {
   const [nomePaiCandidato, setNomePaiCandidato] = useState('')
   const [nomeMaeCandidato, setNomeMaeCandidato] = useState('')
   const [telefoneEmergenciaCandidato, setTelefoneEmergenciaCandidato] = useState('')
+  const [cpfCandidato, setCpfCandidato] = useState('')
+  const [cidadeCandidato, setCidadeCandidato] = useState('')
+  const [bairroCandidato, setBairroCandidato] = useState('')
 
   // Complement email
   const [sendingEmail, setSendingEmail] = useState(false)
@@ -236,6 +240,9 @@ export default function VacancyDetail() {
         nome: nomeCandidato,
         email: emailCandidato,
         telefone: telefoneCandidato,
+        cpf: cpfCandidato,
+        cidade: cidadeCandidato,
+        bairro: bairroCandidato,
         custo_consultas: Number(custoConsultas),
         custo_exames: Number(custoExames),
         custo_testes: Number(custoTestes),
@@ -265,6 +272,9 @@ export default function VacancyDetail() {
       setRgCandidato('')
       setTamanhoFardamentoCandidato('')
       setTamanhoSapatoCandidato('')
+      setCpfCandidato('')
+      setCidadeCandidato('')
+      setBairroCandidato('')
       setValeTransporteCandidato(0)
       setNomePaiCandidato('')
       setNomeMaeCandidato('')
@@ -459,6 +469,26 @@ export default function VacancyDetail() {
     () => Object.values(phaseCounts).some((count) => count > 0),
     [phaseCounts],
   )
+
+  const isAddStatusEnabled = isCandidateStatusEnabled({
+    nome: nomeCandidato,
+    email: emailCandidato,
+    telefone: telefoneCandidato,
+    cpf: cpfCandidato,
+    cidade: cidadeCandidato,
+    bairro: bairroCandidato,
+    vacancy_id: id,
+  })
+
+  const isEditStatusEnabled = isCandidateStatusEnabled({
+    nome: editNome,
+    email: editEmail,
+    telefone: editTelefone,
+    cpf: editCpf,
+    cidade: editCidade,
+    bairro: editBairro,
+    vacancy_id: editingCandidate?.vacancy_id,
+  })
 
   if (loading || !vaga) {
     return (
@@ -669,10 +699,13 @@ export default function VacancyDetail() {
 
       {/* Mandatory Indicator Card for this vacancy */}
       <MandatoryIndicatorCard
-        totalVacanciesWithoutPreApproved={preApprovedCount === 0 ? 1 : 0}
-        totalVacancies={1}
-        totalCandidates={candidates.length}
-        totalPreApprovedCandidates={preApprovedCount}
+        candidatosEmProcesso={
+          candidates.filter(
+            (c) => !['Desistente', 'Desclassificado', 'Em banco'].includes(c.status_candidato),
+          ).length
+        }
+        totalPosicoes={vaga.status_vaga === 'Aberta' ? vaga.quantidade_vagas || 0 : 0}
+        candidatosIntegrados={candidates.filter((c) => c.status_candidato === 'Integrado').length}
         compact
       />
 
@@ -1037,13 +1070,51 @@ export default function VacancyDetail() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="cCpf" className="text-xs font-semibold text-slate-700">
+                  CPF
+                </Label>
+                <Input
+                  id="cCpf"
+                  placeholder="000.000.000-00"
+                  value={cpfCandidato}
+                  onChange={(e) => setCpfCandidato(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cCidade" className="text-xs font-semibold text-slate-700">
+                  Cidade
+                </Label>
+                <Input
+                  id="cCidade"
+                  value={cidadeCandidato}
+                  onChange={(e) => setCidadeCandidato(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="cBairro" className="text-xs font-semibold text-slate-700">
+                  Bairro
+                </Label>
+                <Input
+                  id="cBairro"
+                  value={bairroCandidato}
+                  onChange={(e) => setBairroCandidato(e.target.value)}
+                />
+              </div>
+            </div>
+
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-slate-700">Status Inicial</Label>
               <Select
                 value={statusCandidato}
                 onValueChange={(v) => setStatusCandidato(v as CandidateStatus)}
+                disabled={!isAddStatusEnabled}
               >
-                <SelectTrigger>
+                <SelectTrigger disabled={!isAddStatusEnabled}>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1321,8 +1392,12 @@ export default function VacancyDetail() {
 
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-slate-700">Status do Candidato</Label>
-              <Select value={editStatus} onValueChange={(v) => setEditStatus(v as CandidateStatus)}>
-                <SelectTrigger>
+              <Select
+                value={editStatus}
+                onValueChange={(v) => setEditStatus(v as CandidateStatus)}
+                disabled={!isEditStatusEnabled}
+              >
+                <SelectTrigger disabled={!isEditStatusEnabled}>
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>

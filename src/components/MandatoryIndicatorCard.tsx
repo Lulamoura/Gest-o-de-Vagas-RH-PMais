@@ -3,22 +3,24 @@ import { Badge } from '@/components/ui/badge'
 import { AlertCircle, CheckCircle2, FileSpreadsheet } from 'lucide-react'
 
 interface MandatoryIndicatorProps {
-  totalVacanciesWithoutPreApproved: number
-  totalVacancies: number
-  totalCandidates: number
-  totalPreApprovedCandidates: number
+  candidatosEmProcesso: number
+  totalPosicoes: number
+  candidatosIntegrados: number
   compact?: boolean
 }
 
+function formatPercent(value: number): string {
+  return value.toFixed(1).replace('.', ',')
+}
+
 export function MandatoryIndicatorCard({
-  totalVacanciesWithoutPreApproved,
-  totalVacancies,
-  totalCandidates,
-  totalPreApprovedCandidates,
+  candidatosEmProcesso,
+  totalPosicoes,
+  candidatosIntegrados,
   compact = false,
 }: MandatoryIndicatorProps) {
-  const percentage =
-    totalVacancies > 0 ? Math.round((totalVacanciesWithoutPreApproved / totalVacancies) * 100) : 0
+  const percentual = totalPosicoes > 0 ? (candidatosEmProcesso / totalPosicoes) * 100 : 0
+  const taxa = totalPosicoes > 0 ? (candidatosIntegrados / totalPosicoes) * 100 : 0
 
   return (
     <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50/70 via-white to-purple-50/50 shadow-sm relative overflow-hidden">
@@ -35,7 +37,7 @@ export function MandatoryIndicatorCard({
                 Indicador Obrigatório de RH (PMais)
               </CardTitle>
               <p className="text-xs text-slate-500 font-medium">
-                Vagas sem candidato em pré-aprovação vs Total de candidatos
+                Razão de vagas em seleção e candidatos integrados no pipeline
               </p>
             </div>
           </div>
@@ -53,18 +55,18 @@ export function MandatoryIndicatorCard({
           <div className="bg-white/80 backdrop-blur border border-indigo-100 p-3.5 rounded-xl shadow-2xs flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                Vagas sem Pré-Aprovação
+                RAZÃO DE VAGAS EM SELEÇÃO
               </span>
               <div className="flex items-baseline space-x-2">
                 <span className="text-2xl font-extrabold text-slate-900">
-                  {totalVacanciesWithoutPreApproved}
+                  {candidatosEmProcesso} / {totalPosicoes}
                 </span>
                 <span className="text-xs font-medium text-slate-500">
-                  / {totalVacancies} vagas aterrissadas ({percentage}%)
+                  – {formatPercent(percentual)}%
                 </span>
               </div>
             </div>
-            {totalVacanciesWithoutPreApproved > 0 ? (
+            {candidatosEmProcesso > 0 ? (
               <AlertCircle className="h-7 w-7 text-amber-500 shrink-0" />
             ) : (
               <CheckCircle2 className="h-7 w-7 text-emerald-500 shrink-0" />
@@ -74,21 +76,18 @@ export function MandatoryIndicatorCard({
           <div className="bg-white/80 backdrop-blur border border-indigo-100 p-3.5 rounded-xl shadow-2xs flex items-center justify-between">
             <div>
               <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
-                Candidatos no Pipeline
+                CANDIDATOS INTEGRADOS NO PIPELINE
               </span>
               <div className="flex items-baseline space-x-2">
-                <span className="text-2xl font-extrabold text-indigo-700">{totalCandidates}</span>
-                <span className="text-xs font-medium text-slate-500">
-                  ({totalPreApprovedCandidates} pré-aprovados)
+                <span className="text-2xl font-extrabold text-indigo-700">
+                  {candidatosIntegrados} / {totalPosicoes}
                 </span>
+                <span className="text-xs font-medium text-slate-500">– {formatPercent(taxa)}%</span>
               </div>
             </div>
             <div className="text-right">
               <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-indigo-100 text-indigo-800">
-                {totalCandidates > 0
-                  ? ((totalPreApprovedCandidates / totalCandidates) * 100).toFixed(0)
-                  : 0}
-                % taxa
+                {formatPercent(taxa)}% taxa
               </span>
             </div>
           </div>
