@@ -20,6 +20,7 @@ import {
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   Loader2,
   AlertCircle,
@@ -53,20 +54,30 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [detail, setDetail] = useState<ProcessDetail | null>(null)
+  const [activeTab, setActiveTab] = useState<string>('geral')
 
   const fetchData = useCallback(async (processNum: string) => {
     setLoading(true)
     setError(null)
     setDetail(null)
+    setActiveTab('geral')
     try {
       const result = await getProcessoDetalhes(processNum)
       setDetail(result)
     } catch (err: any) {
-      const msg =
-        err?.response?.error ||
-        err?.data?.error ||
-        err?.message ||
-        'Não foi possível carregar os detalhes do processo.'
+      let msg = 'Erro ao carregar detalhes. Tente novamente mais tarde.'
+      if (err?.status === 404 || err?.response?.status === 404) {
+        msg = 'Processo não encontrado na base do Escavador.'
+      } else if (err?.response?.error) {
+        msg = err.response.error
+      } else if (err?.data?.error) {
+        msg = err.data.error
+      } else if (
+        err?.message &&
+        (err.message.includes('não encontrado') || err.message.includes('404'))
+      ) {
+        msg = 'Processo não encontrado na base do Escavador.'
+      }
       setError(msg)
     } finally {
       setLoading(false)
@@ -249,29 +260,31 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
             <Scale className="h-5 w-5 text-indigo-600" />
             Detalhes do Processo
           </DialogTitle>
-          <DialogDescription className="text-xs text-slate-500 break-all">
+          <DialogDescription className="text-xs text-slate-500 break-all font-mono">
             {procNumDisplay}
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-6 py-4">
+        <div className="flex-1 overflow-hidden flex flex-col p-6">
           {loading && (
-            <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="flex flex-col items-center justify-center py-16 gap-3 my-auto">
               <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-              <p className="text-sm text-slate-500">Carregando detalhes do processo...</p>
+              <p className="text-sm font-medium text-slate-600">
+                Carregando detalhes do processo...
+              </p>
             </div>
           )}
 
           {error && !loading && (
-            <div className="flex flex-col items-center justify-center py-16 gap-4">
-              <div className="flex items-center gap-2 text-rose-600 bg-rose-50 p-4 rounded-lg border border-rose-200 max-w-md">
-                <AlertCircle className="h-5 w-5 shrink-0" />
-                <span className="text-sm text-rose-700">{error}</span>
+            <div className="flex flex-col items-center justify-center py-12 gap-5 text-center my-auto">
+              <div className="flex items-center justify-center gap-2.5 text-rose-600 bg-rose-50/90 px-6 py-4 rounded-xl border border-rose-200 max-w-md w-full shadow-2xs">
+                <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
+                <span className="text-sm font-medium text-rose-700">{error}</span>
               </div>
               <Button
                 onClick={handleRetry}
                 variant="outline"
-                className="border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 px-5"
               >
                 <RefreshCw className="h-4 w-4 mr-2" /> Tentar novamente
               </Button>
@@ -279,67 +292,96 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
           )}
 
           {!loading && !error && realDetail && (
-            <div className="space-y-6 pb-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline" className="bg-slate-50 text-slate-700 border-slate-200">
-                  {tribunalInfo.display}
-                </Badge>
-                {statusProc !== '—' && (
-                  <Badge
-                    variant="outline"
-                    className={
-                      statusProc.toLowerCase().includes('inativo') ||
-                      statusProc.toLowerCase().includes('arquiv')
-                        ? 'bg-slate-100 text-slate-600 border-slate-200'
-                        : 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    }
-                  >
-                    {statusProc}
-                  </Badge>
-                )}
-              </div>
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="flex-1 flex flex-col overflow-hidden"
+            >
+              <TabsList className="grid w-full grid-cols-3 mb-4 shrink-0 bg-slate-100">
+                <TabsTrigger
+                  value="geral"
+                  className="text-xs font-semibold flex items-center gap-1.5"
+                >
+                  <Info className="h-3.5 w-3.5" /> Visão Geral
+                </TabsTrigger>
+                <TabsTrigger
+                  value="partes"
+                  className="text-xs font-semibold flex items-center gap-1.5"
+                >
+                  <Users className="h-3.5 w-3.5" /> Partes ({parties.length})
+                </TabsTrigger>
+                <TabsTrigger
+                  value="movimentacoes"
+                  className="text-xs font-semibold flex items-center gap-1.5"
+                >
+                  <FileText className="h-3.5 w-3.5" /> Movimentações ({movements.length})
+                </TabsTrigger>
+              </TabsList>
 
-              <section>
-                <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 mb-3">
-                  <Info className="h-4 w-4 text-indigo-600" /> Informações Gerais
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <InfoRow label="Número CNJ" value={procNumDisplay} />
-                  <InfoRow label="Tribunal" value={tribunalInfo.display} />
-                  <InfoRow label="Classe" value={classe} />
-                  <InfoRow label="Assunto" value={assunto} />
-                  <InfoRow label="Juiz" value={juiz} />
-                  <InfoRow label="Órgão Julgador" value={orgaoJulgador} />
-                  <InfoRow
-                    label="Distribuição"
-                    value={dataAjuiz}
-                    icon={<Calendar className="h-3 w-3 text-slate-400" />}
-                  />
-                  <InfoRow
-                    label="Valor da Causa"
-                    value={formatValor(valorCausa)}
-                    icon={<DollarSign className="h-3 w-3 text-slate-400" />}
-                  />
-                </div>
-              </section>
+              <ScrollArea className="flex-1 pr-2">
+                <TabsContent value="geral" className="mt-0 space-y-4">
+                  <div className="flex flex-wrap items-center gap-2 pb-1">
+                    <Badge
+                      variant="outline"
+                      className="bg-slate-50 text-slate-700 border-slate-200"
+                    >
+                      {tribunalInfo.display}
+                    </Badge>
+                    {statusProc !== '—' && (
+                      <Badge
+                        variant="outline"
+                        className={
+                          statusProc.toLowerCase().includes('inativo') ||
+                          statusProc.toLowerCase().includes('arquiv')
+                            ? 'bg-slate-100 text-slate-600 border-slate-200'
+                            : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        }
+                      >
+                        {statusProc}
+                      </Badge>
+                    )}
+                  </div>
 
-              {parties.length > 0 && (
-                <section>
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 mb-3">
-                    <Users className="h-4 w-4 text-indigo-600" /> Partes Envolvidas
-                  </h3>
-                  <div className="space-y-2">
-                    {parties.map((p, i) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <InfoRow label="Número CNJ" value={procNumDisplay} />
+                    <InfoRow label="Tribunal" value={tribunalInfo.display} />
+                    <InfoRow label="Classe" value={classe} />
+                    <InfoRow label="Assunto" value={assunto} />
+                    <InfoRow label="Juiz / Magistrado" value={juiz} />
+                    <InfoRow label="Órgão Julgador / Vara" value={orgaoJulgador} />
+                    <InfoRow
+                      label="Distribuição"
+                      value={dataAjuiz}
+                      icon={<Calendar className="h-3 w-3 text-slate-400" />}
+                    />
+                    <InfoRow
+                      label="Valor da Causa"
+                      value={formatValor(valorCausa)}
+                      icon={<DollarSign className="h-3 w-3 text-slate-400" />}
+                    />
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="partes" className="mt-0 space-y-2">
+                  {parties.length === 0 ? (
+                    <div className="flex items-center justify-center gap-2 text-xs text-slate-500 bg-slate-50 p-6 rounded-lg border border-dashed border-slate-200">
+                      <Users className="h-4 w-4 text-slate-400 shrink-0" />
+                      Nenhuma parte registrada para este processo.
+                    </div>
+                  ) : (
+                    parties.map((p, i) => (
                       <div
                         key={i}
-                        className="flex items-start justify-between gap-2 p-2.5 rounded-lg bg-slate-50 border border-slate-100"
+                        className="flex items-start justify-between gap-3 p-3 rounded-lg bg-slate-50 border border-slate-100"
                       >
                         <div className="min-w-0 flex-1">
                           <span className="text-sm font-semibold text-slate-800 break-words block">
                             {p.nome}
                           </span>
                           {p.categoria && p.categoria !== '—' && (
-                            <span className="text-[11px] text-slate-400">{p.categoria}</span>
+                            <span className="text-[11px] text-slate-400 block mt-0.5">
+                              {p.categoria}
+                            </span>
                           )}
                         </div>
                         {p.tipo !== '—' && (
@@ -351,47 +393,36 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
                           </Badge>
                         )}
                       </div>
-                    ))}
-                  </div>
-                </section>
-              )}
+                    ))
+                  )}
+                </TabsContent>
 
-              {movements.length > 0 && (
-                <section>
-                  <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide flex items-center gap-1.5 mb-3">
-                    <FileText className="h-4 w-4 text-indigo-600" /> Movimentações (
-                    {movements.length})
-                  </h3>
-                  <div className="space-y-2 max-h-[400px] overflow-y-auto pr-1">
-                    {movements.map((m, i) => (
+                <TabsContent value="movimentacoes" className="mt-0 space-y-2">
+                  {movements.length === 0 ? (
+                    <div className="flex items-center justify-center gap-2 text-xs text-slate-500 bg-slate-50 p-6 rounded-lg border border-dashed border-slate-200">
+                      <Gavel className="h-4 w-4 text-slate-400 shrink-0" />
+                      Nenhuma movimentação registrada.
+                    </div>
+                  ) : (
+                    movements.map((m, i) => (
                       <div
                         key={i}
-                        className="flex gap-3 p-2.5 rounded-lg bg-white border border-slate-100"
+                        className="flex gap-3 p-3 rounded-lg bg-white border border-slate-100 hover:border-slate-200 transition-colors"
                       >
-                        <div className="shrink-0 w-20 text-[11px] text-slate-500 font-medium">
+                        <div className="shrink-0 w-24 text-[11px] text-slate-500 font-medium">
                           {formatDateMov(m.data)}
                         </div>
-                        <div className="flex-1 text-xs text-slate-700 leading-relaxed">
+                        <div className="flex-1 text-xs text-slate-700 leading-relaxed break-words">
                           {m.descricao}
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {parties.length === 0 && movements.length === 0 && (
-                <section>
-                  <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 p-4 rounded-lg border border-dashed border-slate-200">
-                    <Gavel className="h-4 w-4 text-slate-400 shrink-0" />
-                    Informações adicionais de partes e movimentações não estão disponíveis para este
-                    processo.
-                  </div>
-                </section>
-              )}
-            </div>
+                    ))
+                  )}
+                </TabsContent>
+              </ScrollArea>
+            </Tabs>
           )}
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   )
@@ -400,11 +431,11 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
 function InfoRow({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
     <div className="flex flex-col p-2.5 rounded-lg bg-slate-50 border border-slate-100">
-      <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+      <span className="text-[11px] text-slate-400 font-medium flex items-center gap-1 mb-0.5">
         {icon}
         {label}
       </span>
-      <span className="text-sm font-semibold text-slate-800 break-words">{value}</span>
+      <span className="text-xs font-semibold text-slate-800 break-words">{value}</span>
     </div>
   )
 }
