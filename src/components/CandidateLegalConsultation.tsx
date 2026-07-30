@@ -132,35 +132,26 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       return
     }
 
-    const isNewConsulta = selectedConsultaIdRef.current !== selectedConsulta.id
     selectedConsultaIdRef.current = selectedConsulta.id
 
     const resumoJson = parseResumoJson(selectedConsulta.resumo_json)
     const processoResumos = resumoJson?.processo_resumos || {}
 
-    if (isNewConsulta) {
+    setSummaryStates((prev) => {
       const next: typeof summaryStates = {}
       for (const [num, rawSummary] of Object.entries(processoResumos)) {
         const summary = extractSummaryText(rawSummary)
         if (summary) {
-          next[num] = { summary, loading: false, expanded: false, error: undefined }
-        }
-      }
-      setSummaryStates(next)
-    } else {
-      setSummaryStates((prev) => {
-        let changed = false
-        const next = { ...prev }
-        for (const [num, rawSummary] of Object.entries(processoResumos)) {
-          const summary = extractSummaryText(rawSummary)
-          if (summary && !next[num]?.summary) {
-            next[num] = { summary, loading: false, expanded: false, error: undefined }
-            changed = true
+          next[num] = {
+            summary,
+            loading: false,
+            expanded: prev[num]?.expanded ?? false,
+            error: undefined,
           }
         }
-        return changed ? next : prev
-      })
-    }
+      }
+      return next
+    })
   }, [selectedConsulta])
 
   const handleFetchSummary = async (numeroProcesso: string) => {
