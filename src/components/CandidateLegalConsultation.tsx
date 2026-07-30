@@ -137,6 +137,11 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
     const resumoJson = parseResumoJson(selectedConsulta.resumo_json)
     const processoResumos = resumoJson?.processo_resumos || {}
 
+    const processos = selectedConsulta.processos_json || []
+    const processoNumeros = new Set(
+      processos.map((p: any) => getProcessNumber(p)).filter((n: string) => n && n !== '—'),
+    )
+
     setSummaryStates((prev) => {
       const next: typeof summaryStates = {}
       for (const [num, rawSummary] of Object.entries(processoResumos)) {
@@ -148,6 +153,11 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
             expanded: prev[num]?.expanded ?? false,
             error: undefined,
           }
+        }
+      }
+      for (const num of processoNumeros) {
+        if (!next[num] && prev[num]) {
+          next[num] = prev[num]
         }
       }
       return next
