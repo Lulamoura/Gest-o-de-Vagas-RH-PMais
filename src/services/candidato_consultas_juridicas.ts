@@ -1,6 +1,13 @@
 import pb from '@/lib/pocketbase/client'
 import { CandidatoConsultaJuridicaRecord } from '@/types'
 
+export interface ProcessAnalysis {
+  analise_risco: string
+  detalhamento_partes: string
+  movimentacoes_relevantes: string
+  recomendacao_rh: string
+}
+
 export const getLatestConsultaJuridica = async (
   candidateId: string,
 ): Promise<CandidatoConsultaJuridicaRecord | null> => {
@@ -87,6 +94,31 @@ export const getProcessoResumoIA = async (
       consulta_id: consultaId,
       numeroProcesso,
       consultaId,
+    }),
+    headers,
+  })
+}
+
+export const getProcessoAnaliseDetalhada = async (
+  consultaId: string,
+  processoId: string,
+): Promise<ProcessAnalysis> => {
+  if (!consultaId || !processoId) {
+    throw new Error('ID da consulta e ID do processo são obrigatórios')
+  }
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  }
+  if (pb.authStore.token) {
+    headers['Authorization'] = pb.authStore.token
+  }
+
+  return pb.send(`/backend/v1/processo/analise-detalhada`, {
+    method: 'POST',
+    body: JSON.stringify({
+      consulta_id: consultaId,
+      processo_id: processoId,
     }),
     headers,
   })

@@ -3,7 +3,8 @@ import {
   getConsultaJuridicaHistory,
   performConsultaJuridica,
   getProcessoResumoIA,
-  getProcessoDetalhes,
+  getProcessoAnaliseDetalhada,
+  type ProcessAnalysis,
 } from '@/services/candidato_consultas_juridicas'
 import { CandidatoConsultaJuridicaRecord } from '@/types'
 import { validateCPF, formatCPF } from '@/lib/cpf-utils'
@@ -69,10 +70,11 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   const [error, setError] = useState<string | null>(null)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
   const [interactionStates, setInteractionStates] = useState<Record<string, SummaryState>>({})
-  const [detailModalProcess, setDetailModalProcess] = useState<any | null>(null)
-  const [detailModalOpen, setDetailModalOpen] = useState(false)
-  const [detailModalLoading, setDetailModalLoading] = useState(false)
-  const [detailModalError, setDetailModalError] = useState<string | null>(null)
+  const [analysisData, setAnalysisData] = useState<ProcessAnalysis | null>(null)
+  const [analysisModalOpen, setAnalysisModalOpen] = useState(false)
+  const [analysisModalLoading, setAnalysisModalLoading] = useState(false)
+  const [analysisModalError, setAnalysisModalError] = useState<string | null>(null)
+  const [analysisModalNumero, setAnalysisModalNumero] = useState('')
 
   const cpfValido = cpf ? validateCPF(cpf) : false
 
@@ -350,30 +352,29 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       toast.error('Não foi possível identificar o número ou ID do processo')
       return
     }
+    if (!selectedConsulta) {
+      toast.error('Nenhuma consulta selecionada')
+      return
+    }
 
-    setDetailModalLoading(true)
-    setDetailModalError(null)
-    setDetailModalProcess(processData)
-    setDetailModalOpen(true)
+    setAnalysisModalLoading(true)
+    setAnalysisModalError(null)
+    setAnalysisData(null)
+    setAnalysisModalNumero(numeroProc !== '—' ? numeroProc : procIdentifier)
+    setAnalysisModalOpen(true)
 
     try {
-      const consultaId = selectedConsulta?.id || ''
-      const detail = await getProcessoDetalhes(procIdentifier, consultaId, numeroProc)
-      if (detail && typeof detail === 'object' && Object.keys(detail).length > 0) {
-        setDetailModalProcess(detail)
-      }
+      const result = await getProcessoAnaliseDetalhada(selectedConsulta.id, procIdentifier)
+      setAnalysisData(result)
     } catch (err: any) {
       const errorMsg =
         err?.response?.error ||
         err?.response?.message ||
         err?.message ||
-        'Não foi possível carregar os detalhes do processo'
-      if (!processData || Object.keys(processData).length === 0) {
-        setDetailModalError(errorMsg)
-        toast.error(errorMsg)
-      }
+        'Não foi possível gerar a análise detalhada. Tente novamente.'
+      setAnalysisModalError(errorMsg)
     } finally {
-      setDetailModalLoading(false)
+      setAnalysisModalLoading(false)
     }
   }
 
@@ -667,15 +668,15 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                                     Resumo da IA
                                   </Button>
                                 ))}
-                              {numero !== '—' && (
+                              {procIdentifier !== '' && (
                                 <Button
                                   size="sm"
                                   variant="outline"
                                   onClick={() => handleOpenDetail(proc)}
-                                  className="h-7 px-2.5 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
+                                  className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
                                 >
                                   <FileSearch className="h-3 w-3 mr-1" />
-                                  Ver detalhes
+                                  Análise Detalhada
                                 </Button>
                               )}
                               <Badge
@@ -865,11 +866,12 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       </AlertDialog>
 
       <ProcessDetailModal
-        processData={detailModalProcess}
-        open={detailModalOpen}
-        onOpenChange={setDetailModalOpen}
-        loading={detailModalLoading}
-        error={detailModalError}
+        analysisData={analysisData}
+        processoNumero={analysisModalNumero}
+        open={analysisModalOpen}
+        onOpenChange={setAnalysisModalOpen}
+        loading={analysisModalLoading}
+        error={analysisModalError}
       />
     </div>
   )
