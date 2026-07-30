@@ -26,28 +26,27 @@ routerAdd(
       try {
         processos = JSON.parse(procRaw) || []
       } catch (parseErr) {
-        $app
-          .logger()
-          .error(
-            'Erro ao parsear processos_json',
-            'error',
-            String(parseErr),
-            'consulta_id',
-            consultaId,
-          )
         processos = []
       }
-    } else if (Array.isArray(procRaw)) {
-      processos = JSON.parse(JSON.stringify(procRaw))
+    } else if (procRaw != null) {
+      try {
+        processos = JSON.parse(JSON.stringify(procRaw)) || []
+      } catch (_) {
+        processos = []
+      }
     }
 
     var procEncontrado = null
+    var cleanSearchNum = numeroProcesso.replace(/[^\d]/g, '')
     for (var i = 0; i < processos.length; i++) {
       var p = processos[i]
       if (!p || typeof p !== 'object') continue
       var num =
         p.numero_cnj || p.numero || p.numero_processo || p.titulo || (p.capa && p.capa.numero) || ''
-      if (num === numeroProcesso) {
+      if (
+        num === numeroProcesso ||
+        (cleanSearchNum && String(num).replace(/[^\d]/g, '') === cleanSearchNum)
+      ) {
         procEncontrado = p
         break
       }
@@ -58,17 +57,7 @@ routerAdd(
       try {
         contexto += '\n\nDados do processo:\n' + JSON.stringify(procEncontrado, null, 2)
       } catch (serializeErr) {
-        $app
-          .logger()
-          .error(
-            'Erro ao serializar dados do processo',
-            'error',
-            String(serializeErr),
-            'consulta_id',
-            consultaId,
-            'processo',
-            numeroProcesso,
-          )
+        $app.logger().error('Erro ao serializar dados do processo', 'error', String(serializeErr))
       }
     }
 
@@ -123,69 +112,38 @@ routerAdd(
     try {
       var freshRecord = $app.findRecordById('candidato_consultas_juridicas', consultaId)
 
-      var resumoRaw = freshRecord.get('resumo_json')
-      var resumoJson = {}
-      if (resumoRaw != null) {
-        if (typeof resumoRaw === 'string') {
-          if (resumoRaw.trim()) {
-            try {
-              var parsed = JSON.parse(resumoRaw)
-              resumoJson = typeof parsed === 'object' && parsed !== null ? parsed : {}
-            } catch (parseErr) {
-              $app
-                .logger()
-                .error(
-                  'Erro ao parsear resumo_json existente',
-                  'error',
-                  String(parseErr),
-                  'consulta_id',
-                  consultaId,
-                )
-              resumoJson = {}
-            }
-          }
-        } else if (typeof resumoRaw === 'object') {
+      function toJsObject(raw) {
+        if (!raw) return {}
+        if (typeof raw === 'string') {
+          if (!raw.trim()) return {}
           try {
-            resumoJson = JSON.parse(JSON.stringify(resumoRaw))
-          } catch (cloneErr) {
-            $app
-              .logger()
-              .error(
-                'Erro ao clonar resumo_json existente',
-                'error',
-                String(cloneErr),
-                'consulta_id',
-                consultaId,
-              )
-            resumoJson = {}
+            var p = JSON.parse(raw)
+            return p && typeof p === 'object' && !Array.isArray(p) ? p : {}
+          } catch (_) {
+            return {}
           }
         }
+        if (typeof raw === 'object') {
+          try {
+            var s = JSON.stringify(raw)
+            var p2 = JSON.parse(s)
+            return p2 && typeof p2 === 'object' && !Array.isArray(p2) ? p2 : {}
+          } catch (_) {
+            return {}
+          }
+        }
+        return {}
       }
+
+      var resumoRaw = freshRecord.get('resumo_json')
+      var resumoJson = toJsObject(resumoRaw)
 
       if (!resumoJson.processo_resumos || typeof resumoJson.processo_resumos !== 'object') {
         resumoJson.processo_resumos = {}
       }
       resumoJson.processo_resumos[numeroProcesso] = summary
 
-      var cleanJson
-      try {
-        cleanJson = JSON.parse(JSON.stringify(resumoJson))
-      } catch (cleanErr) {
-        $app
-          .logger()
-          .error(
-            'Erro ao limpar resumo_json antes de salvar',
-            'error',
-            String(cleanErr),
-            'consulta_id',
-            consultaId,
-          )
-        return e.json(500, {
-          error: 'Não foi possível salvar o resumo. Tente novamente.',
-        })
-      }
-
-      freshRecord.set('resumo_json', cleanJson)
+      freshRecord.set('resumo_json', resumoJson)
 
       try {
         $app.save(freshRecord)
@@ -205,15 +163,8 @@ routerAdd(
       }
 
       var verifyRecord = $app.findRecordById('candidato_consultas_juridicas', consultaId)
-      var verifyRaw = verifyRecord.get('resumo_json')
-      var verifyJson = null
-      if (typeof verifyRaw === 'string') {
-        try {
-          verifyJson = JSON.parse(verifyRaw)
-        } catch (_) {}
-      } else if (typeof verifyRaw === 'object') {
-        verifyJson = verifyRaw
-      }
+      var verifyJson = toJsObject(verifyRecord.get('resumo_json'))
+
       if (
         !verifyJson ||
         !verifyJson.processo_resumos ||

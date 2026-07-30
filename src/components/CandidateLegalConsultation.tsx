@@ -154,7 +154,10 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       if (state.loading || state.error) {
         merged[num] = state
       } else if (state.summary) {
-        merged[num] = state
+        merged[num] = {
+          ...state,
+          expanded: state.expanded ?? merged[num]?.expanded ?? true,
+        }
       } else if (merged[num]) {
         merged[num] = { ...merged[num], expanded: state.expanded }
       }
@@ -179,11 +182,16 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       const result = await getProcessoResumoIA(numeroProcesso, selectedConsulta.id)
       setInteractionStates((prev) => ({
         ...prev,
-        [numeroProcesso]: { summary: result.summary, loading: false, expanded: true },
+        [numeroProcesso]: {
+          summary: result.summary,
+          loading: false,
+          expanded: true,
+          error: undefined,
+        },
       }))
       setSelectedConsulta((prev) => {
         if (!prev) return prev
-        const resumoJson = (prev.resumo_json as Record<string, any>) || {}
+        const resumoJson = parseResumoJson(prev.resumo_json) || {}
         const processoResumos = resumoJson.processo_resumos || {}
         return {
           ...prev,
@@ -193,6 +201,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
           },
         }
       })
+      toast.success('Resumo gerado com sucesso!')
     } catch (err: any) {
       const errorMsg =
         err?.message || 'Não foi possível obter o resumo. Tente novamente mais tarde.'
@@ -205,9 +214,10 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       setInteractionStates((prev) => ({
         ...prev,
         [numeroProcesso]: {
-          ...prev[numeroProcesso],
+          summary: prev[numeroProcesso]?.summary,
           loading: false,
           error: errorMsg,
+          expanded: prev[numeroProcesso]?.expanded ?? false,
         },
       }))
     }
@@ -218,7 +228,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       ...prev,
       [numeroProcesso]: {
         ...prev[numeroProcesso],
-        expanded: !prev[numeroProcesso]?.expanded,
+        expanded: !summaryStates[numeroProcesso]?.expanded,
       },
     }))
   }
@@ -447,6 +457,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                       const statusProc = getField(proc, 'status', 'situacao')
                       const isInactive = statusProc.toLowerCase().includes('inativo')
                       const processLink = getProcessLink(proc)
+                      const currentSummaryState = summaryStates[numero]
 
                       return (
                         <div
@@ -454,24 +465,25 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                           className="border border-slate-200 rounded-xl p-3.5 bg-white hover:border-slate-300 transition-all shadow-2xs space-y-2.5"
                         >
                           <div className="flex items-start justify-between gap-2 flex-wrap sm:flex-nowrap">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-sm font-bold text-slate-900 break-all">
+                            <div className="min-w-0 flex-1 flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-bold text-slate-900 break-all">
                                 {numero}
-                                {processLink && (
-                                  <a
-                                    href={processLink}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="inline-flex items-center ml-1 text-indigo-600 hover:text-indigo-700"
-                                  >
-                                    <ExternalLink className="h-3.5 w-3.5" />
-                                  </a>
-                                )}
-                              </p>
+                              </span>
+                              {processLink && (
+                                <a
+                                  href={processLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Ver no Escavador"
+                                  className="inline-flex items-center text-indigo-600 hover:text-indigo-800 transition-colors p-0.5 rounded hover:bg-indigo-50 shrink-0"
+                                >
+                                  <ExternalLink className="h-3.5 w-3.5" />
+                                </a>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               {numero !== '—' &&
-                                (summaryStates[numero]?.summary ? (
+                                (currentSummaryState?.summary ? (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -480,14 +492,14 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                                   >
                                     <ChevronDown
                                       className={`h-3 w-3 mr-1 transition-transform ${
-                                        summaryStates[numero]?.expanded ? 'rotate-180' : ''
+                                        currentSummaryState?.expanded ? 'rotate-180' : ''
                                       }`}
                                     />
-                                    {summaryStates[numero]?.expanded
+                                    {currentSummaryState?.expanded
                                       ? 'Ocultar resumo'
                                       : 'Ver resumo'}
                                   </Button>
-                                ) : summaryStates[numero]?.loading ? (
+                                ) : currentSummaryState?.loading ? (
                                   <Button
                                     size="sm"
                                     variant="outline"
@@ -543,18 +555,18 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                             <span className="text-slate-800 font-medium">{assunto}</span>
                           </div>
 
-                          {summaryStates[numero]?.summary && summaryStates[numero]?.expanded && (
+                          {currentSummaryState?.summary && currentSummaryState?.expanded && (
                             <div className="border-t border-slate-100 pt-2">
                               <div className="p-3 bg-indigo-50/50 rounded-lg border border-indigo-100 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
-                                {summaryStates[numero]?.summary}
+                                {currentSummaryState.summary}
                               </div>
                             </div>
                           )}
 
-                          {summaryStates[numero]?.error && (
-                            <div className="flex items-center gap-1.5 text-xs text-rose-600">
-                              <AlertCircle className="h-3 w-3 shrink-0" />
-                              <span>{summaryStates[numero]?.error}</span>
+                          {currentSummaryState?.error && (
+                            <div className="flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-100">
+                              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                              <span>{currentSummaryState.error}</span>
                             </div>
                           )}
                         </div>
