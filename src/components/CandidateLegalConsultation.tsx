@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   getConsultaJuridicaHistory,
   performConsultaJuridica,
@@ -91,31 +91,80 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
     loadData()
   })
 
+  const selectedConsultaIdRef = useRef<string | null>(null)
+
+  const extractSummaryText = (val: any): string | null => {
+    if (val == null) return null
+    if (typeof val === 'string') return val.trim() || null
+    if (typeof val === 'object') {
+      if (typeof val.text === 'string') return val.text
+      if (typeof val.summary === 'string') return val.summary
+      if (typeof val.content === 'string') return val.content
+      try {
+        const str = JSON.stringify(val)
+        return str !== '{}' && str !== 'null' ? str : null
+      } catch {
+        return null
+      }
+    }
+    return String(val)
+  }
+
+  const parseResumoJson = (raw: any): Record<string, any> | null => {
+    if (raw == null) return null
+    if (typeof raw === 'string') {
+      if (!raw.trim()) return null
+      try {
+        const parsed = JSON.parse(raw)
+        return typeof parsed === 'object' && parsed !== null ? parsed : null
+      } catch {
+        return null
+      }
+    }
+    if (typeof raw === 'object') return raw as Record<string, any>
+    return null
+  }
+
   useEffect(() => {
-    if (!selectedConsulta) return
-    const resumoJson = selectedConsulta.resumo_json as Record<string, any> | null
+    if (!selectedConsulta) {
+      selectedConsultaIdRef.current = null
+      setSummaryStates({})
+      return
+    }
+
+    const isNewConsulta = selectedConsultaIdRef.current !== selectedConsulta.id
+    selectedConsultaIdRef.current = selectedConsulta.id
+
+    const resumoJson = parseResumoJson(selectedConsulta.resumo_json)
     const processoResumos = resumoJson?.processo_resumos || {}
-    setSummaryStates((prev) => {
-      const next = { ...prev }
-      for (const [num, summary] of Object.entries(processoResumos)) {
-        if (!next[num] && typeof summary === 'string') {
-          next[num] = { summary, loading: false, expanded: false }
+
+    if (isNewConsulta) {
+      const next: typeof summaryStates = {}
+      for (const [num, rawSummary] of Object.entries(processoResumos)) {
+        const summary = extractSummaryText(rawSummary)
+        if (summary) {
+          next[num] = { summary, loading: false, expanded: false, error: undefined }
         }
       }
-      return next
-    })
-  }, [selectedConsulta?.id])
+      setSummaryStates(next)
+    } else {
+      setSummaryStates((prev) => {
+        let changed = false
+        const next = { ...prev }
+        for (const [num, rawSummary] of Object.entries(processoResumos)) {
+          const summary = extractSummaryText(rawSummary)
+          if (summary && !next[num]?.summary) {
+            next[num] = { summary, loading: false, expanded: false, error: undefined }
+            changed = true
+          }
+        }
+        return changed ? next : prev
+      })
+    }
+  }, [selectedConsulta])
 
   const handleFetchSummary = async (numeroProcesso: string) => {
     if (!selectedConsulta) return
-
-    if (summaryStates[numeroProcesso]?.summary) {
-      setSummaryStates((prev) => ({
-        ...prev,
-        [numeroProcesso]: { ...prev[numeroProcesso], expanded: true, error: undefined },
-      }))
-      return
-    }
 
     setSummaryStates((prev) => ({
       ...prev,
@@ -400,22 +449,44 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                               <p className="text-sm font-bold text-slate-900 break-all">{numero}</p>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                              {numero !== '—' && (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleFetchSummary(numero)}
-                                  disabled={summaryStates[numero]?.loading}
-                                  className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                                >
-                                  {summaryStates[numero]?.loading ? (
+                              {numero !== '—' &&
+                                (summaryStates[numero]?.summary ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => toggleSummaryExpanded(numero)}
+                                    className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                  >
+                                    <ChevronDown
+                                      className={`h-3 w-3 mr-1 transition-transform ${
+                                        summaryStates[numero]?.expanded ? 'rotate-180' : ''
+                                      }`}
+                                    />
+                                    {summaryStates[numero]?.expanded
+                                      ? 'Ocultar resumo'
+                                      : 'Ver resumo'}
+                                  </Button>
+                                ) : summaryStates[numero]?.loading ? (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled
+                                    className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                  >
                                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                  ) : (
+                                    Gerando...
+                                  </Button>
+                                ) : (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleFetchSummary(numero)}
+                                    className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                                  >
                                     <Sparkles className="h-3 w-3 mr-1" />
-                                  )}
-                                  {summaryStates[numero]?.loading ? 'Gerando...' : 'Resumo da IA'}
-                                </Button>
-                              )}
+                                    Resumo da IA
+                                  </Button>
+                                ))}
                               <Badge
                                 variant="outline"
                                 className={
@@ -451,27 +522,11 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                             <span className="text-slate-800 font-medium">{assunto}</span>
                           </div>
 
-                          {summaryStates[numero]?.summary && (
+                          {summaryStates[numero]?.summary && summaryStates[numero]?.expanded && (
                             <div className="border-t border-slate-100 pt-2">
-                              <button
-                                type="button"
-                                onClick={() => toggleSummaryExpanded(numero)}
-                                className="flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors"
-                              >
-                                <ChevronDown
-                                  className={`h-3 w-3 transition-transform ${
-                                    summaryStates[numero]?.expanded ? 'rotate-180' : ''
-                                  }`}
-                                />
-                                {summaryStates[numero]?.expanded
-                                  ? 'Ocultar resumo da IA'
-                                  : 'Ver resumo da IA'}
-                              </button>
-                              {summaryStates[numero]?.expanded && (
-                                <div className="mt-2 p-3 bg-indigo-50/50 rounded-lg border border-indigo-100 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
-                                  {summaryStates[numero]?.summary}
-                                </div>
-                              )}
+                              <div className="p-3 bg-indigo-50/50 rounded-lg border border-indigo-100 text-xs text-slate-700 whitespace-pre-wrap leading-relaxed">
+                                {summaryStates[numero]?.summary}
+                              </div>
                             </div>
                           )}
 
