@@ -251,7 +251,7 @@ export function getProcessLink(proc: any): string | null {
     'fontes.0.url',
     'fontes.0.link',
   )
-  if (directUrl !== '—' && directUrl.startsWith('http')) {
+  if (directUrl !== '—' && directUrl.startsWith('http') && !directUrl.includes('/api/')) {
     return directUrl
   }
 
@@ -259,7 +259,7 @@ export function getProcessLink(proc: any): string | null {
   if (num && num !== '—') {
     const cleanNum = num.trim().replace(/\s+/g, '')
     if (cleanNum) {
-      return `https://www.escavador.com/processos/${cleanNum}`
+      return `https://www.escavador.com/processo/${cleanNum}`
     }
   }
 
