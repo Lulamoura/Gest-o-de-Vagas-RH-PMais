@@ -33,14 +33,35 @@ export const getConsultaJuridicaHistory = async (
 export const performConsultaJuridica = async (
   candidateId: string,
 ): Promise<CandidatoConsultaJuridicaRecord> => {
+  const headers: Record<string, string> = {}
+  if (pb.authStore.token) {
+    headers['Authorization'] = pb.authStore.token
+  }
   return pb.send(`/backend/v1/candidato/${candidateId}/consulta-juridica`, {
     method: 'POST',
+    headers,
   })
 }
 
-export const getProcessoDetalhes = async (processoId: string): Promise<any> => {
-  return pb.send(`/backend/v1/processo/${encodeURIComponent(processoId.trim())}`, {
+export const getProcessoDetalhes = async (
+  processoId: string,
+  consultaId?: string,
+  numeroProcesso?: string,
+): Promise<any> => {
+  const cleanId = encodeURIComponent(processoId.trim())
+  const params = new URLSearchParams()
+  if (consultaId) params.append('consulta_id', consultaId)
+  if (numeroProcesso) params.append('numero_processo', numeroProcesso)
+  const queryStr = params.toString() ? `?${params.toString()}` : ''
+
+  const headers: Record<string, string> = {}
+  if (pb.authStore.token) {
+    headers['Authorization'] = pb.authStore.token
+  }
+
+  return pb.send(`/backend/v1/processo/${cleanId}${queryStr}`, {
     method: 'GET',
+    headers,
   })
 }
 

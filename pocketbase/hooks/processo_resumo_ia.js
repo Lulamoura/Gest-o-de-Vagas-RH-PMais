@@ -12,6 +12,9 @@ routerAdd(
       return e.badRequestError('numero_processo e consulta_id são obrigatórios')
     }
 
+    const userId = e.auth ? e.auth.id : ''
+    if (!userId) return e.unauthorizedError('Autenticação necessária')
+
     let consulta
     try {
       consulta = $app.findRecordById('candidato_consultas_juridicas', consultaId)
@@ -23,18 +26,18 @@ routerAdd(
     }
 
     let processos = []
-    var procRawStr = ''
     try {
-      procRawStr = consulta.getString('processos_json')
-    } catch (_) {}
-
-    if (procRawStr && procRawStr.trim()) {
-      try {
-        processos = JSON.parse(procRawStr) || []
-      } catch (_) {
-        processos = []
+      var procRaw = consulta.get('processos_json')
+      if (Array.isArray(procRaw)) {
+        processos = procRaw
+      } else if (typeof procRaw === 'string' && procRaw.trim()) {
+        try {
+          processos = JSON.parse(procRaw) || []
+        } catch (_) {
+          processos = []
+        }
       }
-    }
+    } catch (_) {}
 
     var procEncontrado = null
     var matchedProcNum = numeroProcesso
@@ -44,6 +47,7 @@ routerAdd(
       for (var i = 0; i < processos.length; i++) {
         var p = processos[i]
         if (!p || typeof p !== 'object') continue
+        var pId = p.id != null ? String(p.id).trim() : ''
         var num =
           p.numero_cnj ||
           p.numero ||
@@ -57,7 +61,7 @@ routerAdd(
         if (
           numStr === numeroProcesso ||
           (cleanSearchNum && cleanNum === cleanSearchNum) ||
-          (procId && (procId === numeroProcesso || procId === cleanSearchNum))
+          (pId && (pId === numeroProcesso || (cleanSearchNum && pId === cleanSearchNum)))
         ) {
           procEncontrado = p
           if (numStr) matchedProcNum = numStr
@@ -73,7 +77,7 @@ routerAdd(
     if (escavadorProcId && escavadorToken) {
       try {
         var resDet = $http.send({
-          url: 'https://api.escavador.com/api/v2/processos/' + escavadorProcId,
+          url: 'https://api.escavador.com/api/v2/processos/' + encodeURIComponent(escavadorProcId),
           method: 'GET',
           headers: {
             Authorization: 'Bearer ' + escavadorToken,
@@ -110,7 +114,7 @@ routerAdd(
           {
             role: 'system',
             content:
-              'Você é um assistente jurídico especializado em análise de processos. Crie um resumo claro e conciso do processo judicial, destacando: classe processual, tribunal, assunto principal, status (ativo/inativo) e informações relevantes. Responda em português brasileiro, em no máximo 3 parágrafos.',
+              'Você é um assistente jurídico especializado em análise de processos para seleção de candidatos da PMais. Crie um resumo claro e conciso do processo judicial, destacando: classe processual, tribunal, assunto principal, status (ativo/inativo) e informações relevantes para avaliação de RH. Responda em português brasileiro, em no máximo 3 parágrafos.',
           },
           {
             role: 'user',
@@ -118,7 +122,9 @@ routerAdd(
           },
         ],
       })
-      summary = reply.choices[0].message.content
+      if (reply && reply.choices && reply.choices[0] && reply.choices[0].message) {
+        summary = reply.choices[0].message.content || ''
+      }
     } catch (err) {
       $app
         .logger()
@@ -131,13 +137,13 @@ routerAdd(
           'processo',
           numeroProcesso,
         )
-      if (err instanceof SkipAiConfigError) {
+      if (err && err.name === 'SkipAiConfigError') {
         return e.json(503, {
-          error: 'Serviço de IA temporariamente indisponível',
+          error: 'Serviço de IA temporariamente indisponível.',
         })
       }
       return e.json(502, {
-        error: 'Não foi possível gerar o resumo. Tente novamente.',
+        error: 'Não foi possível gerar o resumo via IA. Tente novamente.',
       })
     }
 
@@ -157,6 +163,10 @@ routerAdd(
 
       function parseResumoObject(rec) {
         if (!rec) return {}
+        var rawVal = rec.get('resumo_json')
+        if (rawVal && typeof rawVal === 'object' && !Array.isArray(rawVal)) {
+          return rawVal
+        }
         var str = ''
         try {
           str = rec.getString('resumo_json')
@@ -195,8 +205,7 @@ routerAdd(
         resumoJson.processo_resumos[cleanSearchNum] = summary
       }
 
-      var stringifiedJson = JSON.stringify(resumoJson)
-      freshRecord.set('resumo_json', stringifiedJson)
+      freshRecord.set('resumo_json', resumoJson)
 
       try {
         $app.save(freshRecord)
@@ -214,46 +223,11 @@ routerAdd(
           )
         $app.saveNoValidate(freshRecord)
       }
-
-      var verifyRecord = $app.findRecordById('candidato_consultas_juridicas', consultaId)
-      var verifyJson = parseResumoObject(verifyRecord)
-
-      var savedSummary =
-        verifyJson &&
-        verifyJson.processo_resumos &&
-        (verifyJson.processo_resumos[numeroProcesso] ||
-          (matchedProcNum && verifyJson.processo_resumos[matchedProcNum]) ||
-          (cleanSearchNum && verifyJson.processo_resumos[cleanSearchNum]))
-
-      if (!savedSummary) {
-        $app
-          .logger()
-          .error(
-            'Verificação pós-save falhou: resumo não persistido',
-            'consulta_id',
-            consultaId,
-            'processo',
-            numeroProcesso,
-          )
-        return e.json(500, {
-          error: 'Não foi possível salvar o resumo. Tente novamente.',
-        })
-      }
-
-      $app
-        .logger()
-        .info(
-          'Resumo IA salvo e verificado com sucesso',
-          'consulta_id',
-          consultaId,
-          'processo',
-          numeroProcesso,
-        )
     } catch (err) {
       $app
         .logger()
         .error(
-          'Erro ao salvar resumo da IA',
+          'Erro ao salvar resumo da IA no banco',
           'error',
           String(err),
           'consulta_id',
@@ -261,9 +235,6 @@ routerAdd(
           'processo',
           numeroProcesso,
         )
-      return e.json(500, {
-        error: 'Não foi possível salvar o resumo. Tente novamente.',
-      })
     }
 
     return e.json(200, { summary: summary })

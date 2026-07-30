@@ -269,11 +269,18 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
 
       toast.success('Resumo gerado com sucesso!')
     } catch (err: any) {
-      const errorMsg =
-        err?.response?.error ||
-        err?.response?.message ||
-        err?.message ||
-        'Não foi possível obter o resumo. Tente novamente mais tarde.'
+      let errorMsg = 'Não foi possível obter o resumo. Tente novamente mais tarde.'
+      if (err?.response?.error) {
+        errorMsg =
+          typeof err.response.error === 'string'
+            ? err.response.error
+            : JSON.stringify(err.response.error)
+      } else if (err?.response?.message) {
+        errorMsg = err.response.message
+      } else if (err?.message) {
+        errorMsg = err.message
+      }
+
       console.error('[CandidateLegalConsultation] Erro ao buscar resumo da IA:', {
         numeroProcesso,
         consultaId: selectedConsulta?.id,
@@ -327,25 +334,44 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   }
 
   const handleOpenDetail = async (processData: any) => {
-    const procId = processData?.id
-    if (!procId) {
-      toast.error('Não foi possível carregar os detalhes do processo')
+    const escavadorId = processData?.id != null ? String(processData.id).trim() : ''
+    const rawNum = getProcessNumber(processData)
+    const numeroProc =
+      rawNum !== '—'
+        ? rawNum
+        : processData?.numero_cnj ||
+          processData?.numero ||
+          processData?.numero_processo ||
+          processData?.titulo ||
+          ''
+    const procIdentifier = escavadorId || numeroProc || ''
+
+    if (!procIdentifier) {
+      toast.error('Não foi possível identificar o número ou ID do processo')
       return
     }
 
     setDetailModalLoading(true)
     setDetailModalError(null)
-    setDetailModalProcess(null)
+    setDetailModalProcess(processData)
     setDetailModalOpen(true)
 
     try {
-      const detail = await getProcessoDetalhes(String(procId))
-      setDetailModalProcess(detail)
+      const consultaId = selectedConsulta?.id || ''
+      const detail = await getProcessoDetalhes(procIdentifier, consultaId, numeroProc)
+      if (detail && typeof detail === 'object' && Object.keys(detail).length > 0) {
+        setDetailModalProcess(detail)
+      }
     } catch (err: any) {
       const errorMsg =
-        err?.response?.error || err?.message || 'Não foi possível carregar os detalhes do processo'
-      setDetailModalError(errorMsg)
-      toast.error(errorMsg)
+        err?.response?.error ||
+        err?.response?.message ||
+        err?.message ||
+        'Não foi possível carregar os detalhes do processo'
+      if (!processData || Object.keys(processData).length === 0) {
+        setDetailModalError(errorMsg)
+        toast.error(errorMsg)
+      }
     } finally {
       setDetailModalLoading(false)
     }
