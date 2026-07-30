@@ -3,6 +3,7 @@ import {
   getConsultaJuridicaHistory,
   performConsultaJuridica,
   getProcessoResumoIA,
+  getProcessoDetalhes,
 } from '@/services/candidato_consultas_juridicas'
 import { CandidatoConsultaJuridicaRecord } from '@/types'
 import { validateCPF, formatCPF } from '@/lib/cpf-utils'
@@ -70,6 +71,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   const [interactionStates, setInteractionStates] = useState<Record<string, SummaryState>>({})
   const [detailModalProcess, setDetailModalProcess] = useState<any | null>(null)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
+  const [detailModalLoading, setDetailModalLoading] = useState(false)
+  const [detailModalError, setDetailModalError] = useState<string | null>(null)
 
   const cpfValido = cpf ? validateCPF(cpf) : false
 
@@ -320,9 +323,29 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
     }))
   }
 
-  const handleOpenDetail = (processData: any) => {
-    setDetailModalProcess(processData)
+  const handleOpenDetail = async (processData: any) => {
+    const procId = processData?.id
+    if (!procId) {
+      toast.error('Não foi possível carregar os detalhes do processo')
+      return
+    }
+
+    setDetailModalLoading(true)
+    setDetailModalError(null)
+    setDetailModalProcess(null)
     setDetailModalOpen(true)
+
+    try {
+      const detail = await getProcessoDetalhes(String(procId))
+      setDetailModalProcess(detail)
+    } catch (err: any) {
+      const errorMsg =
+        err?.response?.error || err?.message || 'Não foi possível carregar os detalhes do processo'
+      setDetailModalError(errorMsg)
+      toast.error(errorMsg)
+    } finally {
+      setDetailModalLoading(false)
+    }
   }
 
   const handleConsultar = async () => {
@@ -799,6 +822,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
         processData={detailModalProcess}
         open={detailModalOpen}
         onOpenChange={setDetailModalOpen}
+        loading={detailModalLoading}
+        error={detailModalError}
       />
     </div>
   )

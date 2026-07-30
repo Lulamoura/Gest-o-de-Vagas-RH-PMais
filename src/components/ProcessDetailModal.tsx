@@ -23,12 +23,24 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
-import { Gavel, Users, FileText, Info, Calendar, DollarSign, Scale } from 'lucide-react'
+import {
+  Gavel,
+  Users,
+  FileText,
+  Info,
+  Calendar,
+  DollarSign,
+  Scale,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react'
 
 interface Props {
   processData: any | null
   open: boolean
   onOpenChange: (open: boolean) => void
+  loading?: boolean
+  error?: string | null
 }
 
 function formatDateMov(d: string): string {
@@ -105,7 +117,7 @@ function MovementItem({ m }: { m: Movement }) {
   )
 }
 
-export function ProcessDetailModal({ processData, open, onOpenChange }: Props) {
+export function ProcessDetailModal({ processData, open, onOpenChange, loading, error }: Props) {
   const realDetail = processData?.resposta || processData?.data || processData
 
   const procNumDisplay = realDetail
@@ -139,7 +151,19 @@ export function ProcessDetailModal({ processData, open, onOpenChange }: Props) {
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col p-6">
-          {realDetail && (
+          {loading && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
+              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+              <span className="text-sm font-medium">Carregando detalhes do processo...</span>
+            </div>
+          )}
+          {!loading && error && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-rose-600">
+              <AlertCircle className="h-8 w-8" />
+              <span className="text-sm font-medium text-center px-4">{error}</span>
+            </div>
+          )}
+          {!loading && !error && realDetail && (
             <Tabs defaultValue="geral" className="flex-1 flex flex-col overflow-hidden">
               <TabsList className="grid w-full grid-cols-3 mb-4 shrink-0 bg-slate-100">
                 <TabsTrigger
@@ -228,6 +252,11 @@ export function ProcessDetailModal({ processData, open, onOpenChange }: Props) {
                 </TabsContent>
               </ScrollArea>
             </Tabs>
+          )}
+          {!loading && !error && !realDetail && (
+            <div className="flex-1 flex items-center justify-center text-sm text-slate-500">
+              Nenhum dado de processo disponível.
+            </div>
           )}
         </div>
       </DialogContent>

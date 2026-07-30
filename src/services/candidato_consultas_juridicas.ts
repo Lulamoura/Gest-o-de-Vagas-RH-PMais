@@ -38,9 +38,8 @@ export const performConsultaJuridica = async (
   })
 }
 
-export const getProcessoDetalhes = async (numeroProcesso: string): Promise<any> => {
-  const cleanNumero = encodeURIComponent(numeroProcesso.trim())
-  return pb.send(`/backend/v1/processo/${cleanNumero}`, {
+export const getProcessoDetalhes = async (processoId: string): Promise<any> => {
+  return pb.send(`/backend/v1/processo/${encodeURIComponent(processoId.trim())}`, {
     method: 'GET',
   })
 }
