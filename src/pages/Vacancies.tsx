@@ -21,6 +21,7 @@ import {
   VACANCY_STATUS_OPTIONS,
 } from '@/lib/status-utils'
 import { isVacancyInGroup, type VacancyStatusGroup } from '@/lib/vacancy-status-group'
+import { SortableHeader, type SortDirection } from '@/components/SortableTableHead'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -88,6 +89,9 @@ export default function Vacancies() {
   const [rankFilter, setRankFilter] = useState('ALL')
   const [vacancyStatusGroup, setVacancyStatusGroup] = useState<VacancyStatusGroup>('Em andamento')
 
+  const [sortColumn, setSortColumn] = useState('created')
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc')
+
   const [selectedVacancy, setSelectedVacancy] = useState<VacancyRecord | null>(null)
   const [newStatus, setNewStatus] = useState<VacancyStatus | ''>('')
   const [moving, setMoving] = useState(false)
@@ -123,6 +127,14 @@ export default function Vacancies() {
   useRealtime('candidates', () => {
     loadData()
   })
+
+  const candidateCountMap = useMemo(() => {
+    const map = new Map<string, number>()
+    candidates.forEach((c) => {
+      map.set(c.vacancy_id, (map.get(c.vacancy_id) || 0) + 1)
+    })
+    return map
+  }, [candidates])
 
   const uniqueClients = useMemo(() => {
     const map = new Map<string, string>()
@@ -198,6 +210,57 @@ export default function Vacancies() {
     vacancyIdsWithMinRank,
     vacancyStatusGroup,
   ])
+
+  const getSortValue = (vaga: VacancyRecord, candidateCount: number): string | number => {
+    switch (sortColumn) {
+      case 'cargo_cliente':
+        return (vaga.expand?.cargo?.nome || '').toLowerCase()
+      case 'status':
+        return vaga.status_vaga || ''
+      case 'candidatos':
+        return candidateCount
+      case 'responsavel_rh':
+        return (vaga.expand?.responsavel_rh?.name || '').toLowerCase()
+      case 'data_abertura':
+        return vaga.data_abertura || ''
+      case 'dias_abertos':
+        return calculateDaysOpen(vaga.data_abertura, vaga.data_fechamento)
+      case 'prazo_desejado':
+        return vaga.prazo_desejado || ''
+      case 'prioridade':
+        return vaga.prioridade || ''
+      case 'tipo_contrato':
+        return (vaga.expand?.tipo_contrato?.nome || '').toLowerCase()
+      case 'created':
+        return vaga.created || ''
+      default:
+        return ''
+    }
+  }
+
+  const handleSort = (column: string) => {
+    if (sortColumn === column) {
+      setSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'))
+    } else {
+      setSortColumn(column)
+      setSortDirection('asc')
+    }
+  }
+
+  const sortedVacancies = useMemo(() => {
+    const sorted = [...filteredVacancies]
+    sorted.sort((a, b) => {
+      const countA = candidateCountMap.get(a.id) || 0
+      const countB = candidateCountMap.get(b.id) || 0
+      const valA = getSortValue(a, countA)
+      const valB = getSortValue(b, countB)
+      if (valA < valB) return sortDirection === 'asc' ? -1 : 1
+      if (valA > valB) return sortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+    return sorted
+  }, [filteredVacancies, sortColumn, sortDirection, candidateCountMap])
+
   const handleMovePipeline = async () => {
     if (!selectedVacancy || !newStatus) return
     setMoving(true)
@@ -422,35 +485,85 @@ export default function Vacancies() {
           <Table>
             <TableHeader className="bg-slate-50">
               <TableRow>
-                <TableHead className="text-xs font-semibold text-slate-600">
-                  Cargo / Cliente
-                </TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">
-                  Responsável RH
-                </TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Abertura</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Dias Abertos</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">
-                  Prazo Desejado
-                </TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Prioridade</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Contrato</TableHead>
+                <SortableHeader
+                  label="Cargo / Cliente"
+                  column="cargo_cliente"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Status"
+                  column="status"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Candidatos / Vaga"
+                  column="candidatos"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Responsável RH"
+                  column="responsavel_rh"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Abertura"
+                  column="data_abertura"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Dias Abertos"
+                  column="dias_abertos"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Prazo Desejado"
+                  column="prazo_desejado"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Prioridade"
+                  column="prioridade"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
+                <SortableHeader
+                  label="Contrato"
+                  column="tipo_contrato"
+                  sortColumn={sortColumn}
+                  sortDirection={sortDirection}
+                  onSort={handleSort}
+                />
                 <TableHead className="text-xs font-semibold text-slate-600 text-right">
                   Ações
                 </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filteredVacancies.length === 0 ? (
+              {sortedVacancies.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="text-center py-8 text-slate-500 text-sm">
+                  <TableCell colSpan={10} className="text-center py-8 text-slate-500 text-sm">
                     Nenhuma vaga encontrada com os filtros aplicados.
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredVacancies.map((vaga) => {
+                sortedVacancies.map((vaga) => {
                   const diasAbertos = calculateDaysOpen(vaga.data_abertura, vaga.data_fechamento)
+                  const candCount = candidateCountMap.get(vaga.id) || 0
                   return (
                     <TableRow key={vaga.id} className="hover:bg-slate-50/80 transition-colors">
                       <TableCell>
@@ -472,6 +585,11 @@ export default function Vacancies() {
                         >
                           {vaga.status_vaga}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-xs font-semibold text-slate-800">
+                          {candCount} / {vaga.quantidade_vagas || 0}
+                        </span>
                       </TableCell>
                       <TableCell className="text-xs text-slate-700">
                         <div className="flex items-center space-x-1">
@@ -567,73 +685,84 @@ export default function Vacancies() {
       </Card>
 
       <div className="md:hidden space-y-3">
-        {filteredVacancies.map((vaga) => (
-          <Card key={vaga.id} className="border-slate-200 shadow-2xs">
-            <CardContent className="p-4 space-y-3">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-bold text-slate-900 text-base">
-                    {vaga.expand?.cargo?.nome || '—'}
-                  </h3>
-                  <p className="text-xs text-slate-500 font-medium">
-                    {vaga.expand?.cliente?.nome || '—'}
-                  </p>
-                </div>
-                <Badge variant="outline" className={getVacancyStatusBadgeClass(vaga.status_vaga)}>
-                  {vaga.status_vaga}
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg">
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">
-                    Prioridade
-                  </span>
-                  <Badge
-                    variant="outline"
-                    className={
-                      getPriorityBadgeClass(vaga.prioridade) + ' text-[10px] px-1.5 mt-0.5'
-                    }
-                  >
-                    {vaga.prioridade}
+        {sortedVacancies.map((vaga) => {
+          const candCount = candidateCountMap.get(vaga.id) || 0
+          return (
+            <Card key={vaga.id} className="border-slate-200 shadow-2xs">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-900 text-base">
+                      {vaga.expand?.cargo?.nome || '—'}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium">
+                      {vaga.expand?.cliente?.nome || '—'}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className={getVacancyStatusBadgeClass(vaga.status_vaga)}>
+                    {vaga.status_vaga}
                   </Badge>
                 </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">
-                    Dias Abertos
-                  </span>
-                  <span className="font-semibold text-slate-800">
-                    {calculateDaysOpen(vaga.data_abertura)} dias
-                  </span>
-                </div>
-                <div>
-                  <span className="text-slate-400 block text-[10px] uppercase font-semibold">
-                    Contrato
-                  </span>
-                  <span className="font-semibold text-slate-800 text-[10px]">
-                    {vaga.expand?.tipo_contrato?.nome || '—'}
-                  </span>
-                </div>
-              </div>
 
-              <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
-                <Button asChild variant="outline" size="sm" className="flex-1 text-xs">
-                  <Link to={`/vagas/${vaga.id}`}>Ver Detalhes da Vaga</Link>
-                </Button>
-                {isSuperAdmin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDeleteTarget(vaga)}
-                    className="text-xs border-rose-200 text-rose-700 hover:bg-rose-50"
-                  >
-                    <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                <div className="grid grid-cols-4 gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-lg">
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                      Prioridade
+                    </span>
+                    <Badge
+                      variant="outline"
+                      className={
+                        getPriorityBadgeClass(vaga.prioridade) + ' text-[10px] px-1.5 mt-0.5'
+                      }
+                    >
+                      {vaga.prioridade}
+                    </Badge>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                      Candidatos
+                    </span>
+                    <span className="font-semibold text-slate-800 text-[10px]">
+                      {candCount} / {vaga.quantidade_vagas || 0}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                      Dias Abertos
+                    </span>
+                    <span className="font-semibold text-slate-800">
+                      {calculateDaysOpen(vaga.data_abertura)} dias
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">
+                      Contrato
+                    </span>
+                    <span className="font-semibold text-slate-800 text-[10px]">
+                      {vaga.expand?.tipo_contrato?.nome || '—'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100 gap-2">
+                  <Button asChild variant="outline" size="sm" className="flex-1 text-xs">
+                    <Link to={`/vagas/${vaga.id}`}>Ver Detalhes da Vaga</Link>
                   </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+                  {isSuperAdmin && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteTarget(vaga)}
+                      className="text-xs border-rose-200 text-rose-700 hover:bg-rose-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5 mr-1" /> Excluir
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )
+        })}
       </div>
 
       <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
