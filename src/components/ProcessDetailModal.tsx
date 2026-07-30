@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Loader2,
   AlertCircle,
@@ -115,7 +116,7 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
     const parties: Party[] = []
     const seen = new Set<string>()
 
-    const addParty = (p: any) => {
+    const addParty = (p: any, defaultPolo?: string) => {
       if (!p || typeof p !== 'object') return
       const nome = getField(
         p,
@@ -127,7 +128,7 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
       )
       if (!nome || nome === '—') return
 
-      const tipo = getField(
+      let tipo = getField(
         p,
         'tipo',
         'tipo_parte',
@@ -138,6 +139,8 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
         'relacao',
         'papel',
       )
+      if (tipo === '—' && defaultPolo) tipo = defaultPolo
+
       const categoria = getNestedField(
         p,
         'pessoa.tipo',
@@ -149,14 +152,32 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
       )
 
       const key = `${nome.toLowerCase().trim()}_${tipo.toLowerCase().trim()}`
-      if (seen.has(key)) return
-      seen.add(key)
+      if (!seen.has(key)) {
+        seen.add(key)
+        parties.push({ nome, tipo, categoria: categoria !== '—' ? categoria : undefined })
+      }
 
-      parties.push({ nome, tipo, categoria })
+      if (Array.isArray(p.advogados)) {
+        p.advogados.forEach((adv: any) => {
+          if (!adv || typeof adv !== 'object') return
+          const advNome = getField(adv, 'nome', 'nome_completo', 'razao_social')
+          if (!advNome || advNome === '—') return
+          const advOab = getField(adv, 'oab', 'oab_numero', 'oab_uf')
+          const advKey = `${advNome.toLowerCase().trim()}_advogado`
+          if (!seen.has(advKey)) {
+            seen.add(advKey)
+            parties.push({
+              nome: advNome,
+              tipo: 'Advogado',
+              categoria: advOab !== '—' ? `OAB: ${advOab}` : undefined,
+            })
+          }
+        })
+      }
     }
 
     const parseList = (list: any) => {
-      if (Array.isArray(list)) list.forEach(addParty)
+      if (Array.isArray(list)) list.forEach((p) => addParty(p))
     }
 
     parseList(data.partes)
@@ -169,10 +190,7 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
         if (!poloObj) return
         const poloTipo = poloObj.tipo || poloObj.polo || 'Parte'
         if (Array.isArray(poloObj.partes)) {
-          poloObj.partes.forEach((p: any) => {
-            if (p && typeof p === 'object' && !p.tipo) p.tipo = poloTipo
-            addParty(p)
-          })
+          poloObj.partes.forEach((p: any) => addParty(p, poloTipo))
         }
       })
     }
@@ -336,17 +354,25 @@ export function ProcessDetailModal({ numeroProcesso, open, onOpenChange }: Props
 
         <div className="flex-1 overflow-hidden flex flex-col p-6">
           {loading && (
-            <div className="flex flex-col items-center justify-center py-16 gap-3 my-auto">
-              <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-              <p className="text-sm font-medium text-slate-600">
-                Carregando detalhes do processo...
-              </p>
+            <div className="flex flex-col space-y-4 py-8 px-2 my-auto">
+              <div className="flex items-center justify-center gap-3 py-4">
+                <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
+                <span className="text-sm font-medium text-slate-600">
+                  Carregando detalhes do processo no Escavador...
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                <Skeleton className="h-14 w-full rounded-lg" />
+                <Skeleton className="h-14 w-full rounded-lg" />
+                <Skeleton className="h-14 w-full rounded-lg" />
+                <Skeleton className="h-14 w-full rounded-lg" />
+              </div>
             </div>
           )}
 
           {error && !loading && (
             <div className="flex flex-col items-center justify-center py-12 gap-5 text-center my-auto">
-              <div className="flex items-center justify-center gap-2.5 text-rose-600 bg-rose-50/90 px-6 py-4 rounded-xl border border-rose-200 max-w-md w-full shadow-2xs">
+              <div className="flex items-center justify-center gap-2.5 text-rose-600 bg-rose-50 px-6 py-4 rounded-xl border border-rose-200 max-w-md w-full shadow-2xs">
                 <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />
                 <span className="text-sm font-medium text-rose-700">{error}</span>
               </div>

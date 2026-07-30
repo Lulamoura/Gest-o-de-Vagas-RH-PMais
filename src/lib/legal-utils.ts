@@ -41,7 +41,8 @@ export function getTribunalInfo(proc: any): TribunalInfo {
 
   if (proc.tribunal) {
     if (typeof proc.tribunal === 'object') {
-      sigla = proc.tribunal.sigla || proc.tribunal.sigla_tribunal || ''
+      sigla =
+        proc.tribunal.sigla || proc.tribunal.sigla_tribunal || proc.tribunal.sigla_normalizada || ''
       nome = proc.tribunal.nome || proc.tribunal.nome_tribunal || ''
     } else if (typeof proc.tribunal === 'string') {
       sigla = proc.tribunal
