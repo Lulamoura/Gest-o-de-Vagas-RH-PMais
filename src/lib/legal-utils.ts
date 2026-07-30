@@ -236,36 +236,6 @@ export function getProcessData(proc: any): string {
   return d
 }
 
-export function getProcessLink(proc: any): string | null {
-  if (!proc) return null
-
-  const directUrl = getNestedField(
-    proc,
-    'url',
-    'link',
-    'link_escavador',
-    'escavador_url',
-    'url_escavador',
-    'capa.link',
-    'capa.url',
-    'fontes.0.url',
-    'fontes.0.link',
-  )
-  if (directUrl !== '—' && directUrl.startsWith('http') && !directUrl.includes('/api/')) {
-    return directUrl
-  }
-
-  const num = getProcessNumber(proc)
-  if (num && num !== '—') {
-    const cleanNum = num.trim().replace(/\s+/g, '')
-    if (cleanNum) {
-      return `https://www.escavador.com/processo/${cleanNum}`
-    }
-  }
-
-  return null
-}
-
 export function getTopAssuntos(processos: any[]): { label: string; count: number }[] {
   if (!Array.isArray(processos)) return []
   const counts: Record<string, number> = {}

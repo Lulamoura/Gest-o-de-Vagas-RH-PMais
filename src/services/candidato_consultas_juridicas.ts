@@ -36,6 +36,19 @@ export const performConsultaJuridica = async (candidateId: string) => {
   }
 }
 
+export const getProcessoDetalhes = async (numeroProcesso: string) => {
+  try {
+    return await pb.send(`/backend/v1/processo/${encodeURIComponent(numeroProcesso)}`, {
+      method: 'GET',
+    })
+  } catch (err: any) {
+    const resp = err?.response || {}
+    const message =
+      resp.error || resp.message || err?.message || 'Erro ao buscar detalhes do processo'
+    throw new Error(message)
+  }
+}
+
 export const getProcessoResumoIA = async (numeroProcesso: string, consultaId: string) => {
   try {
     return await pb.send('/backend/v1/processo/resumo-ia', {

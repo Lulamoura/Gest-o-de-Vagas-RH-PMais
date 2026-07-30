@@ -14,9 +14,9 @@ import {
   getProcessAssunto,
   getField,
   getTopAssuntos,
-  getProcessLink,
   formatDateTime,
 } from '@/lib/legal-utils'
+import { ProcessDetailModal } from '@/components/ProcessDetailModal'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -45,6 +45,7 @@ import {
   Loader2,
   ChevronDown,
   ExternalLink,
+  FileSearch,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -67,6 +68,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   const [error, setError] = useState<string | null>(null)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
   const [interactionStates, setInteractionStates] = useState<Record<string, SummaryState>>({})
+  const [detailModalProcess, setDetailModalProcess] = useState<string | null>(null)
+  const [detailModalOpen, setDetailModalOpen] = useState(false)
 
   const cpfValido = cpf ? validateCPF(cpf) : false
 
@@ -317,6 +320,11 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
     }))
   }
 
+  const handleOpenDetail = (numeroProcesso: string) => {
+    setDetailModalProcess(numeroProcesso)
+    setDetailModalOpen(true)
+  }
+
   const handleConsultar = async () => {
     setConsultando(true)
     setError(null)
@@ -540,7 +548,6 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                       const assunto = getProcessAssunto(proc)
                       const statusProc = getField(proc, 'status', 'situacao')
                       const isInactive = statusProc.toLowerCase().includes('inativo')
-                      const processLink = getProcessLink(proc)
                       const cleanNum = numero.replace(/[^\d]/g, '')
                       const currentSummaryState =
                         summaryStates[numero] || (cleanNum ? summaryStates[cleanNum] : undefined)
@@ -555,17 +562,6 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                               <span className="text-sm font-bold text-slate-900 break-all">
                                 {numero}
                               </span>
-                              {processLink && (
-                                <a
-                                  href={processLink}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  title="Ver no Escavador"
-                                  className="inline-flex items-center text-indigo-600 hover:text-indigo-800 transition-colors p-0.5 rounded hover:bg-indigo-50 shrink-0"
-                                >
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                </a>
-                              )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               {numero !== '—' &&
@@ -606,6 +602,17 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                                     Resumo da IA
                                   </Button>
                                 ))}
+                              {numero !== '—' && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenDetail(numero)}
+                                  className="h-7 px-2.5 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
+                                >
+                                  <FileSearch className="h-3 w-3 mr-1" />
+                                  Ver detalhes
+                                </Button>
+                              )}
                               <Badge
                                 variant="outline"
                                 className={
@@ -787,6 +794,12 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <ProcessDetailModal
+        numeroProcesso={detailModalProcess}
+        open={detailModalOpen}
+        onOpenChange={setDetailModalOpen}
+      />
     </div>
   )
 }
