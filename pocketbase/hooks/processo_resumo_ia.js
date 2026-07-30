@@ -93,7 +93,7 @@ routerAdd(
             resumoJson = {}
           }
         } else if (typeof resumoRaw === 'object') {
-          resumoJson = resumoRaw
+          resumoJson = JSON.parse(JSON.stringify(resumoRaw))
         }
       }
 

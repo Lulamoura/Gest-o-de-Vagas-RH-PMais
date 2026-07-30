@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   getConsultaJuridicaHistory,
   performConsultaJuridica,
@@ -52,6 +52,8 @@ interface Props {
   canConsult: boolean
 }
 
+type SummaryState = { summary?: string; loading: boolean; error?: string; expanded: boolean }
+
 export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Props) {
   const [loading, setLoading] = useState(true)
   const [consultando, setConsultando] = useState(false)
@@ -61,9 +63,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   )
   const [error, setError] = useState<string | null>(null)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
-  const [summaryStates, setSummaryStates] = useState<
-    Record<string, { summary?: string; loading: boolean; error?: string; expanded: boolean }>
-  >({})
+  const [interactionStates, setInteractionStates] = useState<Record<string, SummaryState>>({})
 
   const cpfValido = cpf ? validateCPF(cpf) : false
 
@@ -90,8 +90,6 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   useRealtime('candidato_consultas_juridicas', () => {
     loadData()
   })
-
-  const selectedConsultaIdRef = useRef<string | null>(null)
 
   const extractSummaryText = (val: any): string | null => {
     if (val == null) return null
@@ -125,49 +123,42 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
     return null
   }
 
-  useEffect(() => {
-    if (!selectedConsulta) {
-      selectedConsultaIdRef.current = null
-      setSummaryStates({})
-      return
-    }
+  const summaryStates = useMemo<Record<string, SummaryState>>(() => {
+    const merged: Record<string, SummaryState> = {}
 
-    selectedConsultaIdRef.current = selectedConsulta.id
-
-    const resumoJson = parseResumoJson(selectedConsulta.resumo_json)
-    const processoResumos = resumoJson?.processo_resumos || {}
-
-    const processos = selectedConsulta.processos_json || []
-    const processoNumeros = new Set(
-      processos.map((p: any) => getProcessNumber(p)).filter((n: string) => n && n !== '—'),
-    )
-
-    setSummaryStates((prev) => {
-      const next: typeof summaryStates = {}
+    if (selectedConsulta) {
+      const resumoJson = parseResumoJson(selectedConsulta.resumo_json)
+      const processoResumos = resumoJson?.processo_resumos || {}
       for (const [num, rawSummary] of Object.entries(processoResumos)) {
         const summary = extractSummaryText(rawSummary)
         if (summary) {
-          next[num] = {
+          merged[num] = {
             summary,
             loading: false,
-            expanded: prev[num]?.expanded ?? false,
+            expanded: interactionStates[num]?.expanded ?? false,
             error: undefined,
           }
         }
       }
-      for (const num of processoNumeros) {
-        if (!next[num] && prev[num]) {
-          next[num] = prev[num]
-        }
+    }
+
+    for (const [num, state] of Object.entries(interactionStates)) {
+      if (state.loading || state.error) {
+        merged[num] = state
+      } else if (state.summary) {
+        merged[num] = state
+      } else if (merged[num]) {
+        merged[num] = { ...merged[num], expanded: state.expanded }
       }
-      return next
-    })
-  }, [selectedConsulta])
+    }
+
+    return merged
+  }, [selectedConsulta, interactionStates])
 
   const handleFetchSummary = async (numeroProcesso: string) => {
     if (!selectedConsulta) return
 
-    setSummaryStates((prev) => ({
+    setInteractionStates((prev) => ({
       ...prev,
       [numeroProcesso]: {
         ...prev[numeroProcesso],
@@ -178,7 +169,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
     }))
     try {
       const result = await getProcessoResumoIA(numeroProcesso, selectedConsulta.id)
-      setSummaryStates((prev) => ({
+      setInteractionStates((prev) => ({
         ...prev,
         [numeroProcesso]: { summary: result.summary, loading: false, expanded: true },
       }))
@@ -195,7 +186,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
         }
       })
     } catch (err: any) {
-      setSummaryStates((prev) => ({
+      setInteractionStates((prev) => ({
         ...prev,
         [numeroProcesso]: {
           ...prev[numeroProcesso],
@@ -207,7 +198,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   }
 
   const toggleSummaryExpanded = (numeroProcesso: string) => {
-    setSummaryStates((prev) => ({
+    setInteractionStates((prev) => ({
       ...prev,
       [numeroProcesso]: {
         ...prev[numeroProcesso],
