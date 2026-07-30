@@ -167,6 +167,13 @@ export default function Dashboard() {
     }
   }, [openVacancies, filteredCandidates])
 
+  const conversionRateData = useMemo(() => {
+    const integrados = filteredCandidates.filter((c) => c.status_candidato === 'Integrado').length
+    const total = filteredCandidates.length
+    const taxa = total > 0 ? (integrados / total) * 100 : 0
+    return { integrados, total, taxa }
+  }, [filteredCandidates])
+
   const statusChartData = useMemo(() => {
     const counts: Record<string, number> = {}
     filteredVacancies.forEach((v) => {
@@ -472,26 +479,53 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      <Card className="border-slate-200 shadow-2xs hover:shadow-md transition-shadow">
-        <CardContent className="p-5">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-              Ranking Médio Geral
-            </span>
-            <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
-              <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card className="border-slate-200 shadow-2xs hover:shadow-md transition-shadow">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Taxa de Conversão
+              </span>
+              <div className="p-2 bg-teal-50 text-teal-600 rounded-lg">
+                <TrendingUp className="h-5 w-5" />
+              </div>
             </div>
-          </div>
-          <div className="mt-3 flex items-baseline justify-between">
-            <span className="text-3xl font-extrabold text-slate-900">
-              {overallAverageRank > 0 ? overallAverageRank : '—'}
-            </span>
-            <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
-              {overallAverageRank > 0 ? '/ 5 estrelas' : 'Sem dados'}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+            <div className="mt-3 flex items-baseline justify-between">
+              <span className="text-3xl font-extrabold text-slate-900">
+                {conversionRateData.total > 0
+                  ? conversionRateData.taxa.toFixed(1).replace('.', ',') + '%'
+                  : '—'}
+              </span>
+              <span className="text-xs font-medium text-teal-600 bg-teal-50 px-2 py-0.5 rounded">
+                {conversionRateData.total > 0
+                  ? `${conversionRateData.integrados}/${conversionRateData.total}`
+                  : 'Sem dados'}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 shadow-2xs hover:shadow-md transition-shadow">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                Ranking Médio Geral
+              </span>
+              <div className="p-2 bg-amber-50 text-amber-600 rounded-lg">
+                <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline justify-between">
+              <span className="text-3xl font-extrabold text-slate-900">
+                {overallAverageRank > 0 ? overallAverageRank : '—'}
+              </span>
+              <span className="text-xs font-medium text-amber-600 bg-amber-50 px-2 py-0.5 rounded">
+                {overallAverageRank > 0 ? '/ 5 estrelas' : 'Sem dados'}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
