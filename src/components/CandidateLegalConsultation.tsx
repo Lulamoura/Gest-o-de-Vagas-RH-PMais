@@ -3,8 +3,7 @@ import {
   getConsultaJuridicaHistory,
   performConsultaJuridica,
   getProcessoResumoIA,
-  getProcessoAnaliseDetalhada,
-  type ProcessAnalysis,
+  getProcessoDetalhes,
 } from '@/services/candidato_consultas_juridicas'
 import { CandidatoConsultaJuridicaRecord } from '@/types'
 import { validateCPF, formatCPF } from '@/lib/cpf-utils'
@@ -60,7 +59,7 @@ interface Props {
 
 type SummaryState = { summary?: string; loading: boolean; error?: string; expanded: boolean }
 
-export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Props) {
+export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult }: Props) {
   const [loading, setLoading] = useState(true)
   const [consultando, setConsultando] = useState(false)
   const [history, setHistory] = useState<CandidatoConsultaJuridicaRecord[]>([])
@@ -70,11 +69,11 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
   const [error, setError] = useState<string | null>(null)
   const [showUpdateDialog, setShowUpdateDialog] = useState(false)
   const [interactionStates, setInteractionStates] = useState<Record<string, SummaryState>>({})
-  const [analysisData, setAnalysisData] = useState<ProcessAnalysis | null>(null)
-  const [analysisModalOpen, setAnalysisModalOpen] = useState(false)
-  const [analysisModalLoading, setAnalysisModalLoading] = useState(false)
-  const [analysisModalError, setAnalysisModalError] = useState<string | null>(null)
-  const [analysisModalNumero, setAnalysisModalNumero] = useState('')
+  const [capaData, setCapaData] = useState<any | null>(null)
+  const [capaModalOpen, setCapaModalOpen] = useState(false)
+  const [capaModalLoading, setCapaModalLoading] = useState(false)
+  const [capaModalError, setCapaModalError] = useState<string | null>(null)
+  const [capaModalNumero, setCapaModalNumero] = useState('')
 
   const cpfValido = cpf ? validateCPF(cpf) : false
 
@@ -357,24 +356,28 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       return
     }
 
-    setAnalysisModalLoading(true)
-    setAnalysisModalError(null)
-    setAnalysisData(null)
-    setAnalysisModalNumero(numeroProc !== '—' ? numeroProc : procIdentifier)
-    setAnalysisModalOpen(true)
+    setCapaModalLoading(true)
+    setCapaModalError(null)
+    setCapaData(null)
+    setCapaModalNumero(numeroProc !== '—' ? numeroProc : procIdentifier)
+    setCapaModalOpen(true)
 
     try {
-      const result = await getProcessoAnaliseDetalhada(selectedConsulta.id, procIdentifier)
-      setAnalysisData(result)
+      const result = await getProcessoDetalhes(
+        procIdentifier,
+        selectedConsulta.id,
+        numeroProc !== '—' ? numeroProc : undefined,
+      )
+      setCapaData(result)
     } catch (err: any) {
       const errorMsg =
         err?.response?.error ||
         err?.response?.message ||
         err?.message ||
-        'Não foi possível gerar a análise detalhada. Tente novamente.'
-      setAnalysisModalError(errorMsg)
+        'Não foi possível obter a capa do processo.'
+      setCapaModalError(errorMsg)
     } finally {
-      setAnalysisModalLoading(false)
+      setCapaModalLoading(false)
     }
   }
 
@@ -676,7 +679,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
                                   className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
                                 >
                                   <FileSearch className="h-3 w-3 mr-1" />
-                                  Análise Detalhada
+                                  Capa do Processo
                                 </Button>
                               )}
                               <Badge
@@ -866,12 +869,13 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
       </AlertDialog>
 
       <ProcessDetailModal
-        analysisData={analysisData}
-        processoNumero={analysisModalNumero}
-        open={analysisModalOpen}
-        onOpenChange={setAnalysisModalOpen}
-        loading={analysisModalLoading}
-        error={analysisModalError}
+        processData={capaData}
+        processoNumero={capaModalNumero}
+        candidateNome={nome}
+        open={capaModalOpen}
+        onOpenChange={setCapaModalOpen}
+        loading={capaModalLoading}
+        error={capaModalError}
       />
     </div>
   )

@@ -310,6 +310,54 @@ export function getTopAssuntos(processos: any[]): { label: string; count: number
     .map(([label, count]) => ({ label, count }))
 }
 
+export interface ProcessParte {
+  nome: string
+  tipo: string
+  advogados: string[]
+}
+
+export function getProcessPartes(proc: any): ProcessParte[] {
+  if (!proc) return []
+
+  let partesRaw: any[] | null = null
+
+  if (Array.isArray(proc.partes) && proc.partes.length > 0) {
+    partesRaw = proc.partes
+  } else if (proc.capa && Array.isArray(proc.capa.partes) && proc.capa.partes.length > 0) {
+    partesRaw = proc.capa.partes
+  } else if (Array.isArray(proc.envolvidos) && proc.envolvidos.length > 0) {
+    partesRaw = proc.envolvidos
+  } else if (proc.capa && Array.isArray(proc.capa.envolvidos) && proc.capa.envolvidos.length > 0) {
+    partesRaw = proc.capa.envolvidos
+  }
+
+  if (!partesRaw) return []
+
+  return partesRaw
+    .map((p: any) => {
+      let nome = ''
+      let tipo = ''
+      let advogados: string[] = []
+
+      if (typeof p === 'string') {
+        nome = p
+      } else if (typeof p === 'object' && p !== null) {
+        nome =
+          p.nome || p.nome_completo || p.fisica?.nome || p.juridica?.nome || p.pessoa?.nome || ''
+        tipo = p.tipo || p.tipo_nome || p.qualificacao || p.polo || p.tipo_parte || ''
+
+        if (Array.isArray(p.advogados)) {
+          advogados = p.advogados
+            .map((a: any) => (typeof a === 'string' ? a : a?.nome || a?.nome_completo || ''))
+            .filter(Boolean)
+        }
+      }
+
+      return { nome, tipo, advogados }
+    })
+    .filter((p) => p.nome)
+}
+
 export function formatDateTime(dateStr?: string): string {
   if (!dateStr) return '—'
   try {

@@ -1,5 +1,4 @@
 import { type ReactNode } from 'react'
-import { type ProcessAnalysis } from '@/services/candidato_consultas_juridicas'
 import {
   Dialog,
   DialogContent,
@@ -10,98 +9,98 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import {
-  ShieldAlert,
-  Users,
-  FileText,
+  getTribunalInfo,
+  getProcessClass,
+  getProcessAssunto,
+  getProcessData,
+  getProcessPartes,
+  getProcessVara,
+  getProcessValorCausa,
+} from '@/lib/legal-utils'
+import {
   Scale,
   Loader2,
   AlertCircle,
-  ShieldCheck,
-  ShieldX,
-  ClipboardCheck,
+  Building2,
+  FileText,
+  Tag,
+  Calendar,
+  Users,
+  User,
+  Banknote,
+  MapPin,
 } from 'lucide-react'
 
 interface Props {
-  analysisData: ProcessAnalysis | null
+  processData: any | null
   processoNumero: string
+  candidateNome?: string
   open: boolean
   onOpenChange: (open: boolean) => void
   loading?: boolean
   error?: string | null
 }
 
-type RiskLevel = 'Baixo' | 'Médio' | 'Alto' | 'Indefinido'
-type Recommendation = 'aprovar' | 'reprovar' | 'indefinido'
-
-function getRiskLevel(risco: string): RiskLevel {
-  const lower = risco.toLowerCase()
-  if (lower.includes('alto')) return 'Alto'
-  if (lower.includes('médio') || lower.includes('medio')) return 'Médio'
-  if (lower.includes('baixo')) return 'Baixo'
-  return 'Indefinido'
-}
-
-function getRecommendation(rec: string): Recommendation {
-  const lower = rec.toLowerCase()
-  if (lower.includes('reprovar') || lower.includes('reprov')) return 'reprovar'
-  if (lower.includes('aprovar') || lower.includes('aprov')) return 'aprovar'
-  return 'indefinido'
-}
-
-function AnalysisSection({
-  icon,
-  title,
-  children,
-  accent,
-}: {
-  icon: ReactNode
-  title: string
-  children: ReactNode
-  accent?: string
-}) {
+function InfoRow({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
-    <div className={`rounded-xl border p-4 ${accent || 'border-slate-200 bg-white'}`}>
-      <div className="flex items-center gap-2 mb-2">
-        {icon}
-        <h3 className="text-sm font-bold text-slate-800">{title}</h3>
+    <div className="flex items-start gap-2.5">
+      <div className="text-indigo-600 mt-0.5 shrink-0">{icon}</div>
+      <div className="min-w-0 flex-1">
+        <span className="text-[11px] font-semibold text-slate-400 uppercase block">{label}</span>
+        <span className="text-sm text-slate-800 font-medium break-words">{value}</span>
       </div>
-      <div className="text-xs text-slate-600 leading-relaxed whitespace-pre-wrap">{children}</div>
     </div>
   )
 }
 
+function CapaSection({
+  icon,
+  title,
+  children,
+}: {
+  icon: ReactNode
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-indigo-600">{icon}</span>
+        <h3 className="text-sm font-bold text-slate-800">{title}</h3>
+      </div>
+      {children}
+    </div>
+  )
+}
+
+function isCandidateMatch(parteNome: string, candidateNome?: string): boolean {
+  if (!candidateNome || !parteNome) return false
+  const normalize = (s: string) => s.trim().toLowerCase().replace(/\s+/g, ' ')
+  const cn = normalize(candidateNome)
+  const pn = normalize(parteNome)
+  if (pn === cn) return true
+  if (cn.length > 3 && pn.includes(cn)) return true
+  if (pn.length > 3 && cn.includes(pn)) return true
+  const cnParts = cn.split(' ').filter((p) => p.length > 2)
+  return cnParts.every((p) => pn.includes(p))
+}
+
 export function ProcessDetailModal({
-  analysisData,
+  processData,
   processoNumero,
+  candidateNome,
   open,
   onOpenChange,
   loading,
   error,
 }: Props) {
-  const riskLevel: RiskLevel = analysisData
-    ? getRiskLevel(analysisData.analise_risco)
-    : 'Indefinido'
-  const recommendation: Recommendation = analysisData
-    ? getRecommendation(analysisData.recomendacao_rh)
-    : 'indefinido'
-
-  const riskBadgeClass =
-    riskLevel === 'Alto'
-      ? 'bg-rose-100 text-rose-700 border-rose-200'
-      : riskLevel === 'Médio'
-        ? 'bg-amber-100 text-amber-700 border-amber-200'
-        : riskLevel === 'Baixo'
-          ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-          : 'bg-slate-100 text-slate-600 border-slate-200'
-
-  const riskSectionAccent =
-    riskLevel === 'Alto'
-      ? 'border-rose-200 bg-rose-50/40'
-      : riskLevel === 'Médio'
-        ? 'border-amber-200 bg-amber-50/40'
-        : riskLevel === 'Baixo'
-          ? 'border-emerald-200 bg-emerald-50/40'
-          : 'border-slate-200 bg-white'
+  const tribunalInfo = processData ? getTribunalInfo(processData) : null
+  const classe = processData ? getProcessClass(processData) : '—'
+  const assuntos = processData ? getProcessAssunto(processData) : '—'
+  const dataDistribuicao = processData ? getProcessData(processData) : '—'
+  const vara = processData ? getProcessVara(processData) : '—'
+  const valorCausa = processData ? getProcessValorCausa(processData) : '—'
+  const partes = processData ? getProcessPartes(processData) : []
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -109,7 +108,7 @@ export function ProcessDetailModal({
         <DialogHeader className="px-6 py-4 border-b border-slate-200 shrink-0">
           <DialogTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
             <Scale className="h-5 w-5 text-indigo-600" />
-            Análise Detalhada
+            Capa do Processo
           </DialogTitle>
           <DialogDescription className="text-xs text-slate-500 break-all font-mono">
             {processoNumero || '—'}
@@ -120,90 +119,139 @@ export function ProcessDetailModal({
           {loading && (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
               <Loader2 className="h-8 w-8 animate-spin text-indigo-600" />
-              <span className="text-sm font-medium">Gerando análise detalhada via IA...</span>
-              <span className="text-xs text-slate-400">Isso pode levar alguns segundos.</span>
+              <span className="text-sm font-medium">Buscando capa do processo...</span>
+              <span className="text-xs text-slate-400">Consultando a API Escavador.</span>
             </div>
           )}
 
           {!loading && error && (
             <div className="flex-1 flex flex-col items-center justify-center gap-3 text-rose-600">
               <AlertCircle className="h-8 w-8" />
-              <span className="text-sm font-medium text-center px-4">{error}</span>
+              <span className="text-sm font-medium text-center px-4">
+                {error || 'Não foi possível obter a capa do processo.'}
+              </span>
             </div>
           )}
 
-          {!loading && !error && analysisData && (
+          {!loading && !error && processData && (
             <ScrollArea className="flex-1 pr-2">
               <div className="space-y-4">
-                <div
-                  className={`rounded-xl p-4 border-2 ${
-                    recommendation === 'aprovar'
-                      ? 'border-emerald-300 bg-emerald-50'
-                      : recommendation === 'reprovar'
-                        ? 'border-rose-300 bg-rose-50'
-                        : 'border-slate-200 bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    {recommendation === 'aprovar' ? (
-                      <ShieldCheck className="h-5 w-5 text-emerald-600" />
-                    ) : recommendation === 'reprovar' ? (
-                      <ShieldX className="h-5 w-5 text-rose-600" />
+                <CapaSection icon={<Building2 className="h-4 w-4" />} title="Tribunal">
+                  <div className="space-y-2.5">
+                    <InfoRow
+                      icon={<Building2 className="h-4 w-4" />}
+                      label="Tribunal"
+                      value={tribunalInfo?.display || '—'}
+                    />
+                    {tribunalInfo?.nome && tribunalInfo.nome !== tribunalInfo.sigla && (
+                      <InfoRow
+                        icon={<MapPin className="h-4 w-4" />}
+                        label="Vara / Órgão"
+                        value={vara}
+                      />
+                    )}
+                  </div>
+                </CapaSection>
+
+                <CapaSection icon={<FileText className="h-4 w-4" />} title="Classe Processual">
+                  <InfoRow icon={<FileText className="h-4 w-4" />} label="Classe" value={classe} />
+                </CapaSection>
+
+                <CapaSection icon={<Tag className="h-4 w-4" />} title="Assuntos">
+                  <div className="text-sm text-slate-700 leading-relaxed whitespace-pre-wrap">
+                    {assuntos !== '—' ? (
+                      assuntos.split(',').map((a, i) => (
+                        <Badge
+                          key={i}
+                          variant="outline"
+                          className="bg-slate-50 text-slate-700 border-slate-200 mr-1.5 mb-1.5"
+                        >
+                          {a.trim()}
+                        </Badge>
+                      ))
                     ) : (
-                      <ClipboardCheck className="h-5 w-5 text-slate-500" />
-                    )}
-                    <h3 className="text-sm font-bold text-slate-900">Recomendação RH</h3>
-                    {recommendation !== 'indefinido' && (
-                      <Badge
-                        variant="outline"
-                        className={`ml-auto ${
-                          recommendation === 'aprovar'
-                            ? 'bg-emerald-100 text-emerald-700 border-emerald-300'
-                            : 'bg-rose-100 text-rose-700 border-rose-300'
-                        }`}
-                      >
-                        {recommendation === 'aprovar' ? 'APROVAR' : 'REPROVAR'}
-                      </Badge>
+                      <span className="text-slate-400 text-xs">Nenhum assunto informado.</span>
                     )}
                   </div>
-                  <p className="text-xs text-slate-700 leading-relaxed whitespace-pre-wrap">
-                    {analysisData.recomendacao_rh}
-                  </p>
-                </div>
+                </CapaSection>
 
-                <AnalysisSection
-                  icon={<ShieldAlert className="h-4 w-4 text-indigo-600" />}
-                  title="Análise de Risco"
-                  accent={riskSectionAccent}
-                >
-                  <div className="mb-2">
-                    <Badge variant="outline" className={riskBadgeClass}>
-                      Risco {riskLevel}
-                    </Badge>
+                <CapaSection icon={<Calendar className="h-4 w-4" />} title="Data de Distribuição">
+                  <div className="space-y-2.5">
+                    <InfoRow
+                      icon={<Calendar className="h-4 w-4" />}
+                      label="Distribuição"
+                      value={dataDistribuicao}
+                    />
+                    <InfoRow
+                      icon={<Banknote className="h-4 w-4" />}
+                      label="Valor da Causa"
+                      value={valorCausa}
+                    />
                   </div>
-                  {analysisData.analise_risco}
-                </AnalysisSection>
+                </CapaSection>
 
-                <AnalysisSection
-                  icon={<Users className="h-4 w-4 text-indigo-600" />}
-                  title="Detalhamento de Partes"
-                >
-                  {analysisData.detalhamento_partes}
-                </AnalysisSection>
-
-                <AnalysisSection
-                  icon={<FileText className="h-4 w-4 text-indigo-600" />}
-                  title="Movimentações Relevantes"
-                >
-                  {analysisData.movimentacoes_relevantes}
-                </AnalysisSection>
+                <CapaSection icon={<Users className="h-4 w-4" />} title="Partes Envolvidas">
+                  {partes.length > 0 ? (
+                    <div className="space-y-2">
+                      {partes.map((parte, i) => {
+                        const isCandidate = isCandidateMatch(parte.nome, candidateNome)
+                        return (
+                          <div
+                            key={i}
+                            className={`flex flex-col gap-1 rounded-lg border p-2.5 transition-colors ${
+                              isCandidate
+                                ? 'border-indigo-300 bg-indigo-50/70'
+                                : 'border-slate-100 bg-slate-50/60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-semibold text-slate-800">
+                                {parte.nome}
+                              </span>
+                              {parte.tipo && (
+                                <Badge
+                                  variant="outline"
+                                  className={`text-[10px] h-5 ${
+                                    isCandidate
+                                      ? 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                                      : 'bg-slate-100 text-slate-600 border-slate-200'
+                                  }`}
+                                >
+                                  {parte.tipo}
+                                </Badge>
+                              )}
+                              {isCandidate && (
+                                <Badge className="bg-indigo-600 text-white text-[10px] h-5 gap-0.5">
+                                  <User className="h-2.5 w-2.5" /> Candidato
+                                </Badge>
+                              )}
+                            </div>
+                            {parte.advogados.length > 0 && (
+                              <div className="text-xs text-slate-500 pl-1">
+                                <span className="font-medium">Advogados: </span>
+                                {parte.advogados.join(', ')}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-slate-400 text-center py-2">
+                      Nenhuma parte encontrada nos dados do processo.
+                    </p>
+                  )}
+                </CapaSection>
               </div>
             </ScrollArea>
           )}
 
-          {!loading && !error && !analysisData && (
-            <div className="flex-1 flex items-center justify-center text-sm text-slate-500">
-              Nenhuma análise disponível.
+          {!loading && !error && !processData && (
+            <div className="flex-1 flex flex-col items-center justify-center gap-3 text-slate-500">
+              <AlertCircle className="h-8 w-8" />
+              <span className="text-sm font-medium text-center px-4">
+                Não foi possível obter a capa do processo.
+              </span>
             </div>
           )}
         </div>
