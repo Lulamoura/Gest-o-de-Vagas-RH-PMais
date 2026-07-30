@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   getCandidate,
   sendComplementDataRequest,
@@ -29,6 +29,8 @@ const DISQUALIFICATION_STATUSES: CandidateStatus[] = ['Desclassificado', 'Em ban
 export default function CandidateDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
+  const fromVacancyId = (location.state as { fromVacancy?: string } | null)?.fromVacancy
   const { isAdmin, isSuperAdmin } = useAuth()
   const canEdit = isAdmin || isSuperAdmin
 
@@ -117,10 +119,11 @@ export default function CandidateDetail() {
     <div className="space-y-6">
       <Button
         variant="ghost"
-        onClick={() => navigate('/candidatos')}
+        onClick={() => navigate(fromVacancyId ? `/vagas/${fromVacancyId}` : '/candidatos')}
         className="text-slate-600 self-start"
       >
-        <ArrowLeft className="h-4 w-4 mr-2" /> Voltar para Candidatos
+        <ArrowLeft className="h-4 w-4 mr-2" />
+        {fromVacancyId ? 'Voltar para a Vaga' : 'Voltar para Candidatos'}
       </Button>
 
       <Card className="border-slate-200 shadow-2xs">

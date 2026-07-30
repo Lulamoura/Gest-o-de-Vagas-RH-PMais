@@ -108,6 +108,15 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
 
   const handleFetchSummary = async (numeroProcesso: string) => {
     if (!selectedConsulta) return
+
+    if (summaryStates[numeroProcesso]?.summary) {
+      setSummaryStates((prev) => ({
+        ...prev,
+        [numeroProcesso]: { ...prev[numeroProcesso], expanded: true, error: undefined },
+      }))
+      return
+    }
+
     setSummaryStates((prev) => ({
       ...prev,
       [numeroProcesso]: {
@@ -123,6 +132,18 @@ export function CandidateLegalConsultation({ candidateId, cpf, canConsult }: Pro
         ...prev,
         [numeroProcesso]: { summary: result.summary, loading: false, expanded: true },
       }))
+      setSelectedConsulta((prev) => {
+        if (!prev) return prev
+        const resumoJson = (prev.resumo_json as Record<string, any>) || {}
+        const processoResumos = resumoJson.processo_resumos || {}
+        return {
+          ...prev,
+          resumo_json: {
+            ...resumoJson,
+            processo_resumos: { ...processoResumos, [numeroProcesso]: result.summary },
+          },
+        }
+      })
     } catch (err: any) {
       setSummaryStates((prev) => ({
         ...prev,

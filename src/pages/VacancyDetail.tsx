@@ -854,6 +854,7 @@ export default function VacancyDetail() {
                         <TableCell className="font-semibold text-slate-900 text-sm">
                           <Link
                             to={`/candidatos/${cand.id}`}
+                            state={{ fromVacancy: vaga.id }}
                             className="hover:text-indigo-600 hover:underline"
                           >
                             {cand.nome}
