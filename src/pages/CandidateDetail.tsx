@@ -6,10 +6,12 @@ import {
   sendDisqualificationNotice,
 } from '@/services/candidates'
 import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
-import { CandidateRecord, CandidateEmailLogRecord, CandidateStatus } from '@/types'
+import { getClinicas } from '@/services/clinicas'
+import { CandidateRecord, CandidateEmailLogRecord, CandidateStatus, ClinicaRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { CandidateLegalConsultation } from '@/components/CandidateLegalConsultation'
+import { ExamReferralModal } from '@/components/ExamReferralModal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -39,14 +41,20 @@ export default function CandidateDetail() {
   const [loading, setLoading] = useState(true)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendingDisqual, setSendingDisqual] = useState(false)
+  const [clinicas, setClinicas] = useState<ClinicaRecord[]>([])
+  const [examModalOpen, setExamModalOpen] = useState(false)
 
   const loadData = async () => {
     if (!id) return
     try {
-      const data = await getCandidate(id)
+      const [data, logs, clins] = await Promise.all([
+        getCandidate(id),
+        getEmailLogsForCandidate(id),
+        getClinicas(),
+      ])
       setCandidate(data)
-      const logs = await getEmailLogsForCandidate(id)
       setEmailLogs(logs)
+      setClinicas(clins)
     } catch {
       toast.error('Erro ao carregar candidato')
     } finally {
@@ -114,6 +122,7 @@ export default function CandidateDetail() {
 
   const showComplementBtn = canEdit && COMPLEMENT_STATUSES.includes(candidate.status_candidato)
   const showDisqualBtn = canEdit && DISQUALIFICATION_STATUSES.includes(candidate.status_candidato)
+  const showExamReferralBtn = candidate.status_candidato === 'Documentação e exame'
 
   return (
     <div className="space-y-6">
@@ -178,8 +187,24 @@ export default function CandidateDetail() {
             {candidate.rank != null && <StarRating value={candidate.rank} readOnly size={14} />}
           </div>
 
-          {(showComplementBtn || showDisqualBtn) && (
+          {(showComplementBtn || showDisqualBtn || showExamReferralBtn) && (
             <div className="pt-2 border-t border-slate-100 space-y-2">
+              {showExamReferralBtn && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setExamModalOpen(true)}
+                  disabled={!candidate.email}
+                  className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                  title={!candidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Enviar Informações para Exames
+                  {hasEmailBeenSent(emailLogs, 'encaminhamento_exames') && (
+                    <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                  )}
+                </Button>
+              )}
               {showComplementBtn && (
                 <Button
                   type="button"
@@ -222,6 +247,14 @@ export default function CandidateDetail() {
         cpf={candidate.cpf}
         nome={candidate.nome}
         canConsult={canEdit}
+      />
+
+      <ExamReferralModal
+        open={examModalOpen}
+        onOpenChange={setExamModalOpen}
+        candidate={candidate}
+        clinicas={clinicas}
+        onSuccess={loadData}
       />
     </div>
   )

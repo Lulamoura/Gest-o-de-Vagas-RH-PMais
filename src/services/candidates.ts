@@ -63,3 +63,21 @@ export const updateCandidatePublicData = async (id: string, data: Record<string,
     headers: { 'Content-Type': 'application/json' },
   })
 }
+
+export const sendExamReferral = async (
+  candidateId: string,
+  clinicaId: string,
+  comentario: string,
+  custoExames: number,
+) => {
+  return pb.send('/backend/v1/send-encaminhamento-exames', {
+    method: 'POST',
+    body: JSON.stringify({
+      candidate_id: candidateId,
+      clinica_id: clinicaId,
+      comentario,
+      custo_exames: custoExames,
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+}

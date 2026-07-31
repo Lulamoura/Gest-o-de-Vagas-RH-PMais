@@ -156,7 +156,7 @@ export interface CandidatoConsultaJuridicaRecord extends RecordModel {
   }
 }
 
-export type EmailType = 'complement_data' | 'disqualification'
+export type EmailType = 'complement_data' | 'disqualification' | 'encaminhamento_exames'
 
 export interface EmailTemplateRecord extends RecordModel {
   type: EmailType

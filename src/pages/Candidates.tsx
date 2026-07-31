@@ -33,7 +33,15 @@ import {
 } from '@/services/candidates'
 import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
 import { getVacancies } from '@/services/vacancies'
-import { CandidateRecord, CandidateStatus, VacancyRecord, CandidateEmailLogRecord } from '@/types'
+import { getClinicas } from '@/services/clinicas'
+import { ExamReferralModal } from '@/components/ExamReferralModal'
+import {
+  CandidateRecord,
+  CandidateStatus,
+  VacancyRecord,
+  CandidateEmailLogRecord,
+  ClinicaRecord,
+} from '@/types'
 import { toast } from '@/components/ui/use-toast'
 import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
 import { getErrorMessage, extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
@@ -70,6 +78,9 @@ export default function Candidates() {
   const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
   const [searchTerm, setSearchTerm] = useState('')
   const [filterVacancyId, setFilterVacancyId] = useState<string>('all')
+  const [clinicas, setClinicas] = useState<ClinicaRecord[]>([])
+  const [examModalOpen, setExamModalOpen] = useState(false)
+  const [examReferralCandidate, setExamReferralCandidate] = useState<CandidateRecord | null>(null)
 
   const [nome, setNome] = useState('')
   const [email, setEmail] = useState('')
@@ -99,9 +110,14 @@ export default function Candidates() {
 
   const loadData = useCallback(async () => {
     try {
-      const [cands, vacs] = await Promise.all([getCandidates(), getVacancies()])
+      const [cands, vacs, clins] = await Promise.all([
+        getCandidates(),
+        getVacancies(),
+        getClinicas(),
+      ])
       setCandidates(cands)
       setVacancies(vacs)
+      setClinicas(clins)
     } catch (err) {
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
     } finally {
@@ -287,6 +303,11 @@ export default function Candidates() {
     }
   }
 
+  const handleOpenExamModal = (candidate: CandidateRecord) => {
+    setExamReferralCandidate(candidate)
+    setExamModalOpen(true)
+  }
+
   const filteredCandidates = candidates.filter((c) => {
     const matchesSearch =
       c.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -391,23 +412,36 @@ export default function Candidates() {
                     <StarRating value={candidate.rank || 0} onChange={() => {}} size={16} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleEdit(candidate)}
-                        className="h-8 w-8 text-slate-500 hover:text-indigo-600"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleDelete(candidate.id)}
-                        className="h-8 w-8 text-slate-500 hover:text-rose-600"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                    <div className="flex flex-col items-end gap-1">
+                      {candidate.status_candidato === 'Documentação e exame' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenExamModal(candidate)}
+                          className="text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                        >
+                          <Mail className="h-3 w-3 mr-1" />
+                          Enviar Informações para Exames
+                        </Button>
+                      )}
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEdit(candidate)}
+                          className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleDelete(candidate.id)}
+                          className="h-8 w-8 text-slate-500 hover:text-rose-600"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </td>
                 </tr>
@@ -727,6 +761,14 @@ export default function Candidates() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ExamReferralModal
+        open={examModalOpen}
+        onOpenChange={setExamModalOpen}
+        candidate={examReferralCandidate}
+        clinicas={clinicas}
+        onSuccess={loadData}
+      />
     </div>
   )
 }
