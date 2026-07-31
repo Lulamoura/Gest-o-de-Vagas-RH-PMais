@@ -13,6 +13,7 @@ import { Mail, Pencil, Lock } from 'lucide-react'
 const TYPE_LABELS: Record<string, string> = {
   complement_data: 'Solicitar Dados Complementares',
   disqualification: 'Aviso de Desclassificação',
+  encaminhamento_exames: 'Encaminhamento para Exames',
 }
 
 export default function EmailTemplates() {

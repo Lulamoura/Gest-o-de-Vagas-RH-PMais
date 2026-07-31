@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import {
   getCandidates,
+  getCandidate,
   createCandidate,
   updateCandidate,
   deleteCandidate,
@@ -247,14 +248,19 @@ export default function Candidates() {
       }
 
       if (editingCandidate) {
-        await updateCandidate(editingCandidate.id, data)
+        const updated = await updateCandidate(editingCandidate.id, data)
         toast({ title: 'Sucesso', description: 'Candidato atualizado com sucesso!' })
+        setEditingCandidate(updated)
+        getEmailLogsForCandidate(updated.id)
+          .then(setEmailLogs)
+          .catch(() => {})
       } else {
-        await createCandidate(data)
+        const created = await createCandidate(data)
         toast({ title: 'Sucesso', description: 'Candidato criado com sucesso!' })
+        setEditingCandidate(created)
+        setEmailLogs([])
       }
-      setModalOpen(false)
-      resetForm()
+      await loadData()
     } catch (err) {
       setFieldErrors(extractFieldErrors(err))
       toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
@@ -306,6 +312,20 @@ export default function Candidates() {
   const handleOpenExamModal = (candidate: CandidateRecord) => {
     setExamReferralCandidate(candidate)
     setExamModalOpen(true)
+  }
+
+  const handleExamReferralSuccess = async () => {
+    await loadData()
+    if (editingCandidate) {
+      try {
+        const updated = await getCandidate(editingCandidate.id)
+        setEditingCandidate(updated)
+        const logs = await getEmailLogsForCandidate(updated.id)
+        setEmailLogs(logs)
+      } catch {
+        /* intentionally ignored */
+      }
+    }
   }
 
   const filteredCandidates = candidates.filter((c) => {
@@ -412,36 +432,23 @@ export default function Candidates() {
                     <StarRating value={candidate.rank || 0} onChange={() => {}} size={16} />
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <div className="flex flex-col items-end gap-1">
-                      {candidate.status_candidato === 'Documentação e exame' && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenExamModal(candidate)}
-                          className="text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                        >
-                          <Mail className="h-3 w-3 mr-1" />
-                          Enviar Informações para Exames
-                        </Button>
-                      )}
-                      <div className="flex justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleEdit(candidate)}
-                          className="h-8 w-8 text-slate-500 hover:text-indigo-600"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleDelete(candidate.id)}
-                          className="h-8 w-8 text-slate-500 hover:text-rose-600"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
+                    <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEdit(candidate)}
+                        className="h-8 w-8 text-slate-500 hover:text-indigo-600"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(candidate.id)}
+                        className="h-8 w-8 text-slate-500 hover:text-rose-600"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </td>
                 </tr>
@@ -709,40 +716,62 @@ export default function Candidates() {
               </div>
             </div>
 
-            {editingCandidate && isAdminOrSuper && (
+            {editingCandidate && (
               <div className="pt-2 border-t border-slate-100 space-y-2">
-                {COMPLEMENT_STATUSES.includes(editingCandidate.status_candidato) && (
+                {editingCandidate.status_candidato === 'Documentação e exame' && (
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={handleSendEmail}
-                    disabled={sendingEmail || !editingCandidate.email}
+                    onClick={() => handleOpenExamModal(editingCandidate)}
+                    disabled={!editingCandidate.email}
                     className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
                     title={!editingCandidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
                   >
                     <Mail className="h-4 w-4 mr-2" />
-                    {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
-                    {hasEmailBeenSent(emailLogs, 'complement_data') && (
+                    Enviar Informações para Exames
+                    {hasEmailBeenSent(emailLogs, 'encaminhamento_exames') && (
                       <Check className="h-4 w-4 ml-2 text-emerald-600" />
                     )}
                   </Button>
                 )}
-                {DISQUALIFICATION_STATUSES.includes(editingCandidate.status_candidato) && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSendDisqualification}
-                    disabled={sendingDisqualEmail || !editingCandidate.email}
-                    className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
-                    title={!editingCandidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    {sendingDisqualEmail ? 'Enviando...' : 'Aviso de Desclassificação/Banco'}
-                    {hasEmailBeenSent(emailLogs, 'disqualification') && (
-                      <Check className="h-4 w-4 ml-2 text-emerald-600" />
-                    )}
-                  </Button>
-                )}
+                {isAdminOrSuper &&
+                  COMPLEMENT_STATUSES.includes(editingCandidate.status_candidato) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendEmail}
+                      disabled={sendingEmail || !editingCandidate.email}
+                      className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                      title={
+                        !editingCandidate.email ? 'Candidato não possui e-mail cadastrado' : ''
+                      }
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
+                      {hasEmailBeenSent(emailLogs, 'complement_data') && (
+                        <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                      )}
+                    </Button>
+                  )}
+                {isAdminOrSuper &&
+                  DISQUALIFICATION_STATUSES.includes(editingCandidate.status_candidato) && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSendDisqualification}
+                      disabled={sendingDisqualEmail || !editingCandidate.email}
+                      className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+                      title={
+                        !editingCandidate.email ? 'Candidato não possui e-mail cadastrado' : ''
+                      }
+                    >
+                      <Mail className="h-4 w-4 mr-2" />
+                      {sendingDisqualEmail ? 'Enviando...' : 'Aviso de Desclassificação/Banco'}
+                      {hasEmailBeenSent(emailLogs, 'disqualification') && (
+                        <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                      )}
+                    </Button>
+                  )}
               </div>
             )}
 
@@ -767,7 +796,7 @@ export default function Candidates() {
         onOpenChange={setExamModalOpen}
         candidate={examReferralCandidate}
         clinicas={clinicas}
-        onSuccess={loadData}
+        onSuccess={handleExamReferralSuccess}
       />
     </div>
   )

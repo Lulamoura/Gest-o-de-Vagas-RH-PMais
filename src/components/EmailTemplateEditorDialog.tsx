@@ -20,6 +20,7 @@ import { Send, Save, Eye } from 'lucide-react'
 const TYPE_LABELS: Record<string, string> = {
   complement_data: 'Solicitar Dados Complementares',
   disqualification: 'Aviso de Desclassificação',
+  encaminhamento_exames: 'Encaminhamento para Exames',
 }
 
 const PLACEHOLDERS = [
@@ -27,6 +28,12 @@ const PLACEHOLDERS = [
   { token: '{vacancy_name}', description: 'Nome da vaga (cargo)' },
   { token: '{company_name}', description: 'Sempre "PMais Terceirização"' },
   { token: '{public_url}', description: 'Link do formulário (apenas dados complementares)' },
+  { token: '{clinica_nome}', description: 'Nome da clínica' },
+  { token: '{clinica_endereco}', description: 'Endereço da clínica' },
+  { token: '{clinica_telefone}', description: 'Telefone da clínica' },
+  { token: '{clinica_email}', description: 'E-mail da clínica' },
+  { token: '{clinica_contato}', description: 'Pessoa de contato da clínica' },
+  { token: '{comentario}', description: 'Comentário/instruções do RH' },
 ]
 
 const SAMPLE_DATA = {
@@ -34,6 +41,12 @@ const SAMPLE_DATA = {
   vacancy_name: 'Auxiliar de Limpeza',
   company_name: 'PMais Terceirização',
   public_url: 'https://vagaspmais.pmaisservicos.com.br/candidato/example/preencher',
+  clinica_nome: 'Clínica Santa Saúde',
+  clinica_endereco: 'Rua das Flores, 123 - Centro',
+  clinica_telefone: '(11) 3333-4444',
+  clinica_email: 'contato@clinicasantasaude.com.br',
+  clinica_contato: 'Dra. Ana Paula',
+  comentario: 'Realizar exames de sangue e raios-X, comparecer em jejum.',
 }
 
 function renderPreview(text: string): string {
@@ -43,6 +56,12 @@ function renderPreview(text: string): string {
     .replace(/\{vacancy_name\}/g, SAMPLE_DATA.vacancy_name)
     .replace(/\{company_name\}/g, SAMPLE_DATA.company_name)
     .replace(/\{public_url\}/g, SAMPLE_DATA.public_url)
+    .replace(/\{clinica_nome\}/g, SAMPLE_DATA.clinica_nome)
+    .replace(/\{clinica_endereco\}/g, SAMPLE_DATA.clinica_endereco)
+    .replace(/\{clinica_telefone\}/g, SAMPLE_DATA.clinica_telefone)
+    .replace(/\{clinica_email\}/g, SAMPLE_DATA.clinica_email)
+    .replace(/\{clinica_contato\}/g, SAMPLE_DATA.clinica_contato)
+    .replace(/\{comentario\}/g, SAMPLE_DATA.comentario)
 }
 
 interface EmailTemplateEditorDialogProps {

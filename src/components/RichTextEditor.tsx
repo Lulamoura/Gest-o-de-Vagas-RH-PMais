@@ -58,7 +58,7 @@ export function RichTextEditor({ value, onChange, placeholders = [] }: RichTextE
 
   const exec = useCallback(
     (command: string, val?: string) => {
-      document.execCommand('styleWithCSS', false, 'true')
+      document.execCommand('styleWithCSS', false, 'false')
       document.execCommand(command, false, val)
       editorRef.current?.focus()
       handleInput()
