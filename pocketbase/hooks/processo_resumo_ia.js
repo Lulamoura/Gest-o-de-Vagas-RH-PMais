@@ -414,15 +414,24 @@ routerAdd(
 
       try {
         var resumoJsonStr = JSON.stringify(resumoJson)
-        console.log(
-          'processo_resumo_ia: tentando salvar resumo_json na consulta',
-          consultaId,
-          'tamanho:',
-          resumoJsonStr.length,
-        )
         consulta.set('resumo_json', resumoJson)
         $app.saveNoValidate(consulta)
-        console.log('processo_resumo_ia: resumo salvo na consulta', consultaId)
+
+        var verifyRec = $app.findRecordById('candidato_consultas_juridicas', consultaId)
+        var verifyRaw = verifyRec.get('resumo_json')
+        var verifyStr = ''
+        try {
+          verifyStr = typeof verifyRaw === 'string' ? verifyRaw : JSON.stringify(verifyRaw || {})
+        } catch (_) {}
+        if (verifyStr.indexOf('processo_resumos') < 0) {
+          $app
+            .db()
+            .newQuery(
+              'UPDATE candidato_consultas_juridicas SET resumo_json = {:val} WHERE id = {:id}',
+            )
+            .bind({ val: resumoJsonStr, id: consultaId })
+            .execute()
+        }
         $app
           .logger()
           .info(
@@ -431,12 +440,9 @@ routerAdd(
             consultaId,
             'numeroProcesso',
             numeroProcesso,
-            'resumoJsonSize',
-            resumoJsonStr.length,
           )
       } catch (saveErr) {
         var saveErrMsg = saveErr && saveErr.message ? saveErr.message : String(saveErr)
-        console.error('processo_resumo_ia: FALHA ao salvar resumo na consulta:', saveErrMsg)
         $app
           .logger()
           .error(
@@ -445,15 +451,21 @@ routerAdd(
             saveErrMsg,
             'consultaId',
             consultaId,
-            'numeroProcesso',
-            numeroProcesso,
-            'resumoJsonSize',
-            JSON.stringify(resumoJson).length,
           )
-        return e.json(500, {
-          message: 'Falha ao salvar o resumo da IA no banco de dados: ' + saveErrMsg,
-          error: true,
-        })
+        try {
+          $app
+            .db()
+            .newQuery(
+              'UPDATE candidato_consultas_juridicas SET resumo_json = {:val} WHERE id = {:id}',
+            )
+            .bind({ val: JSON.stringify(resumoJson), id: consultaId })
+            .execute()
+        } catch (sqlErr) {
+          return e.json(500, {
+            message: 'Falha ao salvar o resumo da IA no banco de dados: ' + String(sqlErr),
+            error: true,
+          })
+        }
       }
 
       if (candidatoId) {

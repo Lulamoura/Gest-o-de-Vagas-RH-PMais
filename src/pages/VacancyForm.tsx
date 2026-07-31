@@ -77,6 +77,7 @@ export default function VacancyForm() {
   const [despesasVaga, setDespesasVaga] = useState(0)
   const [especificacoes, setEspecificacoes] = useState('')
   const [observacoesInternas, setObservacoesInternas] = useState('')
+  const [ordemExecucao, setOrdemExecucao] = useState('')
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   const missingRequiredFields = useMemo(() => {

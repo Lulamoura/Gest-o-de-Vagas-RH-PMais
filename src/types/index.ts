@@ -53,6 +53,7 @@ export interface VacancyRecord extends RecordModel {
   especificacoes?: string
   observacoes_internas?: string
   despesas_vaga?: number
+  ordem_execucao?: string
   expand?: {
     responsavel_rh?: UserRecord
     cliente?: ClienteRecord
