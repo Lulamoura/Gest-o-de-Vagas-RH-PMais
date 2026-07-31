@@ -8,7 +8,19 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
       log.set('status', status)
       log.set('mensagem', mensagem)
       $app.save(log)
-    } catch (_) {}
+    } catch (logErr) {
+      try {
+        $app
+          .logger()
+          .error(
+            'wordpress_candidate_import: failed to write import log',
+            'jobId',
+            jobId || '',
+            'error',
+            logErr.message || String(logErr),
+          )
+      } catch (_) {}
+    }
   }
 
   try {
@@ -51,18 +63,48 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
     var ranking = body.ranking || body.ranking === 0 ? Number(body.ranking) : null
 
     var vacancyId = ''
+    var vacancyRecord = null
+
     if (body.skip_vaga_id && String(body.skip_vaga_id).trim() !== '') {
       vacancyId = String(body.skip_vaga_id).trim()
+      try {
+        vacancyRecord = $app.findRecordById('vacancies', vacancyId)
+      } catch (vacErr) {
+        $app
+          .logger()
+          .error(
+            'wordpress_candidate_import: vacancy lookup failed via skip_vaga_id',
+            'vacancyId',
+            vacancyId,
+            'error',
+            vacErr.message || String(vacErr),
+          )
+        writeLog(wordpressCandidaturaId, 'erro', 'Vaga não encontrada no SKIP (skip_vaga_id)')
+        return e.json(404, {
+          ok: false,
+          message: 'Vaga não encontrada no SKIP',
+          skip_vaga_id: vacancyId,
+        })
+      }
     } else if (body.wordpress_vaga_id && String(body.wordpress_vaga_id).trim() !== '') {
       var wordpressVagaId = String(body.wordpress_vaga_id).trim()
       try {
-        var vacancy = $app.findFirstRecordByFilter(
+        vacancyRecord = $app.findFirstRecordByFilter(
           'vacancies',
           'wordpress_job_id = {:jobId}',
           wordpressVagaId,
         )
-        vacancyId = vacancy.id
-      } catch (_) {
+        vacancyId = vacancyRecord.id
+      } catch (vacErr2) {
+        $app
+          .logger()
+          .error(
+            'wordpress_candidate_import: vacancy lookup failed via wordpress_vaga_id',
+            'wordpressVagaId',
+            wordpressVagaId,
+            'error',
+            vacErr2.message || String(vacErr2),
+          )
         writeLog(wordpressVagaId, 'erro', 'Vaga não encontrada no SKIP')
         return e.json(404, {
           ok: false,
@@ -111,15 +153,24 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
     } catch (_) {}
 
     var vacancyOrdemExecucao = ''
-    try {
-      var vacancyRecord = $app.findRecordById('vacancies', vacancyId)
-      if (vacancyRecord) {
+    if (vacancyRecord) {
+      try {
         var oe = vacancyRecord.getString('ordem_execucao')
         if (oe) {
           vacancyOrdemExecucao = oe
         }
+      } catch (oeErr) {
+        $app
+          .logger()
+          .error(
+            'wordpress_candidate_import: failed to read ordem_execucao from vacancy',
+            'vacancyId',
+            vacancyId,
+            'error',
+            oeErr.message || String(oeErr),
+          )
       }
-    } catch (_) {}
+    }
 
     var candidatesCol = $app.findCollectionByNameOrId('candidates')
     var candidate = new Record(candidatesCol)
