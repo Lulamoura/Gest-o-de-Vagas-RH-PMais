@@ -34,9 +34,10 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { PlusCircle, Pencil, Trash2, Database, Lock } from 'lucide-react'
+import { CostConsultationsForm } from '@/components/CostConsultationsForm'
 import { RecordModel } from 'pocketbase'
 
-type CollectionKey = 'clientes' | 'cargos' | 'cidades' | 'tipos_vaga' | 'tipos_contrato'
+type CollectionKey = 'clientes' | 'cargos' | 'cidades' | 'tipos_vaga' | 'tipos_contrato' | 'custos_consultas'
 
 const CONFIG: Record<
   CollectionKey,
@@ -95,7 +96,7 @@ const FIELD_MAP: Record<CollectionKey, string> = {
 
 export default function ReferenceData() {
   const { isAdmin, isSuperAdmin } = useAuth()
-  const [activeTab, setActiveTab] = useState<CollectionKey>('clientes')
+  const [activeTab, setActiveTab] = useState<CollectionKey>('custos_consultas' | 'clientes'>('clientes')
   const [records, setRecords] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -104,6 +105,7 @@ export default function ReferenceData() {
   const [saving, setSaving] = useState(false)
 
   const loadData = async () => {
+    if (activeTab === 'custos_consultas') return
     setLoading(true)
     try {
       const data = await CONFIG[activeTab].list()
@@ -203,6 +205,7 @@ export default function ReferenceData() {
               {CONFIG[k].label}
             </TabsTrigger>
           ))}
+          <TabsTrigger value="custos_consultas">Custo de Consultas</TabsTrigger>
         </TabsList>
 
         {(Object.keys(CONFIG) as CollectionKey[]).map((k) => (
@@ -276,6 +279,11 @@ export default function ReferenceData() {
             </Card>
           </TabsContent>
         ))}
+        </TabsContent>
+
+        <TabsContent value="custos_consultas">
+          <CostConsultationsForm />
+        </TabsContent>
       </Tabs>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>

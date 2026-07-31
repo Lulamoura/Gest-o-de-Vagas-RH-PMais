@@ -44,7 +44,7 @@ export const performConsultaJuridica = async (
   if (pb.authStore.token) {
     headers['Authorization'] = pb.authStore.token
   }
-  return pb.send(`/backend/v1/candidato/${candidateId}/consulta-juridica`, {
+  return pb.send(`/backend/v1/candidatos/${candidateId}/consulta-juridica`, {
     method: 'POST',
     headers,
   })

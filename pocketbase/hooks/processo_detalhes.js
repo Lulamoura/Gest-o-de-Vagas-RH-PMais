@@ -205,6 +205,25 @@ routerAdd(
       }
     }
 
+    if (detalhesEscavador && candidatoId) {
+      try {
+        const custoRecords = $app.findRecordsByFilter('custos_consultas', '', '', 1, 0)
+        if (custoRecords.length > 0) {
+          const custo = Number(custoRecords[0].get('capa_processo') || 0)
+          if (custo > 0) {
+            const candRec = $app.findRecordById('candidates', candidatoId)
+            const currentCost = Number(candRec.get('custo_consultas') || 0)
+            candRec.set('custo_consultas', currentCost + custo)
+            $app.saveNoValidate(candRec)
+          }
+        }
+      } catch (costErr) {
+        $app
+          .logger()
+          .warn('Erro ao incrementar custo de capa do processo', 'error', String(costErr))
+      }
+    }
+
     let finalData = null
     if (detalhesEscavador && localProcess) {
       finalData = Object.assign({}, localProcess, detalhesEscavador)

@@ -157,6 +157,12 @@ export default function CandidateDetail() {
               </span>
             </div>
             <div className="flex items-center gap-2">
+              <span className="text-slate-400 font-semibold">Custo consultas:</span>
+              <span className="text-slate-700 font-bold">
+                {formatCurrency(candidate.custo_consultas || 0)}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
               <span className="text-slate-400 font-semibold">Custo total:</span>
               <span className="text-slate-700 font-bold">{formatCurrency(totalCost)}</span>
             </div>

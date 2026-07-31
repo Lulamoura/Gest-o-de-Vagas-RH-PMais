@@ -149,6 +149,24 @@ routerAdd(
       $app.saveNoValidate(record)
     } catch (saveErr) {}
 
+    if (statusConsulta === 'sucesso') {
+      try {
+        const custoRecords = $app.findRecordsByFilter('custos_consultas', '', '', 1, 0)
+        if (custoRecords.length > 0) {
+          const custo = Number(custoRecords[0].get('consulta_juridica') || 0)
+          if (custo > 0) {
+            const currentCost = Number(candidate.get('custo_consultas') || 0)
+            candidate.set('custo_consultas', currentCost + custo)
+            $app.saveNoValidate(candidate)
+          }
+        }
+      } catch (costErr) {
+        $app
+          .logger()
+          .warn('Erro ao incrementar custo de consulta juridica', 'error', String(costErr))
+      }
+    }
+
     if (statusConsulta === 'erro') {
       return e.json(500, {
         success: false,
