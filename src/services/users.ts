@@ -12,7 +12,7 @@ export const createUser = async (data: {
   email: string
   password?: string
   passwordConfirm?: string
-  profile?: 'admin' | 'operator' | 'viewer'
+  profile?: 'admin' | 'operator' | 'viewer' | 'superadmin'
 }) => {
   return pb.collection<UserRecord>('users').create({
     ...data,

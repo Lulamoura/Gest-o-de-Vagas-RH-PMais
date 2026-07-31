@@ -37,7 +37,7 @@ import { toast } from 'sonner'
 import { UserCheck, PlusCircle, Pencil, Trash2, Shield } from 'lucide-react'
 
 export default function Users() {
-  const { canManageUsers } = useAuth()
+  const { canManageUsers, isSuperAdmin } = useAuth()
   const [usersList, setUsersList] = useState<UserRecord[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -100,6 +100,11 @@ export default function Users() {
     e.preventDefault()
     if (!name.trim() || !email.trim()) {
       toast.error('Nome e email são obrigatórios')
+      return
+    }
+
+    if (profile === 'superadmin' && !isSuperAdmin) {
+      toast.error('Você não tem permissão para atribuir o perfil Super Admin.')
       return
     }
 
@@ -299,6 +304,10 @@ export default function Users() {
                 <SelectContent>
                   <SelectItem value="operator">Operador (Criar e Editar Vagas)</SelectItem>
                   <SelectItem value="viewer">Visualizador (Somente Leitura)</SelectItem>
+                  <SelectItem value="admin">Administrador (Gestão Completa)</SelectItem>
+                  {isSuperAdmin && (
+                    <SelectItem value="superadmin">Super Admin (Acesso Total)</SelectItem>
+                  )}
                 </SelectContent>
               </Select>
             </div>
