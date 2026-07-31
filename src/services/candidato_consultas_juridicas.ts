@@ -88,15 +88,16 @@ export const gerarResumoIA = async (
       }),
       headers: { 'Content-Type': 'application/json' },
     })
-    return { success: true, summary: result.message }
+    const summary = result.summary || result.message
+    return { success: true, summary, message: summary }
   } catch (err: any) {
     const backendMessage =
       err?.response?.message ?? err?.data?.message ?? err?.response?.data?.message
-    if (backendMessage && typeof backendMessage === 'string') {
-      return { success: false, message: backendMessage }
+    if (backendMessage && typeof backendMessage === 'string' && backendMessage.trim()) {
+      return { success: false, message: backendMessage.trim() }
     }
     if (err?.status === 0 || err?.isAbort) {
-      return { success: false, message: 'Erro de conexão. Tente novamente.' }
+      return { success: false, message: 'Erro de conexão com o servidor. Tente novamente.' }
     }
     const errMsg = err?.message
     if (
@@ -106,7 +107,7 @@ export const gerarResumoIA = async (
     ) {
       return { success: false, message: errMsg }
     }
-    return { success: false, message: 'Erro de conexão. Tente novamente.' }
+    return { success: false, message: 'Erro ao conectar com o serviço de IA. Tente novamente.' }
   }
 }
 

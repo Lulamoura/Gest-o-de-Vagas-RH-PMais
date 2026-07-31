@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import {
   getConsultaJuridicaHistory,
   performConsultaJuridica,
@@ -73,6 +73,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
   const [capaModalLoading, setCapaModalLoading] = useState(false)
   const [capaModalError, setCapaModalError] = useState<string | null>(null)
   const [capaModalNumero, setCapaModalNumero] = useState('')
+
+  const errorTimerRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
 
   const cpfValido = cpf ? validateCPF(cpf) : false
 
@@ -192,6 +194,15 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
     if (!selectedConsulta) return
     const cleanKey = numeroProcesso.replace(/[^\d]/g, '')
 
+    if (errorTimerRef.current[numeroProcesso]) {
+      clearTimeout(errorTimerRef.current[numeroProcesso])
+      delete errorTimerRef.current[numeroProcesso]
+    }
+    if (cleanKey && errorTimerRef.current[cleanKey]) {
+      clearTimeout(errorTimerRef.current[cleanKey])
+      delete errorTimerRef.current[cleanKey]
+    }
+
     setInteractionStates((prev) => ({
       ...prev,
       [numeroProcesso]: {
@@ -269,7 +280,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
 
       toast.success('Resumo gerado com sucesso!')
     } else {
-      const errorMsg = result.message || 'Erro ao gerar resumo.'
+      const errorMsg = result.message || 'Erro ao gerar resumo com IA.'
 
       toast.error(errorMsg)
       setInteractionStates((prev) => ({
@@ -292,7 +303,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
           : {}),
       }))
 
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setInteractionStates((prev) => {
           const next = { ...prev }
           if (next[numeroProcesso]) {
@@ -304,6 +315,9 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
           return next
         })
       }, 5000)
+
+      errorTimerRef.current[numeroProcesso] = timer
+      if (cleanKey) errorTimerRef.current[cleanKey] = timer
     }
   }
 
@@ -372,7 +386,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
       } else {
         setCapaData(result)
       }
-    } catch (err: any) {
+    } catch {
       if (processData && typeof processData === 'object' && Object.keys(processData).length > 0) {
         setCapaData(processData)
       } else {
@@ -732,8 +746,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
                           )}
 
                           {currentSummaryState?.error && (
-                            <div className="flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 p-2 rounded-lg border border-rose-100">
-                              <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                            <div className="flex items-center gap-1.5 text-xs text-rose-600 bg-rose-50 p-2.5 rounded-lg border border-rose-200 font-medium">
+                              <AlertCircle className="h-4 w-4 shrink-0 text-rose-600" />
                               <span>{currentSummaryState.error}</span>
                             </div>
                           )}

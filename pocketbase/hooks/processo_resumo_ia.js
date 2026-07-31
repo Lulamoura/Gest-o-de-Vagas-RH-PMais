@@ -4,10 +4,22 @@ routerAdd(
   (e) => {
     try {
       var body = e.requestInfo().body || {}
+      if (typeof body === 'string') {
+        try {
+          body = JSON.parse(body)
+        } catch (_) {
+          body = {}
+        }
+      }
+
       var numeroProcesso = (body.numero_processo || body.numeroProcesso || '').toString().trim()
       var consultaId = (body.consulta_id || body.consultaId || '').toString().trim()
 
       if (!numeroProcesso || !consultaId) {
+        console.error('processo_resumo_ia: campos obrigatórios ausentes', {
+          numeroProcesso: numeroProcesso,
+          consultaId: consultaId,
+        })
         $app
           .logger()
           .warn(
@@ -17,9 +29,18 @@ routerAdd(
             'consultaId',
             consultaId,
           )
-        return e.json(400, { message: 'Número do processo e ID da consulta são obrigatórios' })
+        return e.json(400, {
+          message: 'Número do processo e ID da consulta são obrigatórios',
+          error: true,
+        })
       }
 
+      console.log(
+        'processo_resumo_ia: iniciando para processo',
+        numeroProcesso,
+        'consulta:',
+        consultaId,
+      )
       $app
         .logger()
         .info(
@@ -34,6 +55,7 @@ routerAdd(
       try {
         consulta = $app.findRecordById('candidato_consultas_juridicas', consultaId)
       } catch (err) {
+        console.error('processo_resumo_ia: consulta não encontrada', consultaId, err)
         $app
           .logger()
           .error(
@@ -43,37 +65,35 @@ routerAdd(
             'error',
             String(err),
           )
-        return e.json(404, { message: 'Consulta de processo não encontrada' })
+        return e.json(404, { message: 'Consulta jurídica não encontrada.', error: true })
       }
 
       var candidatoId = ''
       try {
-        var candVal = consulta.get('candidato_id')
-        if (typeof candVal === 'string') {
-          candidatoId = candVal
-        } else if (candVal && typeof candVal === 'object') {
-          candidatoId = candVal.id || String(candVal)
-        }
+        candidatoId = consulta.getString('candidato_id') || ''
       } catch (_) {}
-      if (!candidatoId) {
-        try {
-          candidatoId = consulta.getString('candidato_id') || ''
-        } catch (_) {}
-      }
 
-      var resumoJson = consulta.get('resumo_json')
-      if (resumoJson == null) resumoJson = {}
-      if (typeof resumoJson === 'string') {
-        try {
-          resumoJson = JSON.parse(resumoJson)
-        } catch (_) {
-          resumoJson = {}
+      var rawResumo = consulta.get('resumo_json')
+      var resumoJson = {}
+      if (rawResumo) {
+        if (typeof rawResumo === 'string') {
+          try {
+            resumoJson = JSON.parse(rawResumo)
+          } catch (_) {
+            resumoJson = {}
+          }
+        } else {
+          try {
+            resumoJson = JSON.parse(JSON.stringify(rawResumo))
+          } catch (_) {
+            resumoJson = {}
+          }
         }
       }
-      if (typeof resumoJson !== 'object' || resumoJson == null) resumoJson = {}
+      if (typeof resumoJson !== 'object' || resumoJson === null) resumoJson = {}
 
       var processoResumos = resumoJson.processo_resumos || {}
-      if (typeof processoResumos !== 'object' || processoResumos == null) processoResumos = {}
+      if (typeof processoResumos !== 'object' || processoResumos === null) processoResumos = {}
 
       var cleanNum = numeroProcesso.replace(/[^\d]/g, '')
 
@@ -82,14 +102,12 @@ routerAdd(
         typeof processoResumos[numeroProcesso] === 'string' &&
         processoResumos[numeroProcesso].trim()
       ) {
-        $app
-          .logger()
-          .info(
-            'processo_resumo_ia: retornando resumo em cache (numero completo)',
-            'numeroProcesso',
-            numeroProcesso,
-          )
-        return e.json(200, { message: processoResumos[numeroProcesso].trim() })
+        var cached1 = processoResumos[numeroProcesso].trim()
+        console.log(
+          'processo_resumo_ia: resumo retornado do cache (numero original):',
+          numeroProcesso,
+        )
+        return e.json(200, { summary: cached1, message: cached1 })
       }
       if (
         cleanNum &&
@@ -97,75 +115,39 @@ routerAdd(
         typeof processoResumos[cleanNum] === 'string' &&
         processoResumos[cleanNum].trim()
       ) {
-        $app
-          .logger()
-          .info(
-            'processo_resumo_ia: retornando resumo em cache (numero limpo)',
-            'cleanNum',
-            cleanNum,
-          )
-        return e.json(200, { message: processoResumos[cleanNum].trim() })
+        var cached2 = processoResumos[cleanNum].trim()
+        console.log('processo_resumo_ia: resumo retornado do cache (numero limpo):', cleanNum)
+        return e.json(200, { summary: cached2, message: cached2 })
       }
 
-      var getProcessList = function (raw) {
-        if (!raw) return []
-        var val = raw
-        if (typeof val === 'string') {
+      var rawProcessos = consulta.get('processos_json')
+      var processos = []
+      if (rawProcessos) {
+        if (typeof rawProcessos === 'string') {
           try {
-            val = JSON.parse(val)
+            processos = JSON.parse(rawProcessos)
           } catch (_) {
-            return []
+            processos = []
+          }
+        } else {
+          try {
+            processos = JSON.parse(JSON.stringify(rawProcessos))
+          } catch (_) {
+            processos = []
           }
         }
-        if (Array.isArray(val)) return val
-        if (typeof val === 'object' && val !== null) {
-          if (Array.isArray(val.items)) return val.items
-          if (Array.isArray(val.processos)) return val.processos
-          if (val.resposta && Array.isArray(val.resposta.processos)) return val.resposta.processos
-          if (val.resposta && Array.isArray(val.resposta.items)) return val.resposta.items
-          if (Array.isArray(val.data)) return val.data
-          if (Array.isArray(val.result)) return val.result
-          if (val.numero_cnj || val.numero || val.id || val.titulo) return [val]
-        }
-        return []
       }
-
-      var extractText = function (val) {
-        if (val == null) return ''
-        if (typeof val === 'string') return val.trim()
-        if (typeof val === 'number') return String(val)
-        if (typeof val === 'boolean') return val ? 'Sim' : 'Não'
-        if (typeof val === 'object') {
-          if (Array.isArray(val)) {
-            var items = []
-            for (var k = 0; k < Math.min(val.length, 10); k++) {
-              var t = extractText(val[k])
-              if (t) items.push(t)
-            }
-            return items.join('; ')
-          }
-          if (val.nome && val.tipo) return String(val.tipo).trim() + ': ' + String(val.nome).trim()
-          if (val.nome) return String(val.nome).trim()
-          if (val.descricao) return String(val.descricao).trim()
-          if (val.sigla && val.nome)
-            return String(val.sigla).trim() + ' — ' + String(val.nome).trim()
-          if (val.sigla) return String(val.sigla).trim()
-          if (val.display) return String(val.display).trim()
-          if (val.texto) return String(val.texto).trim()
-          if (val.conteudo) return String(val.conteudo).trim()
-        }
-        return ''
+      if (!Array.isArray(processos) && typeof processos === 'object' && processos !== null) {
+        if (Array.isArray(processos.items)) processos = processos.items
+        else if (Array.isArray(processos.processos)) processos = processos.processos
+        else if (processos.resposta && Array.isArray(processos.resposta.processos))
+          processos = processos.resposta.processos
+        else if (Array.isArray(processos.data)) processos = processos.data
+        else processos = [processos]
       }
+      if (!Array.isArray(processos)) processos = []
 
-      var processos = getProcessList(consulta.get('processos_json'))
-
-      $app
-        .logger()
-        .info(
-          'processo_resumo_ia: processos carregados da consulta',
-          'totalProcessos',
-          processos.length,
-        )
+      console.log('processo_resumo_ia: total de processos carregados:', processos.length)
 
       var procData = null
       for (var i = 0; i < processos.length; i++) {
@@ -201,14 +183,37 @@ routerAdd(
       }
 
       if (!procData) {
-        $app
-          .logger()
-          .warn(
-            'processo_resumo_ia: processo não encontrado nos dados da consulta, usando dados mínimos',
-            'numeroProcesso',
-            numeroProcesso,
-          )
+        console.log(
+          'processo_resumo_ia: processo não encontrado nos dados da consulta, usando número direto',
+        )
         procData = { numero: numeroProcesso }
+      }
+
+      var extractText = function (val) {
+        if (val == null) return ''
+        if (typeof val === 'string') return val.trim()
+        if (typeof val === 'number') return String(val)
+        if (typeof val === 'boolean') return val ? 'Sim' : 'Não'
+        if (typeof val === 'object') {
+          if (Array.isArray(val)) {
+            var items = []
+            for (var k = 0; k < Math.min(val.length, 10); k++) {
+              var t = extractText(val[k])
+              if (t) items.push(t)
+            }
+            return items.join('; ')
+          }
+          if (val.nome && val.tipo) return String(val.tipo).trim() + ': ' + String(val.nome).trim()
+          if (val.nome) return String(val.nome).trim()
+          if (val.descricao) return String(val.descricao).trim()
+          if (val.sigla && val.nome)
+            return String(val.sigla).trim() + ' — ' + String(val.nome).trim()
+          if (val.sigla) return String(val.sigla).trim()
+          if (val.display) return String(val.display).trim()
+          if (val.texto) return String(val.texto).trim()
+          if (val.conteudo) return String(val.conteudo).trim()
+        }
+        return ''
       }
 
       var procNum =
@@ -325,6 +330,7 @@ routerAdd(
         'Dados do processo:\n' +
         contextParts.join('\n')
 
+      console.log('processo_resumo_ia: chamando AI Gateway model=fast...')
       $app
         .logger()
         .info(
@@ -345,10 +351,17 @@ routerAdd(
           ],
         })
 
-        if (reply && reply.choices && reply.choices.length > 0 && reply.choices[0].message) {
+        if (
+          reply &&
+          reply.choices &&
+          reply.choices.length > 0 &&
+          reply.choices[0] &&
+          reply.choices[0].message
+        ) {
           summary = reply.choices[0].message.content || ''
         }
 
+        console.log('processo_resumo_ia: resposta recebida da IA, tamanho:', summary.length)
         $app
           .logger()
           .info(
@@ -359,47 +372,25 @@ routerAdd(
             summary.length,
           )
       } catch (aiErr) {
-        if (typeof SkipAiConfigError !== 'undefined' && aiErr instanceof SkipAiConfigError) {
-          $app
-            .logger()
-            .error(
-              'processo_resumo_ia: SkipAiConfigError - gateway não provisionado',
-              'error',
-              String(aiErr),
-            )
-          return e.json(503, { message: 'Serviço de IA temporariamente indisponível.' })
-        }
-        if (typeof SkipAiError !== 'undefined' && aiErr instanceof SkipAiError) {
-          $app
-            .logger()
-            .error(
-              'processo_resumo_ia: SkipAiError - erro no gateway de IA',
-              'error',
-              String(aiErr),
-              'status',
-              aiErr.status || 0,
-            )
-          var skipErrDetail = (aiErr.message || String(aiErr)).trim()
-          return e.json(502, {
-            message: 'Erro no serviço de IA: ' + skipErrDetail,
-          })
-        }
+        var aiMsg = aiErr && aiErr.message ? aiErr.message : String(aiErr)
+        console.error('processo_resumo_ia: erro ao comunicar com AI Gateway:', aiMsg)
         $app
           .logger()
           .error(
-            'processo_resumo_ia: erro ao gerar resumo com IA',
+            'processo_resumo_ia: erro no AI Gateway',
             'error',
-            String(aiErr),
+            aiMsg,
             'numeroProcesso',
             numeroProcesso,
           )
-        var errDetail = (aiErr && aiErr.message ? aiErr.message : String(aiErr)).trim()
-        return e.json(400, {
-          message: 'Não foi possível gerar o resumo com IA: ' + errDetail,
+        return e.json(502, {
+          message: 'Falha na comunicação com a IA: ' + aiMsg,
+          error: true,
         })
       }
 
       if (!summary || !summary.trim()) {
+        console.error('processo_resumo_ia: IA retornou resumo vazio')
         $app
           .logger()
           .warn(
@@ -409,7 +400,10 @@ routerAdd(
             'consultaId',
             consultaId,
           )
-        return e.json(400, { message: 'A IA não retornou um resumo válido para este processo.' })
+        return e.json(400, {
+          message: 'A IA não retornou um resumo válido para este processo.',
+          error: true,
+        })
       }
 
       summary = summary.trim()
@@ -421,6 +415,7 @@ routerAdd(
       try {
         consulta.set('resumo_json', resumoJson)
         $app.saveNoValidate(consulta)
+        console.log('processo_resumo_ia: resumo salvo na consulta', consultaId)
         $app
           .logger()
           .info(
@@ -431,6 +426,7 @@ routerAdd(
             numeroProcesso,
           )
       } catch (saveErr) {
+        console.error('processo_resumo_ia: erro ao salvar resumo na consulta:', saveErr)
         $app
           .logger()
           .warn(
@@ -442,52 +438,38 @@ routerAdd(
 
       if (candidatoId) {
         try {
-          var custoRecords = $app.findRecordsByFilter('custos_consultas', '', '', 1, 0)
-          if (custoRecords.length > 0) {
+          var custoRecords = $app.findRecordsByFilter('custos_consultas', 'id != ""', '', 1, 0)
+          if (custoRecords && custoRecords.length > 0) {
             var custo = Number(custoRecords[0].get('resumo_ia') || 0)
             if (custo > 0) {
               var candRec = $app.findRecordById('candidates', candidatoId)
-              var currentCost = Number(candRec.get('custo_consultas') || 0)
-              candRec.set('custo_consultas', currentCost + custo)
-              $app.saveNoValidate(candRec)
-              $app
-                .logger()
-                .info(
-                  'processo_resumo_ia: custo incrementado no candidato',
-                  'candidatoId',
+              if (candRec) {
+                var currentCost = Number(candRec.get('custo_consultas') || 0)
+                candRec.set('custo_consultas', currentCost + custo)
+                $app.saveNoValidate(candRec)
+                console.log(
+                  'processo_resumo_ia: custo atualizado no candidato:',
                   candidatoId,
-                  'custo',
-                  custo,
-                  'novoTotal',
                   currentCost + custo,
                 )
+              }
             }
           }
         } catch (costErr) {
-          $app
-            .logger()
-            .warn(
-              'processo_resumo_ia: erro ao incrementar custo de resumo IA no candidato',
-              'error',
-              String(costErr),
-            )
+          console.error('processo_resumo_ia: erro ao atualizar custo do candidato:', costErr)
         }
       }
 
-      $app
-        .logger()
-        .info(
-          'processo_resumo_ia: concluído com sucesso',
-          'numeroProcesso',
-          numeroProcesso,
-          'consultaId',
-          consultaId,
-        )
-
-      return e.json(200, { message: summary })
+      console.log('processo_resumo_ia: concluído com sucesso para', numeroProcesso)
+      return e.json(200, { summary: summary, message: summary })
     } catch (err) {
-      $app.logger().error('processo_resumo_ia: erro não tratado', 'error', String(err))
-      return e.json(500, { message: 'Erro interno ao processar o resumo. Tente novamente.' })
+      var errStr = err && err.message ? err.message : String(err)
+      console.error('processo_resumo_ia: erro não tratado no hook:', errStr)
+      $app.logger().error('processo_resumo_ia: erro não tratado', 'error', errStr)
+      return e.json(500, {
+        message: 'Erro ao processar o resumo: ' + errStr,
+        error: true,
+      })
     }
   },
   $apis.requireAuth(),
