@@ -6,6 +6,7 @@ interface CurrencyInputProps {
   onChange: (value: number) => void
   id?: string
   className?: string
+  disabled?: boolean
 }
 
 function formatBRL(value: number): string {
@@ -23,7 +24,7 @@ function parseBRLToNumber(input: string): number {
   return parseInt(digits, 10) / 100
 }
 
-export function CurrencyInput({ value, onChange, id, className }: CurrencyInputProps) {
+export function CurrencyInput({ value, onChange, id, className, disabled }: CurrencyInputProps) {
   const [display, setDisplay] = useState(formatBRL(value))
 
   useEffect(() => {
@@ -49,6 +50,7 @@ export function CurrencyInput({ value, onChange, id, className }: CurrencyInputP
       onChange={handleChange}
       onBlur={handleBlur}
       className={className}
+      disabled={disabled}
     />
   )
 }

@@ -33,7 +33,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
-import { PlusCircle, Pencil, Trash2, Database, Lock } from 'lucide-react'
+import { PlusCircle, Pencil, Trash2, Database } from 'lucide-react'
 import { CostConsultationsForm } from '@/components/CostConsultationsForm'
 import { RecordModel } from 'pocketbase'
 
@@ -46,7 +46,7 @@ type CollectionKey =
   | 'custos_consultas'
 
 const CONFIG: Record<
-  CollectionKey,
+  Exclude<CollectionKey, 'custos_consultas'>,
   {
     label: string
     list: () => Promise<RecordModel[]>
@@ -92,7 +92,7 @@ const CONFIG: Record<
   },
 }
 
-const FIELD_MAP: Record<CollectionKey, string> = {
+const FIELD_MAP: Record<Exclude<CollectionKey, 'custos_consultas'>, string> = {
   clientes: 'cliente',
   cargos: 'cargo',
   cidades: 'cidade',
@@ -100,9 +100,14 @@ const FIELD_MAP: Record<CollectionKey, string> = {
   tipos_contrato: 'tipo_contrato',
 }
 
+const REF_TABS = Object.keys(CONFIG) as Exclude<CollectionKey, 'custos_consultas'>[]
+
 export default function ReferenceData() {
   const { isAdmin, isSuperAdmin } = useAuth()
-  const [activeTab, setActiveTab] = useState<CollectionKey>('clientes')
+  const canManage = isAdmin || isSuperAdmin
+  const [activeTab, setActiveTab] = useState<CollectionKey>(
+    canManage ? 'clientes' : 'custos_consultas',
+  )
   const [records, setRecords] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -114,7 +119,7 @@ export default function ReferenceData() {
     if (activeTab === 'custos_consultas') return
     setLoading(true)
     try {
-      const data = await CONFIG[activeTab].list()
+      const data = await CONFIG[activeTab as Exclude<CollectionKey, 'custos_consultas'>].list()
       setRecords(data)
     } catch {
       toast.error('Erro ao carregar dados')
@@ -124,22 +129,12 @@ export default function ReferenceData() {
   }
 
   useEffect(() => {
-    if (isAdmin || isSuperAdmin) loadData()
+    if (!canManage && activeTab !== 'custos_consultas') {
+      setActiveTab('custos_consultas')
+      return
+    }
+    if (canManage) loadData()
   }, [activeTab, isAdmin, isSuperAdmin])
-
-  if (!isAdmin && !isSuperAdmin) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center space-y-4">
-        <div className="p-4 bg-rose-100 text-rose-600 rounded-full">
-          <Lock className="h-8 w-8" />
-        </div>
-        <h2 className="text-xl font-bold text-slate-900">Acesso Restrito</h2>
-        <p className="text-sm text-slate-500 max-w-md">
-          Apenas administradores podem gerenciar os dados de referência.
-        </p>
-      </div>
-    )
-  }
 
   const openCreate = () => {
     setEditingId(null)
@@ -160,11 +155,12 @@ export default function ReferenceData() {
     }
     setSaving(true)
     try {
+      const tab = activeTab as Exclude<CollectionKey, 'custos_consultas'>
       if (editingId) {
-        await CONFIG[activeTab].update(editingId, { nome })
+        await CONFIG[tab].update(editingId, { nome })
         toast.success('Atualizado!')
       } else {
-        await CONFIG[activeTab].create({ nome })
+        await CONFIG[tab].create({ nome })
         toast.success('Criado!')
       }
       setModalOpen(false)
@@ -177,14 +173,15 @@ export default function ReferenceData() {
   }
 
   const handleDelete = async (id: string) => {
-    const count = await countReferenceInUse(FIELD_MAP[activeTab], id)
+    const tab = activeTab as Exclude<CollectionKey, 'custos_consultas'>
+    const count = await countReferenceInUse(FIELD_MAP[tab], id)
     if (count > 0) {
       toast.error(`Não é possível excluir: este registro está em uso por ${count} vaga(s).`)
       return
     }
     if (!confirm('Excluir este registro?')) return
     try {
-      await CONFIG[activeTab].del(id)
+      await CONFIG[tab].del(id)
       toast.success('Excluído')
       loadData()
     } catch {
@@ -206,85 +203,90 @@ export default function ReferenceData() {
 
       <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as CollectionKey)}>
         <TabsList>
-          {(Object.keys(CONFIG) as CollectionKey[]).map((k) => (
-            <TabsTrigger key={k} value={k}>
-              {CONFIG[k].label}
-            </TabsTrigger>
-          ))}
+          {canManage &&
+            REF_TABS.map((k) => (
+              <TabsTrigger key={k} value={k}>
+                {CONFIG[k].label}
+              </TabsTrigger>
+            ))}
           <TabsTrigger value="custos_consultas">Custo de Consultas</TabsTrigger>
         </TabsList>
 
-        {(Object.keys(CONFIG) as CollectionKey[]).map((k) => (
-          <TabsContent key={k} value={k}>
-            <Card className="border-slate-200 shadow-2xs">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-base font-bold text-slate-900">
-                  {CONFIG[k].label} ({records.length})
-                </CardTitle>
-                <Button
-                  size="sm"
-                  onClick={openCreate}
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white"
-                >
-                  <PlusCircle className="h-4 w-4 mr-1.5" /> Novo
-                </Button>
-              </CardHeader>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader className="bg-slate-50">
-                    <TableRow>
-                      <TableHead className="text-xs font-semibold text-slate-600">Nome</TableHead>
-                      <TableHead className="text-xs font-semibold text-slate-600 text-right">
-                        Ações
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
+        {canManage &&
+          REF_TABS.map((k) => (
+            <TabsContent key={k} value={k}>
+              <Card className="border-slate-200 shadow-2xs">
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle className="text-base font-bold text-slate-900">
+                    {CONFIG[k].label} ({records.length})
+                  </CardTitle>
+                  <Button
+                    size="sm"
+                    onClick={openCreate}
+                    className="bg-indigo-600 hover:bg-indigo-500 text-white"
+                  >
+                    <PlusCircle className="h-4 w-4 mr-1.5" /> Novo
+                  </Button>
+                </CardHeader>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader className="bg-slate-50">
                       <TableRow>
-                        <TableCell colSpan={2} className="text-center py-6 text-slate-500">
-                          Carregando...
-                        </TableCell>
+                        <TableHead className="text-xs font-semibold text-slate-600">Nome</TableHead>
+                        <TableHead className="text-xs font-semibold text-slate-600 text-right">
+                          Ações
+                        </TableHead>
                       </TableRow>
-                    ) : records.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={2} className="text-center py-6 text-slate-500 text-sm">
-                          Nenhum registro cadastrado.
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      records.map((r) => (
-                        <TableRow key={r.id} className="hover:bg-slate-50">
-                          <TableCell className="font-semibold text-slate-900 text-sm">
-                            {r.nome}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => openEdit(r)}
-                              className="h-8 w-8 text-slate-600 hover:text-amber-600"
-                            >
-                              <Pencil className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleDelete(r.id)}
-                              className="h-8 w-8 text-slate-600 hover:text-rose-600"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={2} className="text-center py-6 text-slate-500">
+                            Carregando...
                           </TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
+                      ) : records.length === 0 ? (
+                        <TableRow>
+                          <TableCell
+                            colSpan={2}
+                            className="text-center py-6 text-slate-500 text-sm"
+                          >
+                            Nenhum registro cadastrado.
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        records.map((r) => (
+                          <TableRow key={r.id} className="hover:bg-slate-50">
+                            <TableCell className="font-semibold text-slate-900 text-sm">
+                              {r.nome}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => openEdit(r)}
+                                className="h-8 w-8 text-slate-600 hover:text-amber-600"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => handleDelete(r.id)}
+                                className="h-8 w-8 text-slate-600 hover:text-rose-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+          ))}
 
         <TabsContent value="custos_consultas">
           <CostConsultationsForm />
@@ -295,7 +297,8 @@ export default function ReferenceData() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader>
             <DialogTitle>
-              {editingId ? 'Editar' : 'Novo'} — {CONFIG[activeTab].label}
+              {editingId ? 'Editar' : 'Novo'} —{' '}
+              {CONFIG[activeTab as Exclude<CollectionKey, 'custos_consultas'>]?.label}
             </DialogTitle>
             <DialogDescription>Digite o nome do registro</DialogDescription>
           </DialogHeader>

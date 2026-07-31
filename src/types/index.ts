@@ -174,3 +174,9 @@ export interface WordpressImportLogRecord extends RecordModel {
   mensagem?: string
   data_hora?: string
 }
+
+export interface CustosConsultasRecord extends RecordModel {
+  consulta_juridica: number
+  resumo_ia: number
+  capa_processo: number
+}

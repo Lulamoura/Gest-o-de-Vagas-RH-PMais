@@ -40,13 +40,8 @@ export const getConsultaJuridicaHistory = async (
 export const performConsultaJuridica = async (
   candidateId: string,
 ): Promise<CandidatoConsultaJuridicaRecord> => {
-  const headers: Record<string, string> = {}
-  if (pb.authStore.token) {
-    headers['Authorization'] = pb.authStore.token
-  }
   return pb.send(`/backend/v1/candidatos/${candidateId}/consulta-juridica`, {
     method: 'POST',
-    headers,
   })
 }
 
@@ -58,21 +53,15 @@ export const getProcessoDetalhes = async (
   cpf?: string,
 ): Promise<any> => {
   const cleanId = encodeURIComponent(processoId.trim())
-  const params = new URLSearchParams()
-  if (consultaId) params.append('consulta_id', consultaId)
-  if (numeroProcesso) params.append('numero_processo', numeroProcesso)
-  if (candidatoId) params.append('candidato_id', candidatoId)
-  if (cpf) params.append('cpf', cpf)
-  const queryStr = params.toString() ? `?${params.toString()}` : ''
+  const query: Record<string, string> = {}
+  if (consultaId) query.consulta_id = consultaId
+  if (numeroProcesso) query.numero_processo = numeroProcesso
+  if (candidatoId) query.candidato_id = candidatoId
+  if (cpf) query.cpf = cpf
 
-  const headers: Record<string, string> = {}
-  if (pb.authStore.token) {
-    headers['Authorization'] = pb.authStore.token
-  }
-
-  return pb.send(`/backend/v1/processo/${cleanId}${queryStr}`, {
+  return pb.send(`/backend/v1/processo/${cleanId}`, {
     method: 'GET',
-    headers,
+    query,
   })
 }
 
@@ -84,22 +73,12 @@ export const getProcessoResumoIA = async (
     throw new Error('Número do processo e ID da consulta são obrigatórios')
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-  if (pb.authStore.token) {
-    headers['Authorization'] = pb.authStore.token
-  }
-
   return pb.send(`/backend/v1/processo/resumo-ia`, {
     method: 'POST',
-    body: JSON.stringify({
+    body: {
       numero_processo: numeroProcesso,
       consulta_id: consultaId,
-      numeroProcesso,
-      consultaId,
-    }),
-    headers,
+    },
   })
 }
 
@@ -111,19 +90,11 @@ export const getProcessoAnaliseDetalhada = async (
     throw new Error('ID da consulta e ID do processo são obrigatórios')
   }
 
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  }
-  if (pb.authStore.token) {
-    headers['Authorization'] = pb.authStore.token
-  }
-
   return pb.send(`/backend/v1/processo/analise-detalhada`, {
     method: 'POST',
-    body: JSON.stringify({
+    body: {
       consulta_id: consultaId,
       processo_id: processoId,
-    }),
-    headers,
+    },
   })
 }

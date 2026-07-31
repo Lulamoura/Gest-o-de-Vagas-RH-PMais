@@ -3,8 +3,8 @@ import { getCustosConsultas, updateCustosConsultas } from '@/services/custos_con
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { CurrencyInput } from '@/components/CurrencyInput'
 import { toast } from 'sonner'
 import { Save, DollarSign } from 'lucide-react'
 
@@ -12,9 +12,9 @@ export function CostConsultationsForm() {
   const { isAdmin, isSuperAdmin } = useAuth()
   const canEdit = isAdmin || isSuperAdmin
   const [recordId, setRecordId] = useState<string | null>(null)
-  const [consultaJuridica, setConsultaJuridica] = useState('0.00')
-  const [resumoIa, setResumoIa] = useState('0.00')
-  const [capaProcesso, setCapaProcesso] = useState('0.00')
+  const [consultaJuridica, setConsultaJuridica] = useState(0)
+  const [resumoIa, setResumoIa] = useState(0)
+  const [capaProcesso, setCapaProcesso] = useState(0)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -24,9 +24,9 @@ export function CostConsultationsForm() {
         const record = await getCustosConsultas()
         if (record) {
           setRecordId(record.id)
-          setConsultaJuridica(String(record.consulta_juridica || 0))
-          setResumoIa(String(record.resumo_ia || 0))
-          setCapaProcesso(String(record.capa_processo || 0))
+          setConsultaJuridica(record.consulta_juridica || 0)
+          setResumoIa(record.resumo_ia || 0)
+          setCapaProcesso(record.capa_processo || 0)
         }
       } catch {
         toast.error('Erro ao carregar custos')
@@ -46,9 +46,9 @@ export function CostConsultationsForm() {
     setSaving(true)
     try {
       await updateCustosConsultas(recordId, {
-        consulta_juridica: parseFloat(consultaJuridica) || 0,
-        resumo_ia: parseFloat(resumoIa) || 0,
-        capa_processo: parseFloat(capaProcesso) || 0,
+        consulta_juridica: consultaJuridica,
+        resumo_ia: resumoIa,
+        capa_processo: capaProcesso,
       })
       toast.success('Custos atualizados com sucesso!')
     } catch {
@@ -81,39 +81,45 @@ export function CostConsultationsForm() {
         <form onSubmit={handleSave} className="space-y-4 max-w-md">
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-slate-700">Consulta Jurídica (R$)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={consultaJuridica}
-              onChange={(e) => setConsultaJuridica(e.target.value)}
-              disabled={!canEdit}
-              required
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none z-10">
+                R$
+              </span>
+              <CurrencyInput
+                value={consultaJuridica}
+                onChange={setConsultaJuridica}
+                disabled={!canEdit}
+                className="pl-10"
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-slate-700">Resumo da IA (R$)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={resumoIa}
-              onChange={(e) => setResumoIa(e.target.value)}
-              disabled={!canEdit}
-              required
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none z-10">
+                R$
+              </span>
+              <CurrencyInput
+                value={resumoIa}
+                onChange={setResumoIa}
+                disabled={!canEdit}
+                className="pl-10"
+              />
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-slate-700">Capa do Processo (R$)</Label>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={capaProcesso}
-              onChange={(e) => setCapaProcesso(e.target.value)}
-              disabled={!canEdit}
-              required
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none z-10">
+                R$
+              </span>
+              <CurrencyInput
+                value={capaProcesso}
+                onChange={setCapaProcesso}
+                disabled={!canEdit}
+                className="pl-10"
+              />
+            </div>
           </div>
           {canEdit && (
             <Button
