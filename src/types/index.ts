@@ -33,6 +33,14 @@ export interface TipoContratoRecord extends RecordModel {
   nome: string
 }
 
+export interface ClinicaRecord extends RecordModel {
+  nome: string
+  endereco?: string
+  telefone?: string
+  email?: string
+  pessoa_contato?: string
+}
+
 export interface VacancyRecord extends RecordModel {
   wordpress_job_id?: string
   cliente: string

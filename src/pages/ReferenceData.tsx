@@ -35,6 +35,7 @@ import {
 import { toast } from 'sonner'
 import { PlusCircle, Pencil, Trash2, Database } from 'lucide-react'
 import { CostConsultationsForm } from '@/components/CostConsultationsForm'
+import { ClinicasManager } from '@/components/ClinicasManager'
 import { RecordModel } from 'pocketbase'
 
 type CollectionKey =
@@ -44,6 +45,7 @@ type CollectionKey =
   | 'tipos_vaga'
   | 'tipos_contrato'
   | 'custos_consultas'
+  | 'clinicas'
 
 const CONFIG: Record<
   Exclude<CollectionKey, 'custos_consultas'>,
@@ -105,9 +107,7 @@ const REF_TABS = Object.keys(CONFIG) as Exclude<CollectionKey, 'custos_consultas
 export default function ReferenceData() {
   const { isAdmin, isSuperAdmin } = useAuth()
   const canManage = isAdmin || isSuperAdmin
-  const [activeTab, setActiveTab] = useState<CollectionKey>(
-    canManage ? 'clientes' : 'custos_consultas',
-  )
+  const [activeTab, setActiveTab] = useState<CollectionKey>('clientes')
   const [records, setRecords] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -210,6 +210,7 @@ export default function ReferenceData() {
               </TabsTrigger>
             ))}
           <TabsTrigger value="custos_consultas">Custo de Consultas</TabsTrigger>
+          {canManage && <TabsTrigger value="clinicas">Clínicas</TabsTrigger>}
         </TabsList>
 
         {canManage &&
@@ -291,6 +292,12 @@ export default function ReferenceData() {
         <TabsContent value="custos_consultas">
           <CostConsultationsForm />
         </TabsContent>
+
+        {canManage && (
+          <TabsContent value="clinicas">
+            <ClinicasManager />
+          </TabsContent>
+        )}
       </Tabs>
 
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
