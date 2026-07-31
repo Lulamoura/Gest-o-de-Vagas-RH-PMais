@@ -8,6 +8,10 @@ routerAdd(
       var consultaId = (body.consulta_id || body.consultaId || '').toString().trim()
 
       if (!numeroProcesso || !consultaId) {
+        console.log('processo_resumo_ia: campos obrigatórios ausentes', {
+          numeroProcesso: numeroProcesso,
+          consultaId: consultaId,
+        })
         return e.json(400, { message: 'Número do processo e ID da consulta são obrigatórios' })
       }
 
@@ -15,6 +19,10 @@ routerAdd(
       try {
         consulta = $app.findRecordById('candidato_consultas_juridicas', consultaId)
       } catch (err) {
+        console.log('processo_resumo_ia: consulta não encontrada', {
+          consultaId: consultaId,
+          error: String(err),
+        })
         return e.json(404, { message: 'Consulta de processo não encontrada' })
       }
 
@@ -294,6 +302,10 @@ routerAdd(
       }
 
       if (!summary || !summary.trim()) {
+        console.log('processo_resumo_ia: IA retornou resumo vazio', {
+          numeroProcesso: numeroProcesso,
+          consultaId: consultaId,
+        })
         return e.json(400, { message: 'A IA não retornou um resumo válido para este processo.' })
       }
 

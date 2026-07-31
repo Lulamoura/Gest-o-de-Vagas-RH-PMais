@@ -65,22 +65,45 @@ export const getProcessoDetalhes = async (
   })
 }
 
-export const getProcessoResumoIA = async (
+export interface ResumoIAResult {
+  success: boolean
+  summary?: string
+  message?: string
+}
+
+export const gerarResumoIA = async (
   numeroProcesso: string,
-  consultaId?: string,
-): Promise<{ message: string }> => {
+  consultaId: string,
+): Promise<ResumoIAResult> => {
   if (!numeroProcesso || !consultaId) {
-    throw new Error('Número do processo e ID da consulta são obrigatórios')
+    return { success: false, message: 'Número do processo e ID da consulta são obrigatórios' }
   }
 
-  return pb.send(`/backend/v1/processo/resumo-ia`, {
-    method: 'POST',
-    body: JSON.stringify({
-      numero_processo: numeroProcesso,
-      consulta_id: consultaId,
-    }),
-    headers: { 'Content-Type': 'application/json' },
-  })
+  try {
+    const result = await pb.send(`/backend/v1/processo/resumo-ia`, {
+      method: 'POST',
+      body: JSON.stringify({
+        numero_processo: numeroProcesso,
+        consulta_id: consultaId,
+      }),
+      headers: { 'Content-Type': 'application/json' },
+    })
+    return { success: true, summary: result.message }
+  } catch (err: any) {
+    const backendMessage = err?.response?.message
+    if (backendMessage && typeof backendMessage === 'string') {
+      return { success: false, message: backendMessage }
+    }
+    const errMsg = err?.message
+    if (
+      errMsg &&
+      typeof errMsg === 'string' &&
+      errMsg !== 'Something went wrong while processing your request.'
+    ) {
+      return { success: false, message: errMsg }
+    }
+    return { success: false, message: 'Erro de conexão. Tente novamente.' }
+  }
 }
 
 export const getProcessoAnaliseDetalhada = async (

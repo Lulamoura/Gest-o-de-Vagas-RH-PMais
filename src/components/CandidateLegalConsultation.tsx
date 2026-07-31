@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   getConsultaJuridicaHistory,
   performConsultaJuridica,
-  getProcessoResumoIA,
+  gerarResumoIA,
   getProcessoDetalhes,
 } from '@/services/candidato_consultas_juridicas'
 import { CandidatoConsultaJuridicaRecord } from '@/types'
@@ -212,13 +212,13 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
         : {}),
     }))
 
-    try {
-      const result = await getProcessoResumoIA(numeroProcesso, selectedConsulta.id)
+    const result = await gerarResumoIA(numeroProcesso, selectedConsulta.id)
 
+    if (result.success && result.summary) {
       setInteractionStates((prev) => ({
         ...prev,
         [numeroProcesso]: {
-          summary: result.message,
+          summary: result.summary,
           loading: false,
           expanded: true,
           error: undefined,
@@ -226,7 +226,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
         ...(cleanKey && cleanKey !== numeroProcesso
           ? {
               [cleanKey]: {
-                summary: result.message,
+                summary: result.summary,
                 loading: false,
                 expanded: true,
                 error: undefined,
@@ -239,8 +239,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
         if (!prev) return prev
         const resumoJson = parseResumoJson(prev.resumo_json) || {}
         const processoResumos = { ...(resumoJson.processo_resumos || {}) }
-        processoResumos[numeroProcesso] = result.message
-        if (cleanKey) processoResumos[cleanKey] = result.message
+        processoResumos[numeroProcesso] = result.summary!
+        if (cleanKey) processoResumos[cleanKey] = result.summary!
         return {
           ...prev,
           resumo_json: {
@@ -255,8 +255,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
           if (item.id !== selectedConsulta.id) return item
           const resumoJson = parseResumoJson(item.resumo_json) || {}
           const processoResumos = { ...(resumoJson.processo_resumos || {}) }
-          processoResumos[numeroProcesso] = result.message
-          if (cleanKey) processoResumos[cleanKey] = result.message
+          processoResumos[numeroProcesso] = result.summary!
+          if (cleanKey) processoResumos[cleanKey] = result.summary!
           return {
             ...item,
             resumo_json: {
@@ -268,24 +268,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
       )
 
       toast.success('Resumo gerado com sucesso!')
-    } catch (err: any) {
-      let errorMsg = 'Não foi possível obter o resumo. Tente novamente mais tarde.'
-
-      if (typeof err === 'string' && err.trim()) {
-        errorMsg = err
-      } else if (
-        err?.message &&
-        typeof err.message === 'string' &&
-        err.message !== 'Something went wrong while processing your request.'
-      ) {
-        errorMsg = err.message
-      } else if (
-        err?.response?.message &&
-        typeof err.response.message === 'string' &&
-        err.response.message !== 'Something went wrong while processing your request.'
-      ) {
-        errorMsg = err.response.message
-      }
+    } else {
+      const errorMsg = result.message || 'Erro ao gerar resumo.'
 
       toast.error(errorMsg)
       setInteractionStates((prev) => ({
@@ -319,7 +303,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
           }
           return next
         })
-      }, 6000)
+      }, 5000)
     }
   }
 
