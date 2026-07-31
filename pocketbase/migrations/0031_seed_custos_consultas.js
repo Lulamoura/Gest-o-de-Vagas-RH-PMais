@@ -9,7 +9,7 @@ migrate(
     record.set('consulta_juridica', 0)
     record.set('resumo_ia', 0)
     record.set('capa_processo', 0)
-    app.save(record)
+    app.saveNoValidate(record)
   },
   (app) => {
     try {

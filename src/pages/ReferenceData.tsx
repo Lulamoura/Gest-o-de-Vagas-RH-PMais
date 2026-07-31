@@ -37,7 +37,13 @@ import { PlusCircle, Pencil, Trash2, Database, Lock } from 'lucide-react'
 import { CostConsultationsForm } from '@/components/CostConsultationsForm'
 import { RecordModel } from 'pocketbase'
 
-type CollectionKey = 'clientes' | 'cargos' | 'cidades' | 'tipos_vaga' | 'tipos_contrato' | 'custos_consultas'
+type CollectionKey =
+  | 'clientes'
+  | 'cargos'
+  | 'cidades'
+  | 'tipos_vaga'
+  | 'tipos_contrato'
+  | 'custos_consultas'
 
 const CONFIG: Record<
   CollectionKey,
@@ -96,7 +102,7 @@ const FIELD_MAP: Record<CollectionKey, string> = {
 
 export default function ReferenceData() {
   const { isAdmin, isSuperAdmin } = useAuth()
-  const [activeTab, setActiveTab] = useState<CollectionKey>('custos_consultas' | 'clientes'>('clientes')
+  const [activeTab, setActiveTab] = useState<CollectionKey>('clientes')
   const [records, setRecords] = useState<RecordModel[]>([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
@@ -279,7 +285,6 @@ export default function ReferenceData() {
             </Card>
           </TabsContent>
         ))}
-        </TabsContent>
 
         <TabsContent value="custos_consultas">
           <CostConsultationsForm />

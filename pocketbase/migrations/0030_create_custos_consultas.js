@@ -11,9 +11,9 @@ migrate(
       updateRule: '@request.auth.profile = "admin" || @request.auth.profile = "superadmin"',
       deleteRule: '@request.auth.profile = "admin" || @request.auth.profile = "superadmin"',
       fields: [
-        { name: 'consulta_juridica', type: 'number', required: true, min: 0 },
-        { name: 'resumo_ia', type: 'number', required: true, min: 0 },
-        { name: 'capa_processo', type: 'number', required: true, min: 0 },
+        { name: 'consulta_juridica', type: 'number', required: false, min: 0 },
+        { name: 'resumo_ia', type: 'number', required: false, min: 0 },
+        { name: 'capa_processo', type: 'number', required: false, min: 0 },
         { name: 'created', type: 'autodate', onCreate: true, onUpdate: false },
         { name: 'updated', type: 'autodate', onCreate: true, onUpdate: true },
       ],
