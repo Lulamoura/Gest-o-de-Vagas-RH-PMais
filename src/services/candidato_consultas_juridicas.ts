@@ -90,9 +90,13 @@ export const gerarResumoIA = async (
     })
     return { success: true, summary: result.message }
   } catch (err: any) {
-    const backendMessage = err?.response?.message
+    const backendMessage =
+      err?.response?.message ?? err?.data?.message ?? err?.response?.data?.message
     if (backendMessage && typeof backendMessage === 'string') {
       return { success: false, message: backendMessage }
+    }
+    if (err?.status === 0 || err?.isAbort) {
+      return { success: false, message: 'Erro de conexão. Tente novamente.' }
     }
     const errMsg = err?.message
     if (

@@ -8,21 +8,41 @@ routerAdd(
       var consultaId = (body.consulta_id || body.consultaId || '').toString().trim()
 
       if (!numeroProcesso || !consultaId) {
-        console.log('processo_resumo_ia: campos obrigatórios ausentes', {
-          numeroProcesso: numeroProcesso,
-          consultaId: consultaId,
-        })
+        $app
+          .logger()
+          .warn(
+            'processo_resumo_ia: campos obrigatórios ausentes',
+            'numeroProcesso',
+            numeroProcesso,
+            'consultaId',
+            consultaId,
+          )
         return e.json(400, { message: 'Número do processo e ID da consulta são obrigatórios' })
       }
+
+      $app
+        .logger()
+        .info(
+          'processo_resumo_ia: iniciando geração de resumo',
+          'numeroProcesso',
+          numeroProcesso,
+          'consultaId',
+          consultaId,
+        )
 
       var consulta
       try {
         consulta = $app.findRecordById('candidato_consultas_juridicas', consultaId)
       } catch (err) {
-        console.log('processo_resumo_ia: consulta não encontrada', {
-          consultaId: consultaId,
-          error: String(err),
-        })
+        $app
+          .logger()
+          .error(
+            'processo_resumo_ia: consulta não encontrada',
+            'consultaId',
+            consultaId,
+            'error',
+            String(err),
+          )
         return e.json(404, { message: 'Consulta de processo não encontrada' })
       }
 
@@ -62,6 +82,13 @@ routerAdd(
         typeof processoResumos[numeroProcesso] === 'string' &&
         processoResumos[numeroProcesso].trim()
       ) {
+        $app
+          .logger()
+          .info(
+            'processo_resumo_ia: retornando resumo em cache (numero completo)',
+            'numeroProcesso',
+            numeroProcesso,
+          )
         return e.json(200, { message: processoResumos[numeroProcesso].trim() })
       }
       if (
@@ -70,6 +97,13 @@ routerAdd(
         typeof processoResumos[cleanNum] === 'string' &&
         processoResumos[cleanNum].trim()
       ) {
+        $app
+          .logger()
+          .info(
+            'processo_resumo_ia: retornando resumo em cache (numero limpo)',
+            'cleanNum',
+            cleanNum,
+          )
         return e.json(200, { message: processoResumos[cleanNum].trim() })
       }
 
@@ -125,6 +159,14 @@ routerAdd(
 
       var processos = getProcessList(consulta.get('processos_json'))
 
+      $app
+        .logger()
+        .info(
+          'processo_resumo_ia: processos carregados da consulta',
+          'totalProcessos',
+          processos.length,
+        )
+
       var procData = null
       for (var i = 0; i < processos.length; i++) {
         var p = processos[i]
@@ -159,6 +201,13 @@ routerAdd(
       }
 
       if (!procData) {
+        $app
+          .logger()
+          .warn(
+            'processo_resumo_ia: processo não encontrado nos dados da consulta, usando dados mínimos',
+            'numeroProcesso',
+            numeroProcesso,
+          )
         procData = { numero: numeroProcesso }
       }
 
@@ -276,6 +325,16 @@ routerAdd(
         'Dados do processo:\n' +
         contextParts.join('\n')
 
+      $app
+        .logger()
+        .info(
+          'processo_resumo_ia: chamando AI gateway',
+          'numeroProcesso',
+          numeroProcesso,
+          'contextLength',
+          contextParts.join('\n').length,
+        )
+
       var summary = ''
       try {
         var reply = $ai.chat({
@@ -285,27 +344,71 @@ routerAdd(
             { role: 'user', content: userPrompt },
           ],
         })
+
         if (reply && reply.choices && reply.choices.length > 0 && reply.choices[0].message) {
           summary = reply.choices[0].message.content || ''
         }
+
+        $app
+          .logger()
+          .info(
+            'processo_resumo_ia: AI gateway respondeu',
+            'numeroProcesso',
+            numeroProcesso,
+            'summaryLength',
+            summary.length,
+          )
       } catch (aiErr) {
-        if (
-          aiErr &&
-          (aiErr.name === 'SkipAiConfigError' ||
-            (typeof SkipAiConfigError !== 'undefined' && aiErr instanceof SkipAiConfigError))
-        ) {
+        if (typeof SkipAiConfigError !== 'undefined' && aiErr instanceof SkipAiConfigError) {
+          $app
+            .logger()
+            .error(
+              'processo_resumo_ia: SkipAiConfigError - gateway não provisionado',
+              'error',
+              String(aiErr),
+            )
           return e.json(503, { message: 'Serviço de IA temporariamente indisponível.' })
         }
-        $app.logger().error('Erro ao gerar resumo com IA', 'error', String(aiErr))
-        var errDetail = aiErr && aiErr.message ? aiErr.message : String(aiErr)
-        return e.json(400, { message: 'Não foi possível gerar o resumo com IA: ' + errDetail })
+        if (typeof SkipAiError !== 'undefined' && aiErr instanceof SkipAiError) {
+          $app
+            .logger()
+            .error(
+              'processo_resumo_ia: SkipAiError - erro no gateway de IA',
+              'error',
+              String(aiErr),
+              'status',
+              aiErr.status || 0,
+            )
+          var skipErrDetail = (aiErr.message || String(aiErr)).trim()
+          return e.json(502, {
+            message: 'Erro no serviço de IA: ' + skipErrDetail,
+          })
+        }
+        $app
+          .logger()
+          .error(
+            'processo_resumo_ia: erro ao gerar resumo com IA',
+            'error',
+            String(aiErr),
+            'numeroProcesso',
+            numeroProcesso,
+          )
+        var errDetail = (aiErr && aiErr.message ? aiErr.message : String(aiErr)).trim()
+        return e.json(400, {
+          message: 'Não foi possível gerar o resumo com IA: ' + errDetail,
+        })
       }
 
       if (!summary || !summary.trim()) {
-        console.log('processo_resumo_ia: IA retornou resumo vazio', {
-          numeroProcesso: numeroProcesso,
-          consultaId: consultaId,
-        })
+        $app
+          .logger()
+          .warn(
+            'processo_resumo_ia: IA retornou resumo vazio',
+            'numeroProcesso',
+            numeroProcesso,
+            'consultaId',
+            consultaId,
+          )
         return e.json(400, { message: 'A IA não retornou um resumo válido para este processo.' })
       }
 
@@ -318,8 +421,23 @@ routerAdd(
       try {
         consulta.set('resumo_json', resumoJson)
         $app.saveNoValidate(consulta)
+        $app
+          .logger()
+          .info(
+            'processo_resumo_ia: resumo salvo na consulta',
+            'consultaId',
+            consultaId,
+            'numeroProcesso',
+            numeroProcesso,
+          )
       } catch (saveErr) {
-        $app.logger().warn('Erro ao salvar resumo_json na consulta', 'error', String(saveErr))
+        $app
+          .logger()
+          .warn(
+            'processo_resumo_ia: erro ao salvar resumo_json na consulta',
+            'error',
+            String(saveErr),
+          )
       }
 
       if (candidatoId) {
@@ -332,18 +450,43 @@ routerAdd(
               var currentCost = Number(candRec.get('custo_consultas') || 0)
               candRec.set('custo_consultas', currentCost + custo)
               $app.saveNoValidate(candRec)
+              $app
+                .logger()
+                .info(
+                  'processo_resumo_ia: custo incrementado no candidato',
+                  'candidatoId',
+                  candidatoId,
+                  'custo',
+                  custo,
+                  'novoTotal',
+                  currentCost + custo,
+                )
             }
           }
         } catch (costErr) {
           $app
             .logger()
-            .warn('Erro ao incrementar custo de resumo IA no candidato', 'error', String(costErr))
+            .warn(
+              'processo_resumo_ia: erro ao incrementar custo de resumo IA no candidato',
+              'error',
+              String(costErr),
+            )
         }
       }
 
+      $app
+        .logger()
+        .info(
+          'processo_resumo_ia: concluído com sucesso',
+          'numeroProcesso',
+          numeroProcesso,
+          'consultaId',
+          consultaId,
+        )
+
       return e.json(200, { message: summary })
     } catch (err) {
-      $app.logger().error('Erro não tratado no resumo IA', 'error', String(err))
+      $app.logger().error('processo_resumo_ia: erro não tratado', 'error', String(err))
       return e.json(500, { message: 'Erro interno ao processar o resumo. Tente novamente.' })
     }
   },
