@@ -68,7 +68,7 @@ export const getProcessoDetalhes = async (
 export const getProcessoResumoIA = async (
   numeroProcesso: string,
   consultaId?: string,
-): Promise<{ summary: string }> => {
+): Promise<{ message: string }> => {
   if (!numeroProcesso || !consultaId) {
     throw new Error('Número do processo e ID da consulta são obrigatórios')
   }

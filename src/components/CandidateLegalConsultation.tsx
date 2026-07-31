@@ -218,7 +218,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
       setInteractionStates((prev) => ({
         ...prev,
         [numeroProcesso]: {
-          summary: result.summary,
+          summary: result.message,
           loading: false,
           expanded: true,
           error: undefined,
@@ -226,7 +226,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
         ...(cleanKey && cleanKey !== numeroProcesso
           ? {
               [cleanKey]: {
-                summary: result.summary,
+                summary: result.message,
                 loading: false,
                 expanded: true,
                 error: undefined,
@@ -239,8 +239,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
         if (!prev) return prev
         const resumoJson = parseResumoJson(prev.resumo_json) || {}
         const processoResumos = { ...(resumoJson.processo_resumos || {}) }
-        processoResumos[numeroProcesso] = result.summary
-        if (cleanKey) processoResumos[cleanKey] = result.summary
+        processoResumos[numeroProcesso] = result.message
+        if (cleanKey) processoResumos[cleanKey] = result.message
         return {
           ...prev,
           resumo_json: {
@@ -255,8 +255,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
           if (item.id !== selectedConsulta.id) return item
           const resumoJson = parseResumoJson(item.resumo_json) || {}
           const processoResumos = { ...(resumoJson.processo_resumos || {}) }
-          processoResumos[numeroProcesso] = result.summary
-          if (cleanKey) processoResumos[cleanKey] = result.summary
+          processoResumos[numeroProcesso] = result.message
+          if (cleanKey) processoResumos[cleanKey] = result.message
           return {
             ...item,
             resumo_json: {
@@ -273,32 +273,18 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
 
       if (typeof err === 'string' && err.trim()) {
         errorMsg = err
-      } else if (err?.response?.error && typeof err.response.error === 'string') {
-        errorMsg = err.response.error
-      } else if (err?.data?.error && typeof err.data.error === 'string') {
-        errorMsg = err.data.error
-      } else if (err?.response?.data?.error && typeof err.response.data.error === 'string') {
-        errorMsg = err.response.data.error
-      } else if (err?.error && typeof err.error === 'string') {
-        errorMsg = err.error
-      } else if (
-        err?.response?.message &&
-        typeof err.response.message === 'string' &&
-        err.response.message !== 'Something went wrong while processing your request.'
-      ) {
-        errorMsg = err.response.message
-      } else if (
-        err?.data?.message &&
-        typeof err.data.message === 'string' &&
-        err.data.message !== 'Something went wrong while processing your request.'
-      ) {
-        errorMsg = err.data.message
       } else if (
         err?.message &&
         typeof err.message === 'string' &&
         err.message !== 'Something went wrong while processing your request.'
       ) {
         errorMsg = err.message
+      } else if (
+        err?.response?.message &&
+        typeof err.response.message === 'string' &&
+        err.response.message !== 'Something went wrong while processing your request.'
+      ) {
+        errorMsg = err.response.message
       }
 
       toast.error(errorMsg)
@@ -321,6 +307,19 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
             }
           : {}),
       }))
+
+      setTimeout(() => {
+        setInteractionStates((prev) => {
+          const next = { ...prev }
+          if (next[numeroProcesso]) {
+            next[numeroProcesso] = { ...next[numeroProcesso], error: undefined }
+          }
+          if (cleanKey && cleanKey !== numeroProcesso && next[cleanKey]) {
+            next[cleanKey] = { ...next[cleanKey], error: undefined }
+          }
+          return next
+        })
+      }, 6000)
     }
   }
 
