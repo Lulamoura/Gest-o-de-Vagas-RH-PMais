@@ -695,6 +695,10 @@ export default function VacancyDetail() {
                     {vaga.expand?.tipo_vaga?.nome || '-'}
                   </span>
                 </div>
+                <div className="bg-slate-50 p-2.5 rounded-lg">
+                  <span className="text-slate-400 block">Ordem de Execução</span>
+                  <span className="font-semibold text-slate-800">{vaga.ordem_execucao || '-'}</span>
+                </div>
               </div>
             </div>
 
