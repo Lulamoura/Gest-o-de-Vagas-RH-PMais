@@ -6,6 +6,7 @@ export interface CandidateRequiredFields {
   cidade?: string
   bairro?: string
   vacancy_id?: string
+  ordem_execucao?: string
 }
 
 export function isCandidateStatusEnabled(fields: CandidateRequiredFields): boolean {
@@ -16,6 +17,7 @@ export function isCandidateStatusEnabled(fields: CandidateRequiredFields): boole
     fields.cpf?.trim() &&
     fields.cidade?.trim() &&
     fields.bairro?.trim() &&
-    fields.vacancy_id?.trim()
+    fields.vacancy_id?.trim() &&
+    fields.ordem_execucao?.trim()
   )
 }

@@ -94,6 +94,7 @@ export interface CandidateRecord extends RecordModel {
   nome_mae?: string
   telefone_emergencia?: string
   observacao?: string
+  ordem_execucao?: string
   status_candidato: CandidateStatus
   expand?: {
     vacancy_id?: VacancyRecord

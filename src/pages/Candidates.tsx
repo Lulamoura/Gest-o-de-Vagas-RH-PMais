@@ -93,6 +93,7 @@ export default function Candidates() {
   const [nomeMae, setNomeMae] = useState('')
   const [telefoneEmergencia, setTelefoneEmergencia] = useState('')
   const [observacao, setObservacao] = useState('')
+  const [ordemExecucao, setOrdemExecucao] = useState('')
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const isAdminOrSuper = user?.profile === 'admin' || user?.profile === 'superadmin'
 
@@ -138,6 +139,7 @@ export default function Candidates() {
     setNomeMae('')
     setTelefoneEmergencia('')
     setObservacao('')
+    setOrdemExecucao('')
     setFieldErrors({})
     setEmailLogs([])
     setEditingCandidate(null)
@@ -172,6 +174,7 @@ export default function Candidates() {
     setNomeMae(candidate.nome_mae || '')
     setTelefoneEmergencia(candidate.telefone_emergencia || '')
     setObservacao(candidate.observacao || '')
+    setOrdemExecucao(candidate.ordem_execucao || '')
     setEmailLogs([])
     getEmailLogsForCandidate(candidate.id)
       .then(setEmailLogs)
@@ -224,6 +227,7 @@ export default function Candidates() {
         nome_mae: nomeMae.trim() || undefined,
         telefone_emergencia: telefoneEmergencia.trim() || undefined,
         observacao: isAdminOrSuper ? observacao.trim() || undefined : undefined,
+        ordem_execucao: ordemExecucao.trim() || undefined,
       }
 
       if (editingCandidate) {
@@ -511,8 +515,12 @@ export default function Candidates() {
 
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-slate-700">Status do Candidato</Label>
-              <Select value={status} onValueChange={(v) => setStatus(v as CandidateStatus)}>
-                <SelectTrigger>
+              <Select
+                value={status}
+                onValueChange={(v) => setStatus(v as CandidateStatus)}
+                disabled={!ordemExecucao.trim()}
+              >
+                <SelectTrigger disabled={!ordemExecucao.trim()}>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
@@ -529,6 +537,23 @@ export default function Candidates() {
               <Label className="text-xs font-bold text-slate-700">Ranking (1-5 estrelas)</Label>
               <StarRating value={rank} onChange={setRank} size={28} />
               {rankError && <p className="text-xs text-rose-500 mt-1">{rankError}</p>}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="cOrdemExecucao" className="text-xs font-bold text-slate-700">
+                O.E — Ordem de Execução
+              </Label>
+              <Input
+                id="cOrdemExecucao"
+                placeholder="Informe a ordem de execução"
+                value={ordemExecucao}
+                onChange={(e) => setOrdemExecucao(e.target.value)}
+              />
+              {!ordemExecucao.trim() && (
+                <p className="text-[11px] text-amber-600 mt-1">
+                  O preenchimento da O.E é necessário para habilitar a alteração de status.
+                </p>
+              )}
             </div>
 
             {isAdminOrSuper && (

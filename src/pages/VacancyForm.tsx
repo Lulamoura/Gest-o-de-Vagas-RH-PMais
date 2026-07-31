@@ -111,7 +111,7 @@ export default function VacancyForm() {
     tipoContrato,
   ])
 
-  const isStatusDisabled = isEditing && missingRequiredFields.length > 0
+  const isStatusDisabled = isEditing && (missingRequiredFields.length > 0 || !ordemExecucao.trim())
 
   const integradoCount = useMemo(
     () => candidatesList.filter((c) => c.status_candidato === 'Integrado').length,
@@ -178,6 +178,7 @@ export default function VacancyForm() {
           setPrioridade(vaga.prioridade)
           setSalarioFaixa(vaga.salario_faixa || '')
           setDespesasVaga(vaga.despesas_vaga || 0)
+          setOrdemExecucao(vaga.ordem_execucao || '')
           setEspecificacoes(vaga.especificacoes || '')
           setObservacoesInternas(vaga.observacoes_internas || '')
 
@@ -236,6 +237,7 @@ export default function VacancyForm() {
       prioridade,
       salario_faixa: salarioFaixa,
       despesas_vaga: Number(despesasVaga),
+      ordem_execucao: ordemExecucao,
       especificacoes,
       observacoes_internas: observacoesInternas,
     }
@@ -405,6 +407,24 @@ export default function VacancyForm() {
                   onChange={setDespesasVaga}
                   className="text-sm"
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="ordemExecucao" className="text-xs font-bold text-slate-700">
+                  O.E — Ordem de Execução
+                </Label>
+                <Input
+                  id="ordemExecucao"
+                  placeholder="Informe a ordem de execução"
+                  value={ordemExecucao}
+                  onChange={(e) => setOrdemExecucao(e.target.value)}
+                />
+                {!ordemExecucao.trim() && isEditing && (
+                  <p className="text-[11px] text-amber-600 mt-1">
+                    O preenchimento da O.E é necessário para habilitar a alteração de status da
+                    vaga.
+                  </p>
+                )}
               </div>
             </div>
 

@@ -413,6 +413,13 @@ routerAdd(
       resumoJson.processo_resumos = processoResumos
 
       try {
+        var resumoJsonStr = JSON.stringify(resumoJson)
+        console.log(
+          'processo_resumo_ia: tentando salvar resumo_json na consulta',
+          consultaId,
+          'tamanho:',
+          resumoJsonStr.length,
+        )
         consulta.set('resumo_json', resumoJson)
         $app.saveNoValidate(consulta)
         console.log('processo_resumo_ia: resumo salvo na consulta', consultaId)
@@ -424,16 +431,29 @@ routerAdd(
             consultaId,
             'numeroProcesso',
             numeroProcesso,
+            'resumoJsonSize',
+            resumoJsonStr.length,
           )
       } catch (saveErr) {
-        console.error('processo_resumo_ia: erro ao salvar resumo na consulta:', saveErr)
+        var saveErrMsg = saveErr && saveErr.message ? saveErr.message : String(saveErr)
+        console.error('processo_resumo_ia: FALHA ao salvar resumo na consulta:', saveErrMsg)
         $app
           .logger()
-          .warn(
-            'processo_resumo_ia: erro ao salvar resumo_json na consulta',
+          .error(
+            'processo_resumo_ia: FALHA ao salvar resumo_json na consulta',
             'error',
-            String(saveErr),
+            saveErrMsg,
+            'consultaId',
+            consultaId,
+            'numeroProcesso',
+            numeroProcesso,
+            'resumoJsonSize',
+            JSON.stringify(resumoJson).length,
           )
+        return e.json(500, {
+          message: 'Falha ao salvar o resumo da IA no banco de dados: ' + saveErrMsg,
+          error: true,
+        })
       }
 
       if (candidatoId) {

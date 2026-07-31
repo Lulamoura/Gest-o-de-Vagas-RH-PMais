@@ -144,6 +144,7 @@ export default function VacancyDetail() {
   const [editNomeMae, setEditNomeMae] = useState('')
   const [editTelefoneEmergencia, setEditTelefoneEmergencia] = useState('')
   const [editObservacao, setEditObservacao] = useState('')
+  const [editOrdemExecucao, setEditOrdemExecucao] = useState('')
   const [editFieldErrors, setEditFieldErrors] = useState<FieldErrors>({})
   const [savingEdit, setSavingEdit] = useState(false)
 
@@ -157,6 +158,7 @@ export default function VacancyDetail() {
   const [cpfCandidato, setCpfCandidato] = useState('')
   const [cidadeCandidato, setCidadeCandidato] = useState('')
   const [bairroCandidato, setBairroCandidato] = useState('')
+  const [ordemExecucaoCandidato, setOrdemExecucaoCandidato] = useState('')
 
   // Complement email
   const [sendingEmail, setSendingEmail] = useState(false)
@@ -257,6 +259,7 @@ export default function VacancyDetail() {
         nome_pai: nomePaiCandidato,
         nome_mae: nomeMaeCandidato,
         telefone_emergencia: telefoneEmergenciaCandidato,
+        ordem_execucao: ordemExecucaoCandidato.trim() || undefined,
       })
 
       toast.success('Candidato adicionado com sucesso!')
@@ -280,6 +283,7 @@ export default function VacancyDetail() {
       setNomePaiCandidato('')
       setNomeMaeCandidato('')
       setTelefoneEmergenciaCandidato('')
+      setOrdemExecucaoCandidato('')
       loadData()
     } catch (err) {
       toast.error('Erro ao salvar candidato')
@@ -310,6 +314,7 @@ export default function VacancyDetail() {
     setEditNomeMae(candidate.nome_mae || '')
     setEditTelefoneEmergencia(candidate.telefone_emergencia || '')
     setEditObservacao(candidate.observacao || '')
+    setEditOrdemExecucao(candidate.ordem_execucao || '')
     setEditFieldErrors({})
     setEmailLogs([])
     getEmailLogsForCandidate(candidate.id)
@@ -349,6 +354,7 @@ export default function VacancyDetail() {
         nome_mae: editNomeMae.trim() || undefined,
         telefone_emergencia: editTelefoneEmergencia.trim() || undefined,
         observacao: editObservacao.trim() || undefined,
+        ordem_execucao: editOrdemExecucao.trim() || undefined,
       })
       toast.success('Candidato atualizado com sucesso!')
       setEditModalOpen(false)
@@ -488,6 +494,7 @@ export default function VacancyDetail() {
     cidade: cidadeCandidato,
     bairro: bairroCandidato,
     vacancy_id: id,
+    ordem_execucao: ordemExecucaoCandidato,
   })
 
   const isEditStatusEnabled = isCandidateStatusEnabled({
@@ -498,6 +505,7 @@ export default function VacancyDetail() {
     cidade: editCidade,
     bairro: editBairro,
     vacancy_id: editingCandidate?.vacancy_id,
+    ordem_execucao: editOrdemExecucao,
   })
 
   if (loading || !vaga) {
@@ -526,7 +534,7 @@ export default function VacancyDetail() {
               <Select
                 value={vaga.status_vaga}
                 onValueChange={(v) => handleStatusChange(v as VacancyStatus)}
-                disabled={statusChanging}
+                disabled={statusChanging || !vaga.ordem_execucao?.trim()}
               >
                 <SelectTrigger className="w-[160px] h-9 text-xs border-indigo-200 text-indigo-700">
                   <SelectValue placeholder="Status" />
@@ -1127,6 +1135,18 @@ export default function VacancyDetail() {
             </div>
 
             <div className="space-y-1.5">
+              <Label htmlFor="cOrdemExec" className="text-xs font-bold text-slate-700">
+                O.E — Ordem de Execução
+              </Label>
+              <Input
+                id="cOrdemExec"
+                placeholder="Informe a ordem de execução"
+                value={ordemExecucaoCandidato}
+                onChange={(e) => setOrdemExecucaoCandidato(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-1.5">
               <Label className="text-xs font-bold text-slate-700">Status Inicial</Label>
               <Select
                 value={statusCandidato}
@@ -1407,6 +1427,18 @@ export default function VacancyDetail() {
                   onChange={(e) => setEditBairro(e.target.value)}
                 />
               </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="eOrdemExec" className="text-xs font-bold text-slate-700">
+                O.E — Ordem de Execução
+              </Label>
+              <Input
+                id="eOrdemExec"
+                placeholder="Informe a ordem de execução"
+                value={editOrdemExecucao}
+                onChange={(e) => setEditOrdemExecucao(e.target.value)}
+              />
             </div>
 
             <div className="space-y-1.5">
