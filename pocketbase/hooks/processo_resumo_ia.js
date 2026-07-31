@@ -19,11 +19,15 @@ routerAdd(
 
     var candidatoId = ''
     try {
-      var candField = consulta.get('candidato_id')
-      if (candField) {
-        candidatoId = typeof candField === 'string' ? candField : String(candField)
-      }
-    } catch (_) {}
+      candidatoId = consulta.getString('candidato_id') || ''
+    } catch (_) {
+      try {
+        var candField = consulta.get('candidato_id')
+        if (candField) {
+          candidatoId = typeof candField === 'string' ? candField : String(candField)
+        }
+      } catch (_) {}
+    }
 
     var resumoJson = consulta.get('resumo_json')
     if (resumoJson == null) resumoJson = {}
@@ -144,9 +148,9 @@ routerAdd(
 
     if (candidatoId) {
       try {
-        var custoRecords = $app.findRecordsByFilter('custos_consultas', '', '', 1, 0)
-        if (custoRecords.length > 0) {
-          var custo = Number(custoRecords[0].get('resumo_ia') || 0)
+        var custoRec = $app.findFirstRecordByFilter('custos_consultas', '1=1')
+        if (custoRec) {
+          var custo = Number(custoRec.get('resumo_ia') || 0)
           if (custo > 0) {
             var candRec = $app.findRecordById('candidates', candidatoId)
             var currentCost = Number(candRec.get('custo_consultas') || 0)

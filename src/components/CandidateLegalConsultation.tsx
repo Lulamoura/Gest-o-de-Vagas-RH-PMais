@@ -270,14 +270,16 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
       toast.success('Resumo gerado com sucesso!')
     } catch (err: any) {
       let errorMsg = 'Não foi possível obter o resumo. Tente novamente mais tarde.'
-      if (err?.response?.error) {
+      if (err?.response?.data?.error && typeof err.response.data.error === 'string') {
+        errorMsg = err.response.data.error
+      } else if (err?.response?.error) {
         errorMsg =
           typeof err.response.error === 'string'
             ? err.response.error
             : JSON.stringify(err.response.error)
-      } else if (err?.response?.message) {
+      } else if (err?.response?.message && typeof err.response.message === 'string') {
         errorMsg = err.response.message
-      } else if (err?.message) {
+      } else if (err?.message && typeof err.message === 'string') {
         errorMsg = err.message
       }
 

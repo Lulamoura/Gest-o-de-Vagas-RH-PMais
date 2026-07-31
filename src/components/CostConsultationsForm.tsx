@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react'
-import { getCustosConsultas, updateCustosConsultas } from '@/services/custos_consultas'
+import {
+  getCustosConsultas,
+  updateCustosConsultas,
+  createCustosConsultas,
+} from '@/services/custos_consultas'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -39,17 +43,24 @@ export function CostConsultationsForm() {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!recordId) {
-      toast.error('Nenhum registro encontrado para atualizar')
-      return
-    }
     setSaving(true)
     try {
-      await updateCustosConsultas(recordId, {
-        consulta_juridica: consultaJuridica,
-        resumo_ia: resumoIa,
-        capa_processo: capaProcesso,
-      })
+      if (recordId) {
+        await updateCustosConsultas(recordId, {
+          consulta_juridica: consultaJuridica,
+          resumo_ia: resumoIa,
+          capa_processo: capaProcesso,
+        })
+      } else {
+        const created = await createCustosConsultas({
+          consulta_juridica: consultaJuridica,
+          resumo_ia: resumoIa,
+          capa_processo: capaProcesso,
+        })
+        if (created?.id) {
+          setRecordId(created.id)
+        }
+      }
       toast.success('Custos atualizados com sucesso!')
     } catch {
       toast.error('Erro ao salvar custos')
