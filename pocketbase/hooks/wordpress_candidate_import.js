@@ -110,6 +110,17 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
       })
     } catch (_) {}
 
+    var vacancyOrdemExecucao = ''
+    try {
+      var vacancyRecord = $app.findRecordById('vacancies', vacancyId)
+      if (vacancyRecord) {
+        var oe = vacancyRecord.getString('ordem_execucao')
+        if (oe) {
+          vacancyOrdemExecucao = oe
+        }
+      }
+    } catch (_) {}
+
     var candidatesCol = $app.findCollectionByNameOrId('candidates')
     var candidate = new Record(candidatesCol)
     candidate.set('vacancy_id', vacancyId)
@@ -124,6 +135,9 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
     }
     candidate.set('wordpress_candidatura_id', wordpressCandidaturaId)
     candidate.set('status_candidato', 'Análise do RH')
+    if (vacancyOrdemExecucao) {
+      candidate.set('ordem_execucao', vacancyOrdemExecucao)
+    }
 
     try {
       $app.save(candidate)
