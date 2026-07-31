@@ -271,18 +271,28 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
     } catch (err: any) {
       let errorMsg = 'Não foi possível obter o resumo. Tente novamente mais tarde.'
 
-      if (err?.response?.error && typeof err.response.error === 'string') {
+      if (typeof err === 'string' && err.trim()) {
+        errorMsg = err
+      } else if (err?.response?.error && typeof err.response.error === 'string') {
         errorMsg = err.response.error
       } else if (err?.data?.error && typeof err.data.error === 'string') {
         errorMsg = err.data.error
       } else if (err?.response?.data?.error && typeof err.response.data.error === 'string') {
         errorMsg = err.response.data.error
+      } else if (err?.error && typeof err.error === 'string') {
+        errorMsg = err.error
       } else if (
         err?.response?.message &&
         typeof err.response.message === 'string' &&
         err.response.message !== 'Something went wrong while processing your request.'
       ) {
         errorMsg = err.response.message
+      } else if (
+        err?.data?.message &&
+        typeof err.data.message === 'string' &&
+        err.data.message !== 'Something went wrong while processing your request.'
+      ) {
+        errorMsg = err.data.message
       } else if (
         err?.message &&
         typeof err.message === 'string' &&
@@ -667,7 +677,7 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
                                     className="h-7 px-2.5 text-xs border-indigo-200 text-indigo-700 hover:bg-indigo-50"
                                   >
                                     <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                    Gerando...
+                                    Processando...
                                   </Button>
                                 ) : (
                                   <Button
