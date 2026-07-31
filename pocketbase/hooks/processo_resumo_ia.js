@@ -14,7 +14,7 @@ routerAdd(
     try {
       consulta = $app.findRecordById('candidato_consultas_juridicas', consultaId)
     } catch (err) {
-      return e.json(404, { error: 'Consulta nao encontrada' })
+      return e.json(404, { error: 'Consulta de processo nao encontrada' })
     }
 
     var candidatoId = ''
@@ -45,11 +45,34 @@ routerAdd(
 
     var cleanNum = numeroProcesso.replace(/[^\d]/g, '')
 
-    if (processoResumos[numeroProcesso]) {
+    if (processoResumos[numeroProcesso] && typeof processoResumos[numeroProcesso] === 'string') {
       return e.json(200, { summary: processoResumos[numeroProcesso] })
     }
-    if (cleanNum && processoResumos[cleanNum]) {
+    if (cleanNum && processoResumos[cleanNum] && typeof processoResumos[cleanNum] === 'string') {
       return e.json(200, { summary: processoResumos[cleanNum] })
+    }
+
+    var extractText = function (val) {
+      if (val == null) return ''
+      if (typeof val === 'string') return val.trim()
+      if (typeof val === 'number') return String(val)
+      if (typeof val === 'object') {
+        if (Array.isArray(val)) {
+          var items = []
+          for (var k = 0; k < val.length; k++) {
+            var t = extractText(val[k])
+            if (t) items.push(t)
+          }
+          return items.join(', ')
+        }
+        if (val.nome) return String(val.nome).trim()
+        if (val.descricao) return String(val.descricao).trim()
+        if (val.sigla && val.nome) return String(val.sigla).trim() + ' — ' + String(val.nome).trim()
+        if (val.sigla) return String(val.sigla).trim()
+        if (val.display) return String(val.display).trim()
+        if (val.texto) return String(val.texto).trim()
+      }
+      return ''
     }
 
     var processos = consulta.get('processos_json')
@@ -66,14 +89,17 @@ routerAdd(
     for (var i = 0; i < processos.length; i++) {
       var p = processos[i]
       if (!p || typeof p !== 'object') continue
-      var pNum = (p.numero_cnj || p.numero || p.numero_processo || p.titulo || '').toString().trim()
+      var pNum = (p.numero_cnj || p.numero || p.numero_processo || p.titulo || p.id || '')
+        .toString()
+        .trim()
       var pNumClean = pNum.replace(/[^\d]/g, '')
       if (
         pNum === numeroProcesso ||
         (cleanNum && pNumClean === cleanNum) ||
         (cleanNum &&
           pNumClean &&
-          (pNumClean.indexOf(cleanNum) >= 0 || cleanNum.indexOf(pNumClean) >= 0))
+          (pNumClean.indexOf(cleanNum) >= 0 || cleanNum.indexOf(pNumClean) >= 0)) ||
+        (p.id && String(p.id).trim() === numeroProcesso)
       ) {
         procData = p
         break
@@ -84,31 +110,62 @@ routerAdd(
       procData = { numero: numeroProcesso }
     }
 
-    var procNum = (
-      procData.numero_cnj ||
-      procData.numero ||
-      procData.numero_processo ||
-      procData.titulo ||
+    var procNum =
+      extractText(procData.numero_cnj) ||
+      extractText(procData.numero) ||
+      extractText(procData.numero_processo) ||
+      extractText(procData.titulo) ||
       numeroProcesso
-    ).toString()
-    var procClasse = (procData.classe || procData.classe_processual || '').toString()
-    var procAssunto = (procData.assunto || '').toString()
-    var procStatus = (procData.status || procData.situacao || '').toString()
-    var procTribunal = (procData.tribunal || '').toString()
+
+    var procClasse = extractText(procData.classe) || extractText(procData.classe_processual)
+    var procAssunto = extractText(procData.assunto) || extractText(procData.assuntos)
+    var procStatus = extractText(procData.status) || extractText(procData.situacao)
+    var procTribunal = extractText(procData.tribunal)
+    var procVara = extractText(procData.orgao_julgador) || extractText(procData.vara)
+
+    var partesText = ''
+    if (Array.isArray(procData.partes) && procData.partes.length > 0) {
+      var pList = []
+      for (var j = 0; j < Math.min(procData.partes.length, 6); j++) {
+        var pt = procData.partes[j]
+        if (!pt) continue
+        var ptNome = extractText(pt.nome || pt)
+        var ptTipo = extractText(pt.tipo || pt.papel)
+        if (ptNome) {
+          pList.push(ptTipo ? ptTipo + ': ' + ptNome : ptNome)
+        }
+      }
+      partesText = pList.join('; ')
+    }
+
+    var movText = ''
+    if (procData.last_valid_movement) {
+      movText = extractText(
+        procData.last_valid_movement.conteudo ||
+          procData.last_valid_movement.texto ||
+          procData.last_valid_movement,
+      )
+    } else if (Array.isArray(procData.movimentacoes) && procData.movimentacoes.length > 0) {
+      var lastM = procData.movimentacoes[0]
+      movText = extractText(lastM.conteudo || lastM.texto || lastM)
+    }
 
     var contextParts = [
-      'Numero: ' + procNum,
+      'Número do Processo: ' + procNum,
       procClasse ? 'Classe: ' + procClasse : '',
       procAssunto ? 'Assunto: ' + procAssunto : '',
       procStatus ? 'Status: ' + procStatus : '',
       procTribunal ? 'Tribunal: ' + procTribunal : '',
+      procVara ? 'Vara/Órgão Julgador: ' + procVara : '',
+      partesText ? 'Partes: ' + partesText : '',
+      movText ? 'Última Movimentação: ' + movText : '',
     ].filter(function (s) {
       return s !== ''
     })
 
     var prompt =
-      'Resuma de forma clara e objetiva o seguinte processo judicial para fins de avaliacao de candidato em processo seletivo. ' +
-      'Destaque informacoes relevantes como o tipo de acao, o status, e se ha riscos potenciais. ' +
+      'Resuma de forma clara e objetiva o seguinte processo judicial para fins de avaliacao de candidato em processo seletivo de RH. ' +
+      'Destaque informacoes relevantes como o tipo de acao, a situacao/status, e se ha riscos potenciais. ' +
       'Contexto do processo:\n' +
       contextParts.join('\n')
 
@@ -120,20 +177,25 @@ routerAdd(
           {
             role: 'system',
             content:
-              'Voce e um assistente juridico que resume processos judiciais de forma concisa e objetiva, em portugues brasileiro. Limite o resumo a 3-4 paragrafos.',
+              'Voce e um assistente juridico especialista em RH que resume processos judiciais de forma concisa e objetiva em portugues brasileiro. Limite o resumo a 2-3 paragrafos claros.',
           },
           { role: 'user', content: prompt },
         ],
       })
-      summary = reply.choices[0].message.content || ''
+      if (reply && reply.choices && reply.choices.length > 0 && reply.choices[0].message) {
+        summary = reply.choices[0].message.content || ''
+      }
     } catch (aiErr) {
       $app.logger().error('Erro ao gerar resumo com IA', 'error', String(aiErr))
-      return e.json(500, { error: 'Nao foi possivel gerar o resumo. Tente novamente mais tarde.' })
+      var errDetail = aiErr && aiErr.message ? aiErr.message : String(aiErr)
+      return e.json(500, { error: 'Não foi possível gerar o resumo com IA: ' + errDetail })
     }
 
-    if (!summary.trim()) {
-      return e.json(500, { error: 'Nao foi possivel gerar o resumo. Tente novamente mais tarde.' })
+    if (!summary || !summary.trim()) {
+      return e.json(500, { error: 'A IA não retornou um resumo válido para este processo.' })
     }
+
+    summary = summary.trim()
 
     processoResumos[numeroProcesso] = summary
     if (cleanNum) processoResumos[cleanNum] = summary
@@ -143,12 +205,16 @@ routerAdd(
       consulta.set('resumo_json', resumoJson)
       $app.saveNoValidate(consulta)
     } catch (saveErr) {
-      $app.logger().warn('Erro ao salvar resumo', 'error', String(saveErr))
+      $app.logger().warn('Erro ao salvar resumo_json na consulta', 'error', String(saveErr))
     }
 
     if (candidatoId) {
       try {
-        var custoRec = $app.findFirstRecordByFilter('custos_consultas', '1=1')
+        var custoRec = null
+        try {
+          custoRec = $app.findFirstRecordByFilter('custos_consultas', '1=1')
+        } catch (_) {}
+
         if (custoRec) {
           var custo = Number(custoRec.get('resumo_ia') || 0)
           if (custo > 0) {

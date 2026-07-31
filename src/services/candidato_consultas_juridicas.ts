@@ -75,11 +75,10 @@ export const getProcessoResumoIA = async (
 
   return pb.send(`/backend/v1/processo/resumo-ia`, {
     method: 'POST',
-    body: JSON.stringify({
+    body: {
       numero_processo: numeroProcesso,
       consulta_id: consultaId,
-    }),
-    headers: { 'Content-Type': 'application/json' },
+    },
   })
 }
 
@@ -93,10 +92,9 @@ export const getProcessoAnaliseDetalhada = async (
 
   return pb.send(`/backend/v1/processo/analise-detalhada`, {
     method: 'POST',
-    body: JSON.stringify({
+    body: {
       consulta_id: consultaId,
       processo_id: processoId,
-    }),
-    headers: { 'Content-Type': 'application/json' },
+    },
   })
 }

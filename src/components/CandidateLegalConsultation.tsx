@@ -270,16 +270,24 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
       toast.success('Resumo gerado com sucesso!')
     } catch (err: any) {
       let errorMsg = 'Não foi possível obter o resumo. Tente novamente mais tarde.'
-      if (err?.response?.data?.error && typeof err.response.data.error === 'string') {
+
+      if (err?.response?.error && typeof err.response.error === 'string') {
+        errorMsg = err.response.error
+      } else if (err?.data?.error && typeof err.data.error === 'string') {
+        errorMsg = err.data.error
+      } else if (err?.response?.data?.error && typeof err.response.data.error === 'string') {
         errorMsg = err.response.data.error
-      } else if (err?.response?.error) {
-        errorMsg =
-          typeof err.response.error === 'string'
-            ? err.response.error
-            : JSON.stringify(err.response.error)
-      } else if (err?.response?.message && typeof err.response.message === 'string') {
+      } else if (
+        err?.response?.message &&
+        typeof err.response.message === 'string' &&
+        err.response.message !== 'Something went wrong while processing your request.'
+      ) {
         errorMsg = err.response.message
-      } else if (err?.message && typeof err.message === 'string') {
+      } else if (
+        err?.message &&
+        typeof err.message === 'string' &&
+        err.message !== 'Something went wrong while processing your request.'
+      ) {
         errorMsg = err.message
       }
 
