@@ -7,14 +7,14 @@ routerAdd(
     var consultaId = (body.consulta_id || body.consultaId || '').toString().trim()
 
     if (!numeroProcesso || !consultaId) {
-      return e.json(400, { error: 'Número do processo e ID da consulta são obrigatórios' })
+      return e.badRequestError('Número do processo e ID da consulta são obrigatórios')
     }
 
     var consulta
     try {
       consulta = $app.findRecordById('candidato_consultas_juridicas', consultaId)
     } catch (err) {
-      return e.json(404, { error: 'Consulta de processo não encontrada' })
+      return e.notFoundError('Consulta de processo não encontrada')
     }
 
     var candidatoId = ''
@@ -276,13 +276,20 @@ routerAdd(
         summary = reply.choices[0].message.content || ''
       }
     } catch (aiErr) {
+      if (
+        aiErr &&
+        (aiErr.name === 'SkipAiConfigError' ||
+          (typeof SkipAiConfigError !== 'undefined' && aiErr instanceof SkipAiConfigError))
+      ) {
+        return e.json(503, { message: 'Serviço de IA temporariamente indisponível.' })
+      }
       $app.logger().error('Erro ao gerar resumo com IA', 'error', String(aiErr))
       var errDetail = aiErr && aiErr.message ? aiErr.message : String(aiErr)
-      return e.json(400, { error: 'Não foi possível gerar o resumo com IA: ' + errDetail })
+      return e.badRequestError('Não foi possível gerar o resumo com IA: ' + errDetail)
     }
 
     if (!summary || !summary.trim()) {
-      return e.json(400, { error: 'A IA não retornou um resumo válido para este processo.' })
+      return e.badRequestError('A IA não retornou um resumo válido para este processo.')
     }
 
     summary = summary.trim()
