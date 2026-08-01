@@ -35,6 +35,7 @@ import { Label } from '@/components/ui/label'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { toast } from 'sonner'
 import { UserCheck, PlusCircle, Pencil, Trash2, Shield } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 export default function Users() {
   const { canManageUsers, isSuperAdmin } = useAuth()
@@ -52,6 +53,10 @@ export default function Users() {
   const [profile, setProfile] = useState<UserProfile>('viewer')
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
+
+  const [userToDelete, setUserToDelete] = useState<UserRecord | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const loadData = async () => {
     try {
@@ -132,14 +137,24 @@ export default function Users() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este usuário?')) return
+  const promptDelete = (u: UserRecord) => {
+    setUserToDelete(u)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!userToDelete) return
+    setDeleting(true)
     try {
-      await deleteUser(id)
-      toast.success('Usuário removido')
+      await deleteUser(userToDelete.id)
+      toast.success('Usuário removido com sucesso!')
+      setDeleteDialogOpen(false)
+      setUserToDelete(null)
       loadData()
     } catch (err) {
       toast.error('Erro ao excluir usuário')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -227,7 +242,7 @@ export default function Users() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => handleDelete(u.id)}
+                          onClick={() => promptDelete(u)}
                           className="h-8 w-8 text-slate-600 hover:text-rose-600"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -327,6 +342,18 @@ export default function Users() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Confirmação de Exclusão"
+        description="Deseja realmente excluir este usuário?"
+        confirmText="Confirmar"
+        cancelText="Cancelar"
+        variant="destructive"
+        loading={deleting}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

@@ -42,6 +42,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { StarRating } from '@/components/StarRating'
 import { ExamReferralModal } from '@/components/ExamReferralModal'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { getCandidateStatusBadgeClass, toDateInputValue } from '@/lib/status-utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
@@ -126,6 +127,10 @@ export default function Candidates() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendingDisqual, setSendingDisqual] = useState(false)
   const [examModalOpen, setExamModalOpen] = useState(false)
+
+  const [candidateToDelete, setCandidateToDelete] = useState<CandidateRecord | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const loadData = async () => {
     try {
@@ -241,14 +246,24 @@ export default function Candidates() {
     }
   }
 
-  const handleDelete = async (id: string) => {
-    if (!confirm('Deseja realmente excluir este candidato?')) return
+  const promptDelete = (c: CandidateRecord) => {
+    setCandidateToDelete(c)
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!candidateToDelete) return
+    setDeleting(true)
     try {
-      await deleteCandidate(id)
+      await deleteCandidate(candidateToDelete.id)
       toast.success('Candidato excluído!')
+      setDeleteDialogOpen(false)
+      setCandidateToDelete(null)
       loadData()
     } catch {
       toast.error('Erro ao excluir candidato')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -452,7 +467,7 @@ export default function Candidates() {
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDelete(c.id)}
+                            onClick={() => promptDelete(c)}
                             className="h-7 w-8 p-0 text-slate-500 hover:text-rose-600"
                             title="Excluir"
                           >
@@ -782,6 +797,18 @@ export default function Candidates() {
         candidate={editingCandidate}
         clinicas={clinicas}
         onSuccess={loadData}
+      />
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Confirmação de Exclusão"
+        description="Deseja realmente excluir este candidato?"
+        confirmText="Confirmar"
+        cancelText="Cancelar"
+        variant="destructive"
+        loading={deleting}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   )

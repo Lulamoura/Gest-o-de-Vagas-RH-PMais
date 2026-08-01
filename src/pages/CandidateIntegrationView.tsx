@@ -9,6 +9,16 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
 import { toast } from 'sonner'
 import { ArrowLeft, CheckCircle, Calendar } from 'lucide-react'
@@ -22,6 +32,7 @@ export default function CandidateIntegrationView() {
   const [candidate, setCandidate] = useState<CandidateRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [integrating, setIntegrating] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const loadData = async () => {
     if (!id) return
@@ -43,11 +54,11 @@ export default function CandidateIntegrationView() {
 
   const handleMarkIntegrated = async () => {
     if (!candidate) return
-    if (!confirm('Confirmar a integração deste candidato?')) return
     setIntegrating(true)
     try {
       await updateCandidate(candidate.id, { status_candidato: 'Integrado' })
       toast.success('Candidato marcado como Integrado!')
+      setConfirmOpen(false)
       navigate('/integracao')
     } catch {
       toast.error('Erro ao atualizar status do candidato')
@@ -186,7 +197,7 @@ export default function CandidateIntegrationView() {
 
             {canMarkIntegrated && candidate.status_candidato === 'Cadastro DP' && (
               <Button
-                onClick={handleMarkIntegrated}
+                onClick={() => setConfirmOpen(true)}
                 disabled={integrating}
                 className="w-full bg-emerald-600 hover:bg-emerald-500 text-white"
               >
@@ -204,6 +215,25 @@ export default function CandidateIntegrationView() {
           </div>
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmação de Integração</AlertDialogTitle>
+            <AlertDialogDescription>Confirmar a integração deste candidato?</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={integrating}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleMarkIntegrated}
+              disabled={integrating}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white"
+            >
+              {integrating ? 'Integrando...' : 'Confirmar'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

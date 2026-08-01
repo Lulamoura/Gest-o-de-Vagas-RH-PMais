@@ -35,6 +35,7 @@ import {
 import { toast } from 'sonner'
 import { PlusCircle, Pencil, Trash2, Database } from 'lucide-react'
 import { CostConsultationsForm } from '@/components/CostConsultationsForm'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ClinicasManager } from '@/components/ClinicasManager'
 import { SystemParametersForm } from '@/components/SystemParametersForm'
 import { RecordModel } from 'pocketbase'
@@ -120,6 +121,10 @@ export default function ReferenceData() {
   const [nome, setNome] = useState('')
   const [saving, setSaving] = useState(false)
 
+  const [recordToDelete, setRecordToDelete] = useState<{ id: string; nome: string } | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
   const loadData = async () => {
     if (
       activeTab === 'custos_consultas' ||
@@ -182,20 +187,31 @@ export default function ReferenceData() {
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const promptDelete = async (r: RecordModel) => {
     const tab = activeTab as Exclude<CollectionKey, 'custos_consultas'>
-    const count = await countReferenceInUse(FIELD_MAP[tab], id)
+    const count = await countReferenceInUse(FIELD_MAP[tab], r.id)
     if (count > 0) {
       toast.error(`Não é possível excluir: este registro está em uso por ${count} vaga(s).`)
       return
     }
-    if (!confirm('Excluir este registro?')) return
+    setRecordToDelete({ id: r.id, nome: r.nome })
+    setDeleteDialogOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!recordToDelete) return
+    const tab = activeTab as Exclude<CollectionKey, 'custos_consultas'>
+    setDeleting(true)
     try {
-      await CONFIG[tab].del(id)
-      toast.success('Excluído')
+      await CONFIG[tab].del(recordToDelete.id)
+      toast.success('Excluído com sucesso!')
+      setDeleteDialogOpen(false)
+      setRecordToDelete(null)
       loadData()
     } catch {
       toast.error('Erro ao excluir')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -286,7 +302,7 @@ export default function ReferenceData() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleDelete(r.id)}
+                                onClick={() => promptDelete(r)}
                                 className="h-8 w-8 text-slate-600 hover:text-rose-600"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -348,6 +364,18 @@ export default function ReferenceData() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Confirmação de Exclusão"
+        description="Deseja realmente excluir este registro?"
+        confirmText="Confirmar"
+        cancelText="Cancelar"
+        variant="destructive"
+        loading={deleting}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

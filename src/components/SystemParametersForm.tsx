@@ -11,6 +11,7 @@ import {
 import { useSystemParameters } from '@/hooks/use-system-parameters'
 import { toast } from 'sonner'
 import { Save, Trash2, Settings } from 'lucide-react'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 
 export function SystemParametersForm() {
   const { parameters, refresh } = useSystemParameters()
@@ -22,6 +23,9 @@ export function SystemParametersForm() {
   const [emailOperacional, setEmailOperacional] = useState('')
   const [saving, setSaving] = useState(false)
   const [recordId, setRecordId] = useState<string | null>(null)
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (parameters) {
@@ -74,9 +78,9 @@ export function SystemParametersForm() {
     }
   }
 
-  const handleDelete = async () => {
+  const handleConfirmDelete = async () => {
     if (!recordId) return
-    if (!confirm('Excluir parâmetros do sistema? Os valores padrão serão restaurados.')) return
+    setDeleting(true)
     try {
       await deleteSystemParameters(recordId)
       setRecordId(null)
@@ -86,10 +90,13 @@ export function SystemParametersForm() {
       setSloganPmais('')
       setEmailDp('')
       setEmailOperacional('')
-      toast.success('Parâmetros excluídos.')
+      toast.success('Parâmetros excluídos com sucesso.')
+      setDeleteDialogOpen(false)
       refresh()
     } catch {
       toast.error('Erro ao excluir parâmetros.')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -104,7 +111,7 @@ export function SystemParametersForm() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={handleDelete}
+            onClick={() => setDeleteDialogOpen(true)}
             className="text-rose-600 hover:text-rose-700"
           >
             <Trash2 className="h-4 w-4 mr-1" /> Excluir
@@ -197,6 +204,18 @@ export function SystemParametersForm() {
           </Button>
         </form>
       </CardContent>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Confirmação de Exclusão"
+        description="Excluir parâmetros do sistema? Os valores padrão serão restaurados."
+        confirmText="Confirmar"
+        cancelText="Cancelar"
+        variant="destructive"
+        loading={deleting}
+        onConfirm={handleConfirmDelete}
+      />
     </Card>
   )
 }
