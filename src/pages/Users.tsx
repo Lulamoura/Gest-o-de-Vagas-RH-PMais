@@ -51,6 +51,7 @@ export default function Users() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [profile, setProfile] = useState<UserProfile>('viewer')
+  const [departamento, setDepartamento] = useState<string>('')
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
 
@@ -87,6 +88,7 @@ export default function Users() {
     setEmail('')
     setPassword('')
     setProfile('operator')
+    setDepartamento('')
     setFieldErrors({})
     setModalOpen(true)
   }
@@ -97,6 +99,7 @@ export default function Users() {
     setEmail(u.email)
     setPassword('')
     setProfile(u.profile || 'viewer')
+    setDepartamento(u.departamento || '')
     setFieldErrors({})
     setModalOpen(true)
   }
@@ -116,7 +119,7 @@ export default function Users() {
     setSaving(true)
     try {
       if (editingUser) {
-        await updateUser(editingUser.id, { name, profile })
+        await updateUser(editingUser.id, { name, profile, departamento })
         toast.success('Usuário atualizado com sucesso!')
       } else {
         if (!password) {
@@ -124,7 +127,7 @@ export default function Users() {
           setSaving(false)
           return
         }
-        await createUser({ name, email, password, profile })
+        await createUser({ name, email, password, profile, departamento })
         toast.success('Usuário criado com sucesso!')
       }
       setModalOpen(false)
@@ -323,6 +326,20 @@ export default function Users() {
                   {isSuperAdmin && (
                     <SelectItem value="superadmin">Super Admin (Acesso Total)</SelectItem>
                   )}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-slate-700">Departamento</Label>
+              <Select value={departamento} onValueChange={setDepartamento}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o departamento" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="comercial">Comercial</SelectItem>
+                  <SelectItem value="operacional">Operacional</SelectItem>
+                  <SelectItem value="rh">RH</SelectItem>
                 </SelectContent>
               </Select>
             </div>

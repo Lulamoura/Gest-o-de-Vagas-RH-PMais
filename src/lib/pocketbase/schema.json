@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-01T20:02:04.369Z",
+  "generatedAt": "2026-08-01T22:59:01.983Z",
   "collections": [
     {
       "name": "users",
@@ -44,6 +44,13 @@
           "required": false,
           "system": false,
           "selectValues": ["admin", "operator", "viewer", "superadmin"]
+        },
+        {
+          "name": "departamento",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["comercial", "operacional", "rh"]
         }
       ],
       "indexes": [
@@ -1177,6 +1184,138 @@
         }
       ],
       "indexes": []
+    },
+    {
+      "name": "requisitions",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.profile = 'operator' || @request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "update": "status = 'Rascunho' && (@request.auth.id = solicitante || @request.auth.profile = 'admin' || @request.auth.profile = 'superadmin')",
+        "delete": "@request.auth.profile = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "solicitante",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "departamento",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["comercial", "operacional", "rh"]
+        },
+        {
+          "name": "cliente",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "clientes"
+        },
+        {
+          "name": "cargo",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "cargos"
+        },
+        {
+          "name": "cidade",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "cidades"
+        },
+        {
+          "name": "tipo_vaga",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "tipos_vaga"
+        },
+        {
+          "name": "tipo_contrato",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "tipos_contrato"
+        },
+        {
+          "name": "quantidade_vagas",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prazo_desejado",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "prioridade",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Alta", "Média", "Baixa"]
+        },
+        {
+          "name": "faixa_salarial",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "especificacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacoes_internas",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Rascunho", "Aguardando aprovação"]
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_requisitions_status ON requisitions (status)",
+        "CREATE INDEX idx_requisitions_solicitante ON requisitions (solicitante)",
+        "CREATE INDEX idx_requisitions_departamento ON requisitions (departamento)",
+        "CREATE INDEX idx_requisitions_created ON requisitions (created DESC)"
+      ]
     }
   ]
 }

@@ -13,6 +13,7 @@ export const createUser = async (data: {
   password?: string
   passwordConfirm?: string
   profile?: 'admin' | 'operator' | 'viewer' | 'superadmin'
+  departamento?: string
 }) => {
   return pb.collection<UserRecord>('users').create({
     ...data,

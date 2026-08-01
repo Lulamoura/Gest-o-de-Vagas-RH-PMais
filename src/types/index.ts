@@ -7,6 +7,7 @@ export interface UserRecord extends RecordModel {
   avatar?: string
   profile?: UserProfile
   email: string
+  departamento?: 'comercial' | 'operacional' | 'rh'
 }
 
 export type VacancyStatus = 'Aberta' | 'Concluída' | 'Cancelada'
@@ -204,4 +205,34 @@ export interface CustosConsultasRecord extends RecordModel {
   consulta_juridica: number
   resumo_ia: number
   capa_processo: number
+}
+
+export type RequisitionStatus = 'Rascunho' | 'Aguardando aprovação'
+
+export type RequisitionDepartamento = 'comercial' | 'operacional' | 'rh'
+
+export interface RequisitionRecord extends RecordModel {
+  solicitante: string
+  departamento?: RequisitionDepartamento
+  cliente?: string
+  cargo?: string
+  cidade?: string
+  tipo_vaga?: string
+  tipo_contrato?: string
+  quantidade_vagas?: number
+  prazo_desejado?: string
+  prioridade?: VacancyPriority
+  faixa_salarial?: string
+  justificativa: string
+  especificacoes?: string
+  observacoes_internas?: string
+  status: RequisitionStatus
+  expand?: {
+    solicitante?: UserRecord
+    cliente?: ClienteRecord
+    cargo?: CargoRecord
+    cidade?: CidadeRecord
+    tipo_vaga?: TipoVagaRecord
+    tipo_contrato?: TipoContratoRecord
+  }
 }

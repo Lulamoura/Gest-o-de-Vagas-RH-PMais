@@ -19,6 +19,7 @@ import {
   KeyRound,
   Mail,
   ClipboardCheck,
+  ClipboardList,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -32,6 +33,7 @@ export function Layout() {
     { label: 'Painel', path: '/dashboard', icon: LayoutDashboard },
     { label: 'Vagas', path: '/vagas', icon: Briefcase },
     { label: 'Candidatos', path: '/candidatos', icon: Users },
+    { label: 'Requisições', path: '/requisicoes', icon: ClipboardList },
     { label: 'Integração', path: '/integracao', icon: ClipboardCheck },
     ...(isAdmin || isSuperAdmin ? [{ label: 'Usuários', path: '/usuarios', icon: UserCheck }] : []),
     ...(isAdmin || isSuperAdmin
@@ -54,6 +56,7 @@ export function Layout() {
     if (pathname.includes('/editar')) return 'Editar Vaga'
     if (pathname.startsWith('/vagas/')) return 'Detalhes da Vaga'
     if (pathname.startsWith('/vagas')) return 'Gestão de Vagas'
+    if (pathname.startsWith('/requisicoes')) return 'Requisições de Vagas'
     if (pathname.startsWith('/integracao')) return 'Gestão de Integração'
     if (pathname.startsWith('/candidatos')) return 'Gestão de Candidatos'
     if (pathname.startsWith('/usuarios')) return 'Gestão de Usuários'

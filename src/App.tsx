@@ -23,6 +23,9 @@ import CandidatePublicForm from './pages/CandidatePublicForm'
 import CandidateDetail from './pages/CandidateDetail'
 import GestaoIntegracao from './pages/GestaoIntegracao'
 import CandidateIntegrationView from './pages/CandidateIntegrationView'
+import Requisitions from './pages/Requisitions'
+import RequisitionWizard from './pages/RequisitionWizard'
+import RequisitionDetail from './pages/RequisitionDetail'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -46,6 +49,10 @@ const App = () => (
                 <Route path="/vagas/:id/editar" element={<VacancyForm />} />
                 <Route path="/candidatos" element={<Candidates />} />
                 <Route path="/candidatos/:id" element={<CandidateDetail />} />
+                <Route path="/requisicoes" element={<Requisitions />} />
+                <Route path="/requisicoes/nova" element={<RequisitionWizard />} />
+                <Route path="/requisicoes/:id" element={<RequisitionDetail />} />
+                <Route path="/requisicoes/:id/editar" element={<RequisitionWizard />} />
                 <Route path="/integracao" element={<GestaoIntegracao />} />
                 <Route path="/integracao/:id" element={<CandidateIntegrationView />} />
                 <Route path="/usuarios" element={<Users />} />
