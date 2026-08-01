@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router-dom'
 import {
   getCandidate,
+  updateCandidate,
   sendComplementDataRequest,
   sendDisqualificationNotice,
 } from '@/services/candidates'
@@ -27,6 +28,8 @@ import {
   Stethoscope,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 
 export default function CandidateDetail() {
@@ -44,6 +47,8 @@ export default function CandidateDetail() {
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendingDisqual, setSendingDisqual] = useState(false)
   const [examReferralOpen, setExamReferralOpen] = useState(false)
+  const [observacao, setObservacao] = useState('')
+  const [savingObs, setSavingObs] = useState(false)
 
   const loadData = async () => {
     if (!id) return
@@ -54,6 +59,7 @@ export default function CandidateDetail() {
         getClinicas(),
       ])
       setCandidate(data)
+      setObservacao(data.observacao || '')
       setEmailLogs(logs)
       setClinicas(clinics)
     } catch {
@@ -103,6 +109,21 @@ export default function CandidateDetail() {
       toast.error('Erro ao enviar e-mail')
     } finally {
       setSendingDisqual(false)
+    }
+  }
+
+  const handleSaveObservacao = async () => {
+    if (!candidate) return
+    setSavingObs(true)
+    try {
+      const updated = await updateCandidate(candidate.id, { observacao })
+      setCandidate(updated)
+      setObservacao(updated.observacao || '')
+      toast.success('Observações salvas com sucesso!')
+    } catch {
+      toast.error('Erro ao salvar observações')
+    } finally {
+      setSavingObs(false)
     }
   }
 
@@ -244,6 +265,29 @@ export default function CandidateDetail() {
           )}
         </CardContent>
       </Card>
+
+      {canEdit && (
+        <Card className="border-slate-200 shadow-2xs">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold text-slate-900">Observações</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Textarea
+              value={observacao}
+              onChange={(e) => setObservacao(e.target.value)}
+              placeholder="Adicione observações sobre o candidato..."
+              rows={4}
+            />
+            <Button
+              onClick={handleSaveObservacao}
+              disabled={savingObs}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white"
+            >
+              {savingObs ? 'Salvando...' : 'Salvar Observações'}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       <CandidateLegalConsultation
         candidateId={candidate.id}

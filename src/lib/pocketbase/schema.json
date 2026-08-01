@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-01T14:08:45.034Z",
+  "generatedAt": "2026-08-01T14:30:51.632Z",
   "collections": [
     {
       "name": "users",
@@ -397,6 +397,12 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
@@ -767,8 +773,8 @@
       "name": "candidato_consultas_juridicas",
       "type": "base",
       "apiRules": {
-        "list": "@request.auth.id != ''",
-        "view": "@request.auth.id != ''",
+        "list": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "view": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
         "create": "@request.auth.id != ''",
         "update": "@request.auth.id != ''",
         "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"

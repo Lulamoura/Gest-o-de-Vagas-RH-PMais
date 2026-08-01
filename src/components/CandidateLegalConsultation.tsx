@@ -411,6 +411,8 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
     }
   }
 
+  if (!canConsult) return null
+
   if (loading) {
     return (
       <Card className="border-slate-200 shadow-2xs">
@@ -420,8 +422,6 @@ export function CandidateLegalConsultation({ candidateId, cpf, nome, canConsult 
       </Card>
     )
   }
-
-  if (!canConsult) return null
 
   const renderConsultButton = () => {
     if (!cpfValido) {

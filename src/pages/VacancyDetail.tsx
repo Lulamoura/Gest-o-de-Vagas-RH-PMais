@@ -181,7 +181,7 @@ export default function VacancyDetail() {
       setLoadError(false)
       try {
         const [cData, hData, chData] = await Promise.all([
-          getCandidates(id).catch(() => []),
+          getCandidates(`vacancy_id = "${id}"`).catch(() => []),
           getPipelineHistory(id).catch(() => []),
           getCandidateHistory(id).catch(() => []),
         ])
@@ -884,13 +884,13 @@ export default function VacancyDetail() {
                     return (
                       <TableRow key={cand.id}>
                         <TableCell className="font-semibold text-slate-900 text-sm">
-                          <button
-                            type="button"
-                            onClick={() => handleEditCandidate(cand)}
+                          <Link
+                            to={`/candidatos/${cand.id}`}
+                            state={{ fromVacancy: vaga.id }}
                             className="hover:text-indigo-600 hover:underline text-left"
                           >
                             {cand.nome}
-                          </button>
+                          </Link>
                         </TableCell>
                         <TableCell>
                           {cand.rank ? (
@@ -1496,19 +1496,20 @@ export default function VacancyDetail() {
               <StarRating value={editRank} onChange={setEditRank} size={28} />
             </div>
 
-            <div className="space-y-1.5">
-              <Label htmlFor="eObs" className="text-xs font-bold text-slate-700">
-                Observações
-              </Label>
-              <Textarea
-                id="eObs"
-                value={editObservacao}
-                onChange={(e) => setEditObservacao(e.target.value)}
-                placeholder="Adicione observações sobre o candidato..."
-                rows={3}
-                disabled={!canEditCandidate}
-              />
-            </div>
+            {canEditCandidate && (
+              <div className="space-y-1.5">
+                <Label htmlFor="eObs" className="text-xs font-bold text-slate-700">
+                  Observações
+                </Label>
+                <Textarea
+                  id="eObs"
+                  value={editObservacao}
+                  onChange={(e) => setEditObservacao(e.target.value)}
+                  placeholder="Adicione observações sobre o candidato..."
+                  rows={3}
+                />
+              </div>
+            )}
 
             <div className="pt-2 border-t border-slate-100">
               <span className="text-xs font-bold text-slate-700 block mb-2">
