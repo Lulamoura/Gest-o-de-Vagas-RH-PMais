@@ -20,9 +20,9 @@ onRecordCreate((e) => {
     0,
   )
 
-  if (integradoCandidates.length !== quantidadeVagas) {
+  if (integradoCandidates.length < quantidadeVagas) {
     throw new BadRequestError(
-      'O número de candidatos integrados deve ser igual à quantidade de vagas para fechar a vaga.',
+      'A vaga não pode ser concluída até que todas as posições sejam preenchidas. O número de candidatos integrados deve ser igual ou superior à quantidade de vagas.',
     )
   }
 

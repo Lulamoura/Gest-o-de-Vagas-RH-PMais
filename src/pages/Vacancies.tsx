@@ -68,7 +68,6 @@ import {
   ChevronRight,
   Filter,
   Building2,
-  User,
   XCircle,
   Star,
   Trash2,
@@ -263,6 +262,17 @@ export default function Vacancies() {
 
   const handleMovePipeline = async () => {
     if (!selectedVacancy || !newStatus) return
+    if (newStatus === 'Concluída') {
+      const integradoCount = candidates.filter(
+        (c) => c.vacancy_id === selectedVacancy.id && c.status_candidato === 'Integrado',
+      ).length
+      if (integradoCount < (selectedVacancy.quantidade_vagas || 0)) {
+        toast.error(
+          `A vaga não pode ser concluída até que todas as posições sejam preenchidas. É necessário ${selectedVacancy.quantidade_vagas || 0} candidato(s) integrado(s) e há ${integradoCount}.`,
+        )
+        return
+      }
+    }
     setMoving(true)
 
     try {
@@ -316,6 +326,12 @@ export default function Vacancies() {
     setRankFilter('ALL')
     setVacancyStatusGroup('Em andamento')
   }
+
+  const selectedVacancyCanClose = selectedVacancy
+    ? candidates.filter(
+        (c) => c.vacancy_id === selectedVacancy.id && c.status_candidato === 'Integrado',
+      ).length >= (selectedVacancy.quantidade_vagas || 0)
+    : false
 
   if (loading) {
     return (
@@ -507,13 +523,6 @@ export default function Vacancies() {
                   onSort={handleSort}
                 />
                 <SortableHeader
-                  label="Responsável RH"
-                  column="responsavel_rh"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                />
-                <SortableHeader
                   label="Abertura"
                   column="data_abertura"
                   sortColumn={sortColumn}
@@ -541,13 +550,6 @@ export default function Vacancies() {
                   sortDirection={sortDirection}
                   onSort={handleSort}
                 />
-                <SortableHeader
-                  label="Contrato"
-                  column="tipo_contrato"
-                  sortColumn={sortColumn}
-                  sortDirection={sortDirection}
-                  onSort={handleSort}
-                />
                 <TableHead className="text-xs font-semibold text-slate-600 text-right">
                   Ações
                 </TableHead>
@@ -556,7 +558,7 @@ export default function Vacancies() {
             <TableBody>
               {sortedVacancies.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={10} className="text-center py-8 text-slate-500 text-sm">
+                  <TableCell colSpan={8} className="text-center py-8 text-slate-500 text-sm">
                     Nenhuma vaga encontrada com os filtros aplicados.
                   </TableCell>
                 </TableRow>
@@ -591,12 +593,6 @@ export default function Vacancies() {
                           {candCount} / {vaga.quantidade_vagas || 0}
                         </span>
                       </TableCell>
-                      <TableCell className="text-xs text-slate-700">
-                        <div className="flex items-center space-x-1">
-                          <User className="h-3.5 w-3.5 text-slate-400" />
-                          <span>{vaga.expand?.responsavel_rh?.name || 'Não atribuído'}</span>
-                        </div>
-                      </TableCell>
                       <TableCell className="text-xs text-slate-600">
                         {formatDateBR(vaga.data_abertura)}
                       </TableCell>
@@ -618,9 +614,6 @@ export default function Vacancies() {
                         <Badge variant="outline" className={getPriorityBadgeClass(vaga.prioridade)}>
                           {vaga.prioridade}
                         </Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-slate-600">
-                        {vaga.expand?.tipo_contrato?.nome || '—'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end space-x-1">
@@ -824,7 +817,11 @@ export default function Vacancies() {
                 </SelectTrigger>
                 <SelectContent>
                   {VACANCY_STATUS_OPTIONS.map((st) => (
-                    <SelectItem key={st} value={st}>
+                    <SelectItem
+                      key={st}
+                      value={st}
+                      disabled={st === 'Concluída' && !selectedVacancyCanClose}
+                    >
                       {st}
                     </SelectItem>
                   ))}{' '}

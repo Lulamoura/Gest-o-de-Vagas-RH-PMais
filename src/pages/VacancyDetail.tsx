@@ -106,6 +106,7 @@ export default function VacancyDetail() {
   const [history, setHistory] = useState<PipelineHistoryRecord[]>([])
   const [candidateHistory, setCandidateHistory] = useState<CandidateHistoryRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
 
   // New Candidate Modal
   const [candidateModalOpen, setCandidateModalOpen] = useState(false)
@@ -175,17 +176,23 @@ export default function VacancyDetail() {
   const loadData = async () => {
     if (!id) return
     try {
-      const [vData, cData, hData, chData] = await Promise.all([
-        getVacancy(id),
-        getCandidates(id),
-        getPipelineHistory(id),
-        getCandidateHistory(id),
-      ])
+      const vData = await getVacancy(id)
       setVaga(vData)
-      setCandidates(cData)
-      setHistory(hData)
-      setCandidateHistory(chData)
+      setLoadError(false)
+      try {
+        const [cData, hData, chData] = await Promise.all([
+          getCandidates(id).catch(() => []),
+          getPipelineHistory(id).catch(() => []),
+          getCandidateHistory(id).catch(() => []),
+        ])
+        setCandidates(cData)
+        setHistory(hData)
+        setCandidateHistory(chData)
+      } catch (_) {
+        // Non-critical: vacancy loaded but related data failed
+      }
     } catch (err) {
+      setLoadError(true)
       toast.error('Erro ao carregar detalhes da vaga')
     } finally {
       setLoading(false)
@@ -372,9 +379,9 @@ export default function VacancyDetail() {
     if (!vaga || newStatus === vaga.status_vaga) return
     if (newStatus === 'Concluída') {
       const integradoCount = candidates.filter((c) => c.status_candidato === 'Integrado').length
-      if (integradoCount !== (vaga.quantidade_vagas || 0)) {
+      if (integradoCount < (vaga.quantidade_vagas || 0)) {
         toast.error(
-          'O número de candidatos integrados deve ser igual à quantidade de vagas para fechar a vaga.',
+          'A vaga não pode ser concluída até que todas as posições sejam preenchidas. Verifique se o número de candidatos integrados é igual ou superior à quantidade de vagas.',
         )
         return
       }
@@ -508,10 +515,23 @@ export default function VacancyDetail() {
     ordem_execucao: editOrdemExecucao,
   })
 
-  if (loading || !vaga) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
+      </div>
+    )
+  }
+
+  if (loadError || !vaga) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] space-y-3 text-center">
+        <p className="text-sm text-slate-600">
+          Não foi possível carregar os detalhes da vaga. Tente novamente.
+        </p>
+        <Button variant="outline" onClick={() => navigate('/vagas')}>
+          Voltar para Vagas
+        </Button>
       </div>
     )
   }
@@ -546,7 +566,7 @@ export default function VacancyDetail() {
                       value={st}
                       disabled={
                         st === 'Concluída' &&
-                        candidates.filter((c) => c.status_candidato === 'Integrado').length !==
+                        candidates.filter((c) => c.status_candidato === 'Integrado').length <
                           (vaga.quantidade_vagas || 0)
                       }
                     >

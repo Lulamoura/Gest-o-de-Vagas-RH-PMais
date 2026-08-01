@@ -118,7 +118,7 @@ export default function VacancyForm() {
     () => candidatesList.filter((c) => c.status_candidato === 'Integrado').length,
     [candidatesList],
   )
-  const canCloseVacancy = quantidadeVagas > 0 && integradoCount === quantidadeVagas
+  const canCloseVacancy = quantidadeVagas > 0 && integradoCount >= quantidadeVagas
 
   const clienteOptions = useMemo(
     () => clientesList.map((c) => ({ value: c.id, label: c.nome })),

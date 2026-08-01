@@ -67,8 +67,7 @@ export default function Dashboard() {
   const [clientesList, setClientesList] = useState<ClienteRecord[]>([])
   const [loading, setLoading] = useState(true)
 
-  const currentMonthStr = new Date().toISOString().slice(0, 7)
-  const [monthFilter, setMonthFilter] = useState(currentMonthStr)
+  const [monthFilter, setMonthFilter] = useState('')
   const [periodStart, setPeriodStart] = useState('')
   const [periodEnd, setPeriodEnd] = useState('')
   const [clientFilter, setClientFilter] = useState('ALL')
@@ -107,10 +106,16 @@ export default function Dashboard() {
         end: new Date(periodEnd + 'T23:59:59'),
       }
     }
-    const [year, month] = monthFilter.split('-').map(Number)
+    if (monthFilter) {
+      const [year, month] = monthFilter.split('-').map(Number)
+      return {
+        start: new Date(year, month - 1, 1),
+        end: new Date(year, month, 0, 23, 59, 59),
+      }
+    }
     return {
-      start: new Date(year, month - 1, 1),
-      end: new Date(year, month, 0, 23, 59, 59),
+      start: new Date('2000-01-01'),
+      end: new Date('2100-12-31'),
     }
   }, [monthFilter, periodStart, periodEnd])
 
