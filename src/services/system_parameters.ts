@@ -13,6 +13,8 @@ export const createSystemParameters = (data: {
   nome_remetente?: string
   email_remetente?: string
   slogan_pmais?: string
+  email_dp?: string
+  email_operacional?: string
 }) => pb.collection('system_parameters').create<SystemParameterRecord>(data)
 
 export const updateSystemParameters = (
@@ -22,6 +24,8 @@ export const updateSystemParameters = (
     nome_remetente: string
     email_remetente: string
     slogan_pmais: string
+    email_dp: string
+    email_operacional: string
   }>,
 ) => pb.collection('system_parameters').update<SystemParameterRecord>(id, data)
 

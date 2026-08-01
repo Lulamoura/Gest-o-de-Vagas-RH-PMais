@@ -105,6 +105,8 @@ export interface CandidateRecord extends RecordModel {
   observacao?: string
   ordem_execucao?: string
   status_candidato: CandidateStatus
+  integracao_ativa?: boolean
+  data_integracao?: string
   expand?: {
     vacancy_id?: VacancyRecord
   }
@@ -161,9 +163,15 @@ export interface SystemParameterRecord extends RecordModel {
   nome_remetente?: string
   email_remetente?: string
   slogan_pmais?: string
+  email_dp?: string
+  email_operacional?: string
 }
 
-export type EmailType = 'complement_data' | 'disqualification' | 'encaminhamento_exames'
+export type EmailType =
+  | 'complement_data'
+  | 'disqualification'
+  | 'encaminhamento_exames'
+  | 'aviso_integracao'
 
 export interface EmailTemplateRecord extends RecordModel {
   type: EmailType

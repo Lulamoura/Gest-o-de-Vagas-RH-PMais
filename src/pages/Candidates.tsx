@@ -42,7 +42,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { StarRating } from '@/components/StarRating'
 import { ExamReferralModal } from '@/components/ExamReferralModal'
-import { getCandidateStatusBadgeClass } from '@/lib/status-utils'
+import { getCandidateStatusBadgeClass, toDateInputValue } from '@/lib/status-utils'
+import { Checkbox } from '@/components/ui/checkbox'
 import { toast } from 'sonner'
 import { Plus, Search, Pencil, Trash2, Mail, Stethoscope, Check, Eye, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -98,6 +99,8 @@ export default function Candidates() {
     nome_pai: string
     nome_mae: string
     telefone_emergencia: string
+    integracao_ativa: boolean
+    data_integracao: string
   }>({
     vacancy_id: '',
     nome: '',
@@ -115,6 +118,8 @@ export default function Candidates() {
     nome_pai: '',
     nome_mae: '',
     telefone_emergencia: '',
+    integracao_ativa: false,
+    data_integracao: '',
   })
 
   const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
@@ -165,6 +170,8 @@ export default function Candidates() {
       nome_pai: '',
       nome_mae: '',
       telefone_emergencia: '',
+      integracao_ativa: false,
+      data_integracao: '',
     })
     setEditOpen(true)
   }
@@ -188,6 +195,8 @@ export default function Candidates() {
       nome_pai: c.nome_pai || '',
       nome_mae: c.nome_mae || '',
       telefone_emergencia: c.telefone_emergencia || '',
+      integracao_ativa: c.integracao_ativa || false,
+      data_integracao: toDateInputValue(c.data_integracao),
     })
     setEditOpen(true)
 
@@ -206,6 +215,10 @@ export default function Candidates() {
     }
     if (!formData.vacancy_id) {
       toast.error('Selecione uma vaga para o candidato.')
+      return
+    }
+    if (formData.integracao_ativa && !formData.data_integracao) {
+      toast.error('A Data da Integração é obrigatória quando a integração está ativada.')
       return
     }
 
@@ -658,6 +671,40 @@ export default function Candidates() {
                 </div>
               </div>
             </div>
+
+            {/* Integration Section */}
+            {canEdit && formData.status_candidato === 'Cadastro DP' && (
+              <div className="pt-3 border-t border-slate-200">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3">
+                  Integração
+                </h4>
+                <div className="flex items-center gap-3 mb-3">
+                  <Checkbox
+                    checked={formData.integracao_ativa}
+                    onCheckedChange={(checked) => {
+                      const isChecked = checked === true
+                      setFormData({
+                        ...formData,
+                        integracao_ativa: isChecked,
+                        data_integracao: isChecked ? formData.data_integracao : '',
+                      })
+                    }}
+                  />
+                  <Label className="text-xs font-bold text-slate-700 cursor-pointer">
+                    Ativar Integração
+                  </Label>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Data da Integração</Label>
+                  <Input
+                    type="date"
+                    value={formData.data_integracao}
+                    onChange={(e) => setFormData({ ...formData, data_integracao: e.target.value })}
+                    disabled={!formData.integracao_ativa}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Status-Driven Communication Actions */}
             {(showComplementBtn || showExamBtn || showDisqualBtn) && (

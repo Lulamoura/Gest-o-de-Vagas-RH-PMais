@@ -18,6 +18,8 @@ export function SystemParametersForm() {
   const [nomeRemetente, setNomeRemetente] = useState('')
   const [emailRemetente, setEmailRemetente] = useState('')
   const [sloganPmais, setSloganPmais] = useState('')
+  const [emailDp, setEmailDp] = useState('')
+  const [emailOperacional, setEmailOperacional] = useState('')
   const [saving, setSaving] = useState(false)
   const [recordId, setRecordId] = useState<string | null>(null)
 
@@ -27,12 +29,16 @@ export function SystemParametersForm() {
       setNomeRemetente(parameters.nome_remetente || '')
       setEmailRemetente(parameters.email_remetente || '')
       setSloganPmais(parameters.slogan_pmais || '')
+      setEmailDp(parameters.email_dp || '')
+      setEmailOperacional(parameters.email_operacional || '')
       setRecordId(parameters.id)
     } else {
       setPrazoAlertaDias('30')
       setNomeRemetente('')
       setEmailRemetente('')
       setSloganPmais('')
+      setEmailDp('')
+      setEmailOperacional('')
       setRecordId(null)
     }
   }, [parameters])
@@ -51,6 +57,8 @@ export function SystemParametersForm() {
         nome_remetente: nomeRemetente,
         email_remetente: emailRemetente,
         slogan_pmais: sloganPmais,
+        email_dp: emailDp,
+        email_operacional: emailOperacional,
       }
       if (recordId) {
         await updateSystemParameters(recordId, data)
@@ -76,6 +84,8 @@ export function SystemParametersForm() {
       setNomeRemetente('')
       setEmailRemetente('')
       setSloganPmais('')
+      setEmailDp('')
+      setEmailOperacional('')
       toast.success('Parâmetros excluídos.')
       refresh()
     } catch {
@@ -148,6 +158,32 @@ export function SystemParametersForm() {
             />
             <p className="text-xs text-slate-500">
               Esta frase será incluída no rodapé dos e-mails enviados aos candidatos.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">E-mail do DP</Label>
+            <Input
+              type="email"
+              value={emailDp}
+              onChange={(e) => setEmailDp(e.target.value)}
+              placeholder="Ex: dp@pmaisservicos.com.br"
+            />
+            <p className="text-xs text-slate-500">
+              E-mail do time de DP para receber avisos de integração de candidatos.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">E-mail do Operacional</Label>
+            <Input
+              type="email"
+              value={emailOperacional}
+              onChange={(e) => setEmailOperacional(e.target.value)}
+              placeholder="Ex: operacional@pmaisservicos.com.br"
+            />
+            <p className="text-xs text-slate-500">
+              E-mail do time Operacional para receber avisos de integração de candidatos.
             </p>
           </div>
 

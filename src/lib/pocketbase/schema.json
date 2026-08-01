@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-01T16:38:49.007Z",
+  "generatedAt": "2026-08-01T19:42:43.052Z",
   "collections": [
     {
       "name": "users",
@@ -403,11 +403,25 @@
           "type": "text",
           "required": false,
           "system": false
+        },
+        {
+          "name": "integracao_ativa",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_integracao",
+          "type": "date",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": [
         "CREATE INDEX idx_candidates_vacancy ON candidates (vacancy_id)",
-        "CREATE INDEX idx_candidates_status ON candidates (status_candidato)"
+        "CREATE INDEX idx_candidates_status ON candidates (status_candidato)",
+        "CREATE INDEX `idx_candidates_integracao_ativa` ON `candidates` (integracao_ativa)",
+        "CREATE INDEX `idx_candidates_data_integracao` ON `candidates` (data_integracao)"
       ]
     },
     {
@@ -937,7 +951,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["complement_data", "disqualification", "encaminhamento_exames"]
+          "selectValues": [
+            "complement_data",
+            "disqualification",
+            "encaminhamento_exames",
+            "aviso_integracao"
+          ]
         }
       ],
       "indexes": [
@@ -1141,6 +1160,18 @@
         {
           "name": "slogan_pmais",
           "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_dp",
+          "type": "email",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email_operacional",
+          "type": "email",
           "required": false,
           "system": false
         }
