@@ -17,19 +17,43 @@ routerAdd(
       vacancy_name: 'Auxiliar de Limpeza',
       company_name: 'PMais Terceirização',
       public_url: 'https://vagaspmais.pmaisservicos.com.br/candidato/example/preencher',
+      clinica_nome: 'Clínica Santa Saúde',
+      clinica_endereco: 'Rua das Flores, 123 - Centro',
+      clinica_telefone: '(11) 3333-4444',
+      clinica_email: 'contato@clinicasantasaude.com.br',
+      clinica_contato: 'Dra. Ana Paula',
+      comentario: 'Realizar exames de sangue e raios-X, comparecer em jejum.',
+    }
+
+    var sampleReplacements = {
+      candidate_name: sampleData.candidate_name,
+      vacancy_name: sampleData.vacancy_name,
+      company_name: sampleData.company_name,
+      public_url: sampleData.public_url,
+      clinica_nome: sampleData.clinica_nome,
+      clinica_endereco: sampleData.clinica_endereco,
+      clinica_telefone: sampleData.clinica_telefone,
+      clinica_email: sampleData.clinica_email,
+      clinica_contato: sampleData.clinica_contato,
+      comentario: sampleData.comentario,
+      nome: sampleData.candidate_name,
+      nome_candidato: sampleData.candidate_name,
+      vaga: sampleData.vacancy_name,
+      link_formulario: sampleData.public_url,
+      observacao: sampleData.comentario,
     }
 
     var finalSubject = subject
-      .replace(/\{candidate_name\}/g, sampleData.candidate_name)
-      .replace(/\{vacancy_name\}/g, sampleData.vacancy_name)
-      .replace(/\{company_name\}/g, sampleData.company_name)
-      .replace(/\{public_url\}/g, sampleData.public_url)
-
     var finalBody = emailBody
-      .replace(/\{candidate_name\}/g, sampleData.candidate_name)
-      .replace(/\{vacancy_name\}/g, sampleData.vacancy_name)
-      .replace(/\{company_name\}/g, sampleData.company_name)
-      .replace(/\{public_url\}/g, sampleData.public_url)
+    for (var skey in sampleReplacements) {
+      var sval = sampleReplacements[skey]
+      finalSubject = finalSubject
+        .replace(new RegExp('\\{\\{' + skey + '\\}\\}', 'g'), sval)
+        .replace(new RegExp('\\{' + skey + '\\}', 'g'), sval)
+      finalBody = finalBody
+        .replace(new RegExp('\\{\\{' + skey + '\\}\\}', 'g'), sval)
+        .replace(new RegExp('\\{' + skey + '\\}', 'g'), sval)
+    }
 
     var apiKey = $secrets.get('RESEND_API_KEY')
     if (!apiKey) return e.json(500, { error: 'RESEND_API_KEY não configurado' })

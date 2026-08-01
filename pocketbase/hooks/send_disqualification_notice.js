@@ -2,123 +2,135 @@ routerAdd(
   'POST',
   '/backend/v1/send-disqualification-notice',
   (e) => {
-    const body = e.requestInfo().body || {}
-    const candidateId = body.candidate_id || ''
-    if (!candidateId) return e.badRequestError('candidate_id é obrigatório')
-
     try {
-      const candidate = $app.findRecordById('candidates', candidateId)
-      const candidateEmail = candidate.getString('email')
-      if (!candidateEmail) return e.badRequestError('Candidato não possui email cadastrado')
+      const info = e.requestInfo()
+      const body = info.body || {}
+      const candidateId = body.candidate_id || body.candidateId
 
-      const candidateStatus = candidate.getString('status_candidato')
-      if (candidateStatus !== 'Desclassificado' && candidateStatus !== 'Em banco') {
-        return e.badRequestError('Candidato não está desclassificado ou em banco')
+      if (!candidateId) {
+        return e.badRequestError('O ID do candidato é obrigatório.')
       }
 
+      const candidate = $app.findRecordById('candidates', candidateId)
+      const candidateEmail = candidate.getString('email')
+
+      if (!candidateEmail || !candidateEmail.trim()) {
+        return e.badRequestError('Candidato não possui e-mail cadastrado.')
+      }
+
+      let vacancyName = 'Vaga PMais'
       const vacancyId = candidate.getString('vacancy_id')
-      var vacancyTitle = 'Vaga'
       if (vacancyId) {
         try {
-          var vacancy = $app.findRecordById('vacancies', vacancyId)
-          var cargoId = vacancy.getString('cargo')
+          const vacancy = $app.findRecordById('vacancies', vacancyId)
+          const cargoId = vacancy.getString('cargo')
+          const clienteId = vacancy.getString('cliente')
+          let cargoNome = ''
+          let clienteNome = ''
           if (cargoId) {
             try {
-              var cargo = $app.findRecordById('cargos', cargoId)
-              vacancyTitle = cargo.getString('nome')
+              cargoNome = $app.findRecordById('cargos', cargoId).getString('nome')
             } catch (_) {}
           }
+          if (clienteId) {
+            try {
+              clienteNome = $app.findRecordById('clientes', clienteId).getString('nome')
+            } catch (_) {}
+          }
+          if (cargoNome && clienteNome) vacancyName = cargoNome + ' - ' + clienteNome
+          else if (cargoNome) vacancyName = cargoNome
+          else if (clienteNome) vacancyName = clienteNome
         } catch (_) {}
       }
 
-      var candidateName = candidate.getString('nome')
-      var companyName = 'PMais Terceirização'
-
-      var defaultSubject = 'Aviso de Desclassicação – ' + vacancyTitle
-      var defaultBody =
-        '<p>Olá ' +
-        candidateName +
-        ',</p>' +
-        '<p>Agradecemos sua participação no processo seletivo para a vaga de <strong>' +
-        vacancyTitle +
-        '</strong> na ' +
-        companyName +
-        '.</p>' +
-        '<p>Informamos que, desta vez, você não foi classificado(a) para a vaga em questão.</p>' +
-        '<p>No entanto, seus dados permanecerão em nosso banco de talentos e poderão ser considerados para futuras oportunidades que sejam compatíveis com seu perfil profissional.</p>' +
-        '<p>Agradecemos seu interesse e desejamos sucesso em sua trajetória.</p>' +
-        '<p>Atenciosamente,<br><strong>RH da ' +
-        companyName +
-        '.</strong></p>'
-
-      var emailSubject = defaultSubject
-      var emailBody = defaultBody
+      let subject = 'Atualização sobre o Processo Seletivo - PMais'
+      let bodyHtml =
+        '<p>Olá <strong>{{nome}}</strong>,</p><p>Agradecemos seu interesse na vaga de <strong>{{vaga}}</strong>.</p><p>Neste momento, optamos por seguir com outro perfil para esta oportunidade. Manteremos seu currículo em nosso banco de talentos para futuras vagas.</p><p>Atenciosamente,<br>Equipe RH PMais</p>'
 
       try {
-        var template = $app.findFirstRecordByData('email_templates', 'type', 'disqualification')
-        if (template) {
-          var tplSubject = template.getString('subject')
-          var tplBody = template.getString('body')
-          if (tplSubject && tplBody) {
-            emailSubject = tplSubject
-              .replace(/\{candidate_name\}/g, candidateName)
-              .replace(/\{vacancy_name\}/g, vacancyTitle)
-              .replace(/\{company_name\}/g, companyName)
-            emailBody = tplBody
-              .replace(/\{candidate_name\}/g, candidateName)
-              .replace(/\{vacancy_name\}/g, vacancyTitle)
-              .replace(/\{company_name\}/g, companyName)
-          }
-        }
+        const template = $app.findFirstRecordByData('email_templates', 'type', 'disqualification')
+        if (template.getString('subject')) subject = template.getString('subject')
+        if (template.getString('body')) bodyHtml = template.getString('body')
       } catch (_) {}
 
-      var apiKey = $secrets.get('RESEND_API_KEY')
-      if (!apiKey) return e.json(500, { error: 'RESEND_API_KEY não configurado' })
+      const candidateNome = candidate.getString('nome') || 'Candidato'
+      var replacements = {
+        nome: candidateNome,
+        nome_candidato: candidateNome,
+        candidate_name: candidateNome,
+        vaga: vacancyName,
+        vacancy_name: vacancyName,
+        company_name: 'PMais Terceirização',
+      }
+      for (var key in replacements) {
+        var val = replacements[key]
+        subject = subject
+          .replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val)
+          .replace(new RegExp('\\{' + key + '\\}', 'g'), val)
+        bodyHtml = bodyHtml
+          .replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val)
+          .replace(new RegExp('\\{' + key + '\\}', 'g'), val)
+      }
 
-      var res = $http.send({
-        url: 'https://api.resend.com/emails',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + apiKey,
-        },
-        body: JSON.stringify({
-          from: 'nao-responda@pmaisservicos.com.br',
-          to: candidateEmail,
-          subject: emailSubject,
-          html: emailBody,
-        }),
-        timeout: 30,
-      })
+      let sendError = ''
+      const resendKey = $secrets.get('RESEND_API_KEY')
 
-      if (res.statusCode >= 200 && res.statusCode < 300) {
+      if (resendKey) {
         try {
-          var logCol = $app.findCollectionByNameOrId('candidate_email_log')
-          var logRecord = new Record(logCol)
-          logRecord.set('candidate_id', candidateId)
-          logRecord.set('email_type', 'disqualification')
-          logRecord.set('sent_by', e.auth.id)
-          $app.save(logRecord)
-        } catch (logErr) {}
-        return e.json(200, { success: true })
+          const res = $http.send({
+            url: 'https://api.resend.com/emails',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + resendKey,
+            },
+            body: JSON.stringify({
+              from: 'PMais RH <vagas@pmaisservicos.com.br>',
+              to: [candidateEmail],
+              subject: subject,
+              html: bodyHtml,
+            }),
+            timeout: 15,
+          })
+
+          if (res.statusCode >= 400) {
+            sendError =
+              'Resend HTTP ' + res.statusCode + ': ' + JSON.stringify(res.json || res.body)
+            $app
+              .logger()
+              .error('Erro ao enviar e-mail via Resend', 'status', res.statusCode, 'body', res.json)
+          }
+        } catch (resendErr) {
+          sendError = resendErr.message || String(resendErr)
+          $app.logger().error('Exceção ao chamar Resend API', 'error', sendError)
+        }
+      } else {
+        $app.logger().warn('RESEND_API_KEY não configurada')
       }
 
-      var errDetail = 'Erro desconhecido'
-      if (res.json && res.json.message) {
-        errDetail = res.json.message
-      }
       try {
-        var failLogCol = $app.findCollectionByNameOrId('candidate_email_log')
-        var failLogRecord = new Record(failLogCol)
-        failLogRecord.set('candidate_id', candidateId)
-        failLogRecord.set('email_type', 'disqualification')
-        failLogRecord.set('sent_by', e.auth.id)
-        failLogRecord.set('error_message', errDetail)
-        $app.save(failLogRecord)
-      } catch (logErr2) {}
-      return e.json(500, { error: 'Falha ao enviar email', details: errDetail })
+        const emailLogCol = $app.findCollectionByNameOrId('candidate_email_log')
+        const logRecord = new Record(emailLogCol)
+        logRecord.set('candidate_id', candidate.id)
+        logRecord.set('email_type', 'disqualification')
+        if (e.auth) {
+          logRecord.set('sent_by', e.auth.id)
+        }
+        if (sendError) {
+          logRecord.set('error_message', sendError)
+        }
+        $app.save(logRecord)
+      } catch (logErr) {
+        $app.logger().error('Erro ao gravar candidate_email_log', 'error', String(logErr))
+      }
+
+      return e.json(200, {
+        success: true,
+        message: 'Aviso de desclassificação enviado para ' + candidateEmail,
+      })
     } catch (err) {
-      return e.json(500, { error: 'Candidato não encontrado' })
+      $app.logger().error('Erro na rota send-disqualification-notice', 'error', String(err))
+      return e.badRequestError(err.message || 'Erro ao enviar aviso.')
     }
   },
   $apis.requireAuth(),

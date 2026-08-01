@@ -6,25 +6,28 @@ import {
   sendDisqualificationNotice,
 } from '@/services/candidates'
 import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
-import { CandidateRecord, CandidateEmailLogRecord, CandidateStatus } from '@/types'
+import { getClinicas } from '@/services/clinicas'
+import { CandidateRecord, CandidateEmailLogRecord, ClinicaRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { CandidateLegalConsultation } from '@/components/CandidateLegalConsultation'
+import { ExamReferralModal } from '@/components/ExamReferralModal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatCurrency, getCandidateStatusBadgeClass } from '@/lib/status-utils'
-import { ArrowLeft, Mail, Phone, MapPin, CreditCard, Briefcase, Check } from 'lucide-react'
+import {
+  ArrowLeft,
+  Mail,
+  Phone,
+  MapPin,
+  CreditCard,
+  Briefcase,
+  Check,
+  Stethoscope,
+} from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 import { toast } from 'sonner'
-
-const COMPLEMENT_STATUSES: CandidateStatus[] = [
-  'Análise do RH',
-  'Análise do gestor',
-  'Documentação e exame',
-]
-
-const DISQUALIFICATION_STATUSES: CandidateStatus[] = ['Desclassificado', 'Em banco']
 
 export default function CandidateDetail() {
   const { id } = useParams<{ id: string }>()
@@ -36,16 +39,23 @@ export default function CandidateDetail() {
 
   const [candidate, setCandidate] = useState<CandidateRecord | null>(null)
   const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
+  const [clinicas, setClinicas] = useState<ClinicaRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendingDisqual, setSendingDisqual] = useState(false)
+  const [examReferralOpen, setExamReferralOpen] = useState(false)
 
   const loadData = async () => {
     if (!id) return
     try {
-      const [data, logs] = await Promise.all([getCandidate(id), getEmailLogsForCandidate(id)])
+      const [data, logs, clinics] = await Promise.all([
+        getCandidate(id),
+        getEmailLogsForCandidate(id),
+        getClinicas(),
+      ])
       setCandidate(data)
       setEmailLogs(logs)
+      setClinicas(clinics)
     } catch {
       toast.error('Erro ao carregar candidato')
     } finally {
@@ -71,7 +81,7 @@ export default function CandidateDetail() {
     setSendingEmail(true)
     try {
       await sendComplementDataRequest(candidate.id)
-      toast.success('E-mail enviado com sucesso!')
+      toast.success('E-mail de solicitação de dados enviado!')
       const logs = await getEmailLogsForCandidate(candidate.id)
       setEmailLogs(logs)
     } catch {
@@ -86,7 +96,7 @@ export default function CandidateDetail() {
     setSendingDisqual(true)
     try {
       await sendDisqualificationNotice(candidate.id)
-      toast.success('E-mail enviado com sucesso!')
+      toast.success('Aviso enviado com sucesso!')
       const logs = await getEmailLogsForCandidate(candidate.id)
       setEmailLogs(logs)
     } catch {
@@ -111,8 +121,11 @@ export default function CandidateDetail() {
     (candidate.custo_testes || 0) +
     (candidate.custo_extras || 0)
 
-  const showComplementBtn = canEdit && COMPLEMENT_STATUSES.includes(candidate.status_candidato)
-  const showDisqualBtn = canEdit && DISQUALIFICATION_STATUSES.includes(candidate.status_candidato)
+  const showComplementBtn = canEdit && candidate.status_candidato === 'Análise do gestor'
+  const showExamBtn = canEdit && candidate.status_candidato === 'Documentação e exame'
+  const showDisqualBtn =
+    canEdit &&
+    (candidate.status_candidato === 'Desclassificado' || candidate.status_candidato === 'Em banco')
 
   return (
     <div className="space-y-6">
@@ -156,9 +169,9 @@ export default function CandidateDetail() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-slate-400 font-semibold">Custo consultas:</span>
+              <span className="text-slate-400 font-semibold">Custo exames:</span>
               <span className="text-slate-700 font-bold">
-                {formatCurrency(candidate.custo_consultas || 0)}
+                {formatCurrency(candidate.custo_exames || 0)}
               </span>
             </div>
             <div className="flex items-center gap-2">
@@ -177,7 +190,7 @@ export default function CandidateDetail() {
             {candidate.rank != null && <StarRating value={candidate.rank} readOnly size={14} />}
           </div>
 
-          {(showComplementBtn || showDisqualBtn) && (
+          {(showComplementBtn || showExamBtn || showDisqualBtn) && (
             <div className="pt-2 border-t border-slate-100 space-y-2">
               {showComplementBtn && (
                 <Button
@@ -191,6 +204,22 @@ export default function CandidateDetail() {
                   <Mail className="h-4 w-4 mr-2" />
                   {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
                   {hasEmailBeenSent(emailLogs, 'complement_data') && (
+                    <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                  )}
+                </Button>
+              )}
+              {showExamBtn && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setExamReferralOpen(true)}
+                  disabled={!candidate.email}
+                  className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
+                  title={!candidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
+                >
+                  <Stethoscope className="h-4 w-4 mr-2" />
+                  Enviar Informações para Exames
+                  {hasEmailBeenSent(emailLogs, 'encaminhamento_exames') && (
                     <Check className="h-4 w-4 ml-2 text-emerald-600" />
                   )}
                 </Button>
@@ -221,6 +250,14 @@ export default function CandidateDetail() {
         cpf={candidate.cpf}
         nome={candidate.nome}
         canConsult={canEdit}
+      />
+
+      <ExamReferralModal
+        open={examReferralOpen}
+        onOpenChange={setExamReferralOpen}
+        candidate={candidate}
+        clinicas={clinicas}
+        onSuccess={loadData}
       />
     </div>
   )

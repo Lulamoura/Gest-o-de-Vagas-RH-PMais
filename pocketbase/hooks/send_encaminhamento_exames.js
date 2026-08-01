@@ -2,168 +2,174 @@ routerAdd(
   'POST',
   '/backend/v1/send-encaminhamento-exames',
   (e) => {
-    var body = e.requestInfo().body || {}
-    var candidateId = body.candidate_id || ''
-    var clinicaId = body.clinica_id || ''
-    var comentario = body.comentario || ''
-    var custoExames = Number(body.custo_exames) || 0
-
-    if (!candidateId) return e.badRequestError('candidate_id é obrigatório')
-    if (!clinicaId) return e.badRequestError('clinica_id é obrigatório')
-    if (!comentario.trim()) return e.badRequestError('comentário é obrigatório')
-    if (custoExames <= 0) return e.badRequestError('custo_exames deve ser maior que zero')
-
     try {
-      var candidate = $app.findRecordById('candidates', candidateId)
-      var candidateEmail = candidate.getString('email')
-      if (!candidateEmail) return e.badRequestError('Candidato não possui email cadastrado')
+      const info = e.requestInfo()
+      const body = info.body || {}
+      const candidateId = body.candidate_id || body.candidateId
+      const clinicaId = body.clinica_id || body.clinicaId
+      const comentario = body.comentario || ''
+      const custoExames = Number(body.custo_exames || body.custoExames || 0)
 
-      var candidateStatus = candidate.getString('status_candidato')
-      if (candidateStatus !== 'Documentação e exame') {
-        return e.badRequestError('Candidato não está no status Documentação e exame')
+      if (!candidateId) {
+        return e.badRequestError('O ID do candidato é obrigatório.')
       }
 
-      var clinica = $app.findRecordById('clinicas', clinicaId)
-      var clinicaNome = clinica.getString('nome')
-      var clinicaEndereco = clinica.getString('endereco')
-      var clinicaTelefone = clinica.getString('telefone')
-      var clinicaEmail = clinica.getString('email')
-      var clinicaContato = clinica.getString('pessoa_contato')
+      const candidate = $app.findRecordById('candidates', candidateId)
+      const candidateEmail = candidate.getString('email')
 
-      var vacancyId = candidate.getString('vacancy_id')
-      var vacancyTitle = 'Vaga'
+      if (!candidateEmail || !candidateEmail.trim()) {
+        return e.badRequestError('Candidato não possui e-mail cadastrado.')
+      }
+
+      let clinicaNome = 'Clínica Ocupacional'
+      let clinicaEndereco = ''
+      let clinicaTelefone = ''
+      let clinicaEmail = ''
+      let clinicaContato = ''
+
+      if (clinicaId) {
+        try {
+          const clinica = $app.findRecordById('clinicas', clinicaId)
+          clinicaNome = clinica.getString('nome') || clinicaNome
+          clinicaEndereco = clinica.getString('endereco') || ''
+          clinicaTelefone = clinica.getString('telefone') || ''
+          clinicaEmail = clinica.getString('email') || ''
+          clinicaContato = clinica.getString('pessoa_contato') || ''
+        } catch (errClinic) {
+          $app.logger().warn('Clínica não encontrada', 'clinicaId', clinicaId)
+        }
+      }
+
+      if (custoExames > 0) {
+        const currentCost = candidate.getFloat('custo_exames') || 0
+        candidate.set('custo_exames', currentCost + custoExames)
+        $app.save(candidate)
+      }
+
+      let vacancyName = 'Vaga PMais'
+      const vacancyId = candidate.getString('vacancy_id')
       if (vacancyId) {
         try {
-          var vacancy = $app.findRecordById('vacancies', vacancyId)
-          var cargoId = vacancy.getString('cargo')
+          const vacancy = $app.findRecordById('vacancies', vacancyId)
+          const cargoId = vacancy.getString('cargo')
+          const clienteId = vacancy.getString('cliente')
+          let cargoNome = ''
+          let clienteNome = ''
           if (cargoId) {
             try {
-              var cargo = $app.findRecordById('cargos', cargoId)
-              vacancyTitle = cargo.getString('nome')
+              cargoNome = $app.findRecordById('cargos', cargoId).getString('nome')
             } catch (_) {}
           }
+          if (clienteId) {
+            try {
+              clienteNome = $app.findRecordById('clientes', clienteId).getString('nome')
+            } catch (_) {}
+          }
+          if (cargoNome && clienteNome) vacancyName = cargoNome + ' - ' + clienteNome
+          else if (cargoNome) vacancyName = cargoNome
+          else if (clienteNome) vacancyName = clienteNome
         } catch (_) {}
       }
 
-      var candidateName = candidate.getString('nome')
-      var companyName = 'PMais Terceirização'
-
-      var clinicaInfoHtml = ''
-      if (clinicaNome) clinicaInfoHtml += '<p><strong>Clínica:</strong> ' + clinicaNome + '</p>'
-      if (clinicaEndereco)
-        clinicaInfoHtml += '<p><strong>Endereço:</strong> ' + clinicaEndereco + '</p>'
-      if (clinicaTelefone)
-        clinicaInfoHtml += '<p><strong>Telefone:</strong> ' + clinicaTelefone + '</p>'
-      if (clinicaEmail) clinicaInfoHtml += '<p><strong>E-mail:</strong> ' + clinicaEmail + '</p>'
-      if (clinicaContato)
-        clinicaInfoHtml += '<p><strong>Contato:</strong> ' + clinicaContato + '</p>'
-
-      var defaultSubject = 'Encaminhamento para Exames - ' + vacancyTitle
-      var defaultBody =
-        '<p>Olá ' +
-        candidateName +
-        ',</p>' +
-        '<p>Você foi aprovado(a) na etapa de análise e deve realizar os exames admissionais para a vaga de <strong>' +
-        vacancyTitle +
-        '</strong>.</p>' +
-        '<p>Abaixo estão as informações da clínica onde você deve realizar os exames:</p>' +
-        clinicaInfoHtml +
-        '<p><strong>Instruções:</strong></p>' +
-        '<p>' +
-        comentario +
-        '</p>' +
-        '<p>Atenciosamente,<br><strong>RH da ' +
-        companyName +
-        '.</strong></p>'
-
-      var emailSubject = defaultSubject
-      var emailBody = defaultBody
+      let subject = 'Encaminhamento para Exames Ocupacionais - PMais'
+      let bodyHtml =
+        '<p>Olá <strong>{{nome}}</strong>,</p><p>Você foi encaminhado(a) para exames ocupacionais para a vaga de <strong>{{vaga}}</strong>.</p><p><strong>Clínica:</strong> {{clinica_nome}}<br><strong>Endereço:</strong> {{clinica_endereco}}<br><strong>Telefone:</strong> {{clinica_telefone}}</p><p><strong>Orientações:</strong><br>{{comentario}}</p><p>Atenciosamente,<br>Equipe RH PMais</p>'
 
       try {
-        var template = $app.findFirstRecordByData(
+        const template = $app.findFirstRecordByData(
           'email_templates',
           'type',
           'encaminhamento_exames',
         )
-        if (template) {
-          var tplSubject = template.getString('subject')
-          var tplBody = template.getString('body')
-          if (tplSubject && tplBody) {
-            emailSubject = tplSubject
-              .replace(/\{candidate_name\}/g, candidateName)
-              .replace(/\{vacancy_name\}/g, vacancyTitle)
-              .replace(/\{company_name\}/g, companyName)
-              .replace(/\{clinica_nome\}/g, clinicaNome)
-              .replace(/\{clinica_endereco\}/g, clinicaEndereco)
-              .replace(/\{clinica_telefone\}/g, clinicaTelefone)
-              .replace(/\{clinica_email\}/g, clinicaEmail)
-              .replace(/\{clinica_contato\}/g, clinicaContato)
-              .replace(/\{comentario\}/g, comentario)
-            emailBody = tplBody
-              .replace(/\{candidate_name\}/g, candidateName)
-              .replace(/\{vacancy_name\}/g, vacancyTitle)
-              .replace(/\{company_name\}/g, companyName)
-              .replace(/\{clinica_nome\}/g, clinicaNome)
-              .replace(/\{clinica_endereco\}/g, clinicaEndereco)
-              .replace(/\{clinica_telefone\}/g, clinicaTelefone)
-              .replace(/\{clinica_email\}/g, clinicaEmail)
-              .replace(/\{clinica_contato\}/g, clinicaContato)
-              .replace(/\{comentario\}/g, comentario)
-          }
-        }
+        if (template.getString('subject')) subject = template.getString('subject')
+        if (template.getString('body')) bodyHtml = template.getString('body')
       } catch (_) {}
 
-      var apiKey = $secrets.get('RESEND_API_KEY')
-      if (!apiKey) return e.json(500, { error: 'RESEND_API_KEY não configurado' })
+      const candidateNome = candidate.getString('nome') || 'Candidato'
+      var replacements = {
+        nome: candidateNome,
+        nome_candidato: candidateNome,
+        candidate_name: candidateNome,
+        vaga: vacancyName,
+        vacancy_name: vacancyName,
+        clinica_nome: clinicaNome,
+        clinica_endereco: clinicaEndereco,
+        clinica_telefone: clinicaTelefone,
+        clinica_email: clinicaEmail,
+        clinica_contato: clinicaContato,
+        comentario: comentario,
+        observacao: comentario,
+        company_name: 'PMais Terceirização',
+      }
+      for (var key in replacements) {
+        var val = replacements[key]
+        subject = subject
+          .replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val)
+          .replace(new RegExp('\\{' + key + '\\}', 'g'), val)
+        bodyHtml = bodyHtml
+          .replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val)
+          .replace(new RegExp('\\{' + key + '\\}', 'g'), val)
+      }
 
-      var res = $http.send({
-        url: 'https://api.resend.com/emails',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + apiKey,
-        },
-        body: JSON.stringify({
-          from: 'nao-responda@pmaisservicos.com.br',
-          to: candidateEmail,
-          subject: emailSubject,
-          html: emailBody,
-        }),
-        timeout: 30,
-      })
+      let sendError = ''
+      const resendKey = $secrets.get('RESEND_API_KEY')
 
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        var currentCost = candidate.getNumber('custo_exames') || 0
-        candidate.set('custo_exames', currentCost + custoExames)
-        $app.save(candidate)
-
+      if (resendKey) {
         try {
-          var logCol = $app.findCollectionByNameOrId('candidate_email_log')
-          var logRecord = new Record(logCol)
-          logRecord.set('candidate_id', candidateId)
-          logRecord.set('email_type', 'encaminhamento_exames')
-          logRecord.set('sent_by', e.auth.id)
-          $app.save(logRecord)
-        } catch (logErr) {}
-        return e.json(200, { success: true })
+          const res = $http.send({
+            url: 'https://api.resend.com/emails',
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: 'Bearer ' + resendKey,
+            },
+            body: JSON.stringify({
+              from: 'PMais RH <vagas@pmaisservicos.com.br>',
+              to: [candidateEmail],
+              subject: subject,
+              html: bodyHtml,
+            }),
+            timeout: 15,
+          })
+
+          if (res.statusCode >= 400) {
+            sendError =
+              'Resend HTTP ' + res.statusCode + ': ' + JSON.stringify(res.json || res.body)
+            $app
+              .logger()
+              .error('Erro ao enviar e-mail via Resend', 'status', res.statusCode, 'body', res.json)
+          }
+        } catch (resendErr) {
+          sendError = resendErr.message || String(resendErr)
+          $app.logger().error('Exceção ao chamar Resend API', 'error', sendError)
+        }
+      } else {
+        $app.logger().warn('RESEND_API_KEY não configurada')
       }
 
-      var errDetail = 'Erro desconhecido'
-      if (res.json && res.json.message) {
-        errDetail = res.json.message
-      }
       try {
-        var failLogCol = $app.findCollectionByNameOrId('candidate_email_log')
-        var failLogRecord = new Record(failLogCol)
-        failLogRecord.set('candidate_id', candidateId)
-        failLogRecord.set('email_type', 'encaminhamento_exames')
-        failLogRecord.set('sent_by', e.auth.id)
-        failLogRecord.set('error_message', errDetail)
-        $app.save(failLogRecord)
-      } catch (logErr2) {}
-      return e.json(500, { error: 'Falha ao enviar email', details: errDetail })
+        const emailLogCol = $app.findCollectionByNameOrId('candidate_email_log')
+        const logRecord = new Record(emailLogCol)
+        logRecord.set('candidate_id', candidate.id)
+        logRecord.set('email_type', 'encaminhamento_exames')
+        if (e.auth) {
+          logRecord.set('sent_by', e.auth.id)
+        }
+        if (sendError) {
+          logRecord.set('error_message', sendError)
+        }
+        $app.save(logRecord)
+      } catch (logErr) {
+        $app.logger().error('Erro ao gravar candidate_email_log', 'error', String(logErr))
+      }
+
+      return e.json(200, {
+        success: true,
+        message: 'Encaminhamento de exames enviado para ' + candidateEmail,
+      })
     } catch (err) {
-      return e.json(500, { error: 'Erro ao processar solicitação' })
+      $app.logger().error('Erro na rota send-encaminhamento-exames', 'error', String(err))
+      return e.badRequestError(err.message || 'Erro ao enviar encaminhamento para exames.')
     }
   },
   $apis.requireAuth(),

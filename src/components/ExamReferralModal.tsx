@@ -19,7 +19,7 @@ import { Button } from '@/components/ui/button'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { ClinicaRecord, CandidateRecord } from '@/types'
 import { sendExamReferral } from '@/services/candidates'
-import { toast } from '@/components/ui/use-toast'
+import { toast } from 'sonner'
 import { getErrorMessage } from '@/lib/pocketbase/errors'
 
 interface ExamReferralModalProps {
@@ -63,17 +63,16 @@ export function ExamReferralModal({
       return
     }
 
+    if (!candidate?.id) return
+
     setSending(true)
     try {
-      await sendExamReferral(candidate!.id, clinicaId, comentario, custoExames)
-      toast({
-        title: 'Sucesso',
-        description: 'E-mail enviado e custo de exames atualizado!',
-      })
+      await sendExamReferral(candidate.id, clinicaId, comentario, custoExames)
+      toast.success('E-mail enviado e custo de exames atualizado com sucesso!')
       onOpenChange(false)
       onSuccess()
     } catch (err) {
-      toast({ title: 'Erro', description: getErrorMessage(err), variant: 'destructive' })
+      toast.error(getErrorMessage(err) || 'Erro ao enviar encaminhamento para exames.')
     } finally {
       setSending(false)
     }
@@ -89,8 +88,14 @@ export function ExamReferralModal({
         </DialogHeader>
         <div className="space-y-4">
           {candidate && (
-            <div className="text-sm text-slate-600">
-              <span className="font-medium">Candidato:</span> {candidate.nome}
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-md space-y-1 text-xs text-slate-700">
+              <p>
+                <span className="font-semibold text-slate-900">Candidato:</span> {candidate.nome}
+              </p>
+              <p>
+                <span className="font-semibold text-slate-900">E-mail de Destino:</span>{' '}
+                {candidate.email || 'Não informado'}
+              </p>
             </div>
           )}
 
@@ -112,10 +117,22 @@ export function ExamReferralModal({
             </Select>
             {errors.clinicaId && <p className="text-xs text-rose-500">{errors.clinicaId}</p>}
             {selectedClinic && (
-              <div className="text-xs text-slate-500 space-y-0.5 mt-1">
-                {selectedClinic.endereco && <p>Endereço: {selectedClinic.endereco}</p>}
-                {selectedClinic.telefone && <p>Telefone: {selectedClinic.telefone}</p>}
-                {selectedClinic.email && <p>E-mail: {selectedClinic.email}</p>}
+              <div className="text-xs text-slate-500 space-y-0.5 mt-1 p-2 bg-slate-50 rounded border border-slate-100">
+                {selectedClinic.endereco && (
+                  <p>
+                    <strong>Endereço:</strong> {selectedClinic.endereco}
+                  </p>
+                )}
+                {selectedClinic.telefone && (
+                  <p>
+                    <strong>Telefone:</strong> {selectedClinic.telefone}
+                  </p>
+                )}
+                {selectedClinic.email && (
+                  <p>
+                    <strong>E-mail contato:</strong> {selectedClinic.email}
+                  </p>
+                )}
               </div>
             )}
           </div>
