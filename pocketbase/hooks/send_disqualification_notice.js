@@ -72,6 +72,22 @@ routerAdd(
           .replace(new RegExp('\\{' + key + '\\}', 'g'), val)
       }
 
+      var sloganPmais = ''
+      try {
+        var spParams = $app.findRecordsByFilter('system_parameters', '', 'created', 1, 0)
+        if (spParams.length > 0) {
+          sloganPmais = spParams[0].getString('slogan_pmais') || ''
+        }
+      } catch (_) {}
+
+      if (sloganPmais) {
+        bodyHtml =
+          bodyHtml +
+          '<p style="text-align:center; color:#64748b; font-size:12px; margin-top:20px; padding-top:12px; border-top:1px solid #e2e8f0;">' +
+          sloganPmais +
+          '</p>'
+      }
+
       let sendError = ''
       const resendKey = $secrets.get('RESEND_API_KEY')
 

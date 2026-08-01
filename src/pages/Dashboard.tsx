@@ -5,6 +5,7 @@ import { getCandidates } from '@/services/candidates'
 import { getClientes } from '@/services/clientes'
 import { VacancyRecord, CandidateRecord, ClienteRecord } from '@/types'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useSystemParameters } from '@/hooks/use-system-parameters'
 import { MandatoryIndicatorCard } from '@/components/MandatoryIndicatorCard'
 import { calculateDaysOpen, formatCurrency, CANDIDATE_STATUS_TO_PHASE } from '@/lib/status-utils'
 import { isVacancyOverdue } from '@/lib/vacancy-overdue'
@@ -64,6 +65,8 @@ import {
 const PIE_COLORS = ['#3b82f6', '#a855f7', '#f59e0b', '#6366f1', '#06b6d4', '#10b981', '#94a3b8']
 
 export default function Dashboard() {
+  const { parameters } = useSystemParameters()
+  const alertThreshold = parameters?.prazo_alerta_dias ?? 30
   const [vacancies, setVacancies] = useState<VacancyRecord[]>([])
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
   const [clientesList, setClientesList] = useState<ClienteRecord[]>([])
@@ -155,8 +158,8 @@ export default function Dashboard() {
   }, [closedVacanciesMonth])
 
   const delayedVacancies = useMemo(() => {
-    return openVacancies.filter((v) => calculateDaysOpen(v.data_abertura) > 30)
-  }, [openVacancies])
+    return openVacancies.filter((v) => calculateDaysOpen(v.data_abertura) > alertThreshold)
+  }, [openVacancies, alertThreshold])
 
   const mandatoryIndicatorData = useMemo(() => {
     const totalPosicoes = openVacancies.reduce((acc, v) => acc + (v.quantidade_vagas || 0), 0)
@@ -841,7 +844,7 @@ export default function Dashboard() {
                         <Badge
                           variant="outline"
                           className={
-                            vaga.diasParado > 30
+                            vaga.diasParado > alertThreshold
                               ? 'bg-rose-50 text-rose-700 border-rose-200'
                               : 'bg-amber-50 text-amber-700 border-amber-200'
                           }

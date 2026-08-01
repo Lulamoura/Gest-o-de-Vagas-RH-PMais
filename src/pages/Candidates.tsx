@@ -20,6 +20,7 @@ import {
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useSystemParameters } from '@/hooks/use-system-parameters'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -62,6 +63,8 @@ const ALL_STATUSES: CandidateStatus[] = [
 export default function Candidates() {
   const navigate = useNavigate()
   const { isAdmin, isSuperAdmin } = useAuth()
+  const { parameters } = useSystemParameters()
+  const alertThreshold = parameters?.prazo_alerta_dias ?? 30
   const canEdit = isAdmin || isSuperAdmin
 
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
@@ -389,7 +392,7 @@ export default function Candidates() {
                         {c.nome}
                       </CardTitle>
                       <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
-                        {vacancy && isVacancyOverdue(vacancy) && (
+                        {vacancy && isVacancyOverdue(vacancy, alertThreshold) && (
                           <OverdueVacancyIcon iconClassName="h-3.5 w-3.5" />
                         )}
                         {vacancy?.expand?.cargo?.nome || vacancy?.expand?.cliente?.nome || '—'}

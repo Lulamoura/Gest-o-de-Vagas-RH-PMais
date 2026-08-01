@@ -13,6 +13,7 @@ import {
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useSystemParameters } from '@/hooks/use-system-parameters'
 import {
   calculateDaysOpen,
   formatDateBR,
@@ -76,6 +77,8 @@ import {
 } from 'lucide-react'
 
 export default function Vacancies() {
+  const { parameters } = useSystemParameters()
+  const alertThreshold = parameters?.prazo_alerta_dias ?? 30
   const [vacancies, setVacancies] = useState<VacancyRecord[]>([])
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
   const [tiposContratoList, setTiposContratoList] = useState<TipoContratoRecord[]>([])
@@ -604,7 +607,7 @@ export default function Vacancies() {
                       <TableCell>
                         <span
                           className={`text-xs font-semibold px-2 py-0.5 rounded ${
-                            diasAbertos > 30
+                            diasAbertos > alertThreshold
                               ? 'bg-rose-100 text-rose-800'
                               : 'bg-slate-100 text-slate-700'
                           }`}

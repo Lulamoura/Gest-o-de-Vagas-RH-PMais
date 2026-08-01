@@ -17,6 +17,7 @@ export function SystemParametersForm() {
   const [prazoAlertaDias, setPrazoAlertaDias] = useState('30')
   const [nomeRemetente, setNomeRemetente] = useState('')
   const [emailRemetente, setEmailRemetente] = useState('')
+  const [sloganPmais, setSloganPmais] = useState('')
   const [saving, setSaving] = useState(false)
   const [recordId, setRecordId] = useState<string | null>(null)
 
@@ -25,11 +26,13 @@ export function SystemParametersForm() {
       setPrazoAlertaDias(String(parameters.prazo_alerta_dias ?? 30))
       setNomeRemetente(parameters.nome_remetente || '')
       setEmailRemetente(parameters.email_remetente || '')
+      setSloganPmais(parameters.slogan_pmais || '')
       setRecordId(parameters.id)
     } else {
       setPrazoAlertaDias('30')
       setNomeRemetente('')
       setEmailRemetente('')
+      setSloganPmais('')
       setRecordId(null)
     }
   }, [parameters])
@@ -47,6 +50,7 @@ export function SystemParametersForm() {
         prazo_alerta_dias: dias,
         nome_remetente: nomeRemetente,
         email_remetente: emailRemetente,
+        slogan_pmais: sloganPmais,
       }
       if (recordId) {
         await updateSystemParameters(recordId, data)
@@ -71,6 +75,7 @@ export function SystemParametersForm() {
       setPrazoAlertaDias('30')
       setNomeRemetente('')
       setEmailRemetente('')
+      setSloganPmais('')
       toast.success('Parâmetros excluídos.')
       refresh()
     } catch {
@@ -132,6 +137,18 @@ export function SystemParametersForm() {
               onChange={(e) => setEmailRemetente(e.target.value)}
               placeholder="Ex: vagas@pmaisservicos.com.br"
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">Frase slogan da PMais</Label>
+            <Input
+              value={sloganPmais}
+              onChange={(e) => setSloganPmais(e.target.value)}
+              placeholder="Ex: PMais — Soluções em Terceirização"
+            />
+            <p className="text-xs text-slate-500">
+              Esta frase será incluída no rodapé dos e-mails enviados aos candidatos.
+            </p>
           </div>
 
           <Button

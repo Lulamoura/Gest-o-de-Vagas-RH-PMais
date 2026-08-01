@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-01T16:17:35.268Z",
+  "generatedAt": "2026-08-01T16:38:49.007Z",
   "collections": [
     {
       "name": "users",
@@ -1137,6 +1137,12 @@
           "required": false,
           "system": false,
           "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "slogan_pmais",
+          "type": "text",
+          "required": false,
+          "system": false
         }
       ],
       "indexes": []

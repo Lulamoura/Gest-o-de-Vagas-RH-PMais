@@ -22,6 +22,7 @@ import {
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
+import { useSystemParameters } from '@/hooks/use-system-parameters'
 import { MandatoryIndicatorCard } from '@/components/MandatoryIndicatorCard'
 import {
   calculateDaysOpen,
@@ -101,6 +102,8 @@ export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { user, isSuperAdmin, isAdmin, canEditVacancy } = useAuth()
+  const { parameters } = useSystemParameters()
+  const alertThreshold = parameters?.prazo_alerta_dias ?? 30
   const canEditCandidate = isAdmin || isSuperAdmin
 
   const [vaga, setVaga] = useState<VacancyRecord | null>(null)
@@ -603,7 +606,9 @@ export default function VacancyDetail() {
             <div>
               <div className="flex items-center space-x-3">
                 <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-1.5">
-                  {isVacancyOverdue(vaga) && <OverdueVacancyIcon iconClassName="h-5 w-5" />}
+                  {isVacancyOverdue(vaga, alertThreshold) && (
+                    <OverdueVacancyIcon iconClassName="h-5 w-5" />
+                  )}
                   {vaga.expand?.cargo?.nome || '—'}
                 </h1>
                 <Badge variant="outline" className={getVacancyStatusBadgeClass(vaga.status_vaga)}>

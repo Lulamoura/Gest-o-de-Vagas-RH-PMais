@@ -142,14 +142,24 @@ routerAdd(
 
       var senderName = 'PMais RH'
       var senderEmail = 'vagas@pmaisservicos.com.br'
+      var sloganPmais = ''
       try {
         var params = $app.findRecordsByFilter('system_parameters', '', 'created', 1, 0)
         if (params.length > 0) {
           var sp = params[0]
           if (sp.getString('nome_remetente')) senderName = sp.getString('nome_remetente')
           if (sp.getString('email_remetente')) senderEmail = sp.getString('email_remetente')
+          sloganPmais = sp.getString('slogan_pmais') || ''
         }
       } catch (_) {}
+
+      if (sloganPmais) {
+        bodyHtml =
+          bodyHtml +
+          '<p style="text-align:center; color:#64748b; font-size:12px; margin-top:20px; padding-top:12px; border-top:1px solid #e2e8f0;">' +
+          sloganPmais +
+          '</p>'
+      }
 
       let sendError = ''
       const resendKey = $secrets.get('RESEND_API_KEY')

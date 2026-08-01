@@ -13,8 +13,11 @@ export function getOverdueThreshold() {
   return _overdueThreshold
 }
 
-export function isVacancyOverdue(vacancy: VacancyRecord | undefined | null): boolean {
+export function isVacancyOverdue(
+  vacancy: VacancyRecord | undefined | null,
+  threshold?: number,
+): boolean {
   if (!vacancy) return false
   if (vacancy.status_vaga !== 'Aberta') return false
-  return calculateDaysOpen(vacancy.data_abertura) > _overdueThreshold
+  return calculateDaysOpen(vacancy.data_abertura) > (threshold ?? _overdueThreshold)
 }

@@ -160,6 +160,7 @@ export interface SystemParameterRecord extends RecordModel {
   prazo_alerta_dias: number
   nome_remetente?: string
   email_remetente?: string
+  slogan_pmais?: string
 }
 
 export type EmailType = 'complement_data' | 'disqualification' | 'encaminhamento_exames'
