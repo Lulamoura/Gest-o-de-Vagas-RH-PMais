@@ -123,6 +123,34 @@ routerAdd(
           .replace(new RegExp('\\{' + key + '\\}', 'g'), val)
       }
 
+      if (mapsLinkHtml && bodyHtml.indexOf('google.com/maps') === -1) {
+        if (clinicaEndereco && bodyHtml.indexOf(clinicaEndereco) !== -1) {
+          var addrIdx = bodyHtml.indexOf(clinicaEndereco)
+          var closePIdx = bodyHtml.indexOf('</p>', addrIdx)
+          if (closePIdx !== -1) {
+            bodyHtml =
+              bodyHtml.substring(0, closePIdx + 4) +
+              mapsLinkHtml +
+              bodyHtml.substring(closePIdx + 4)
+          } else {
+            bodyHtml = mapsLinkHtml + bodyHtml
+          }
+        } else {
+          bodyHtml = mapsLinkHtml + bodyHtml
+        }
+      }
+
+      var senderName = 'PMais RH'
+      var senderEmail = 'vagas@pmaisservicos.com.br'
+      try {
+        var params = $app.findRecordsByFilter('system_parameters', '', 'created', 1, 0)
+        if (params.length > 0) {
+          var sp = params[0]
+          if (sp.getString('nome_remetente')) senderName = sp.getString('nome_remetente')
+          if (sp.getString('email_remetente')) senderEmail = sp.getString('email_remetente')
+        }
+      } catch (_) {}
+
       let sendError = ''
       const resendKey = $secrets.get('RESEND_API_KEY')
 
@@ -136,7 +164,7 @@ routerAdd(
               Authorization: 'Bearer ' + resendKey,
             },
             body: JSON.stringify({
-              from: 'PMais RH <vagas@pmaisservicos.com.br>',
+              from: senderName + ' <' + senderEmail + '>',
               to: [candidateEmail],
               subject: subject,
               html: bodyHtml,
