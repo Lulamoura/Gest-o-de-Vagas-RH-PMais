@@ -94,6 +94,8 @@ import { CurrencyInput } from '@/components/CurrencyInput'
 import { Textarea } from '@/components/ui/textarea'
 import { extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
 import { isCandidateStatusEnabled } from '@/lib/candidate-validation'
+import { isVacancyOverdue } from '@/lib/vacancy-overdue'
+import { OverdueVacancyIcon } from '@/components/OverdueVacancyIcon'
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
@@ -600,7 +602,8 @@ export default function VacancyDetail() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-4">
             <div>
               <div className="flex items-center space-x-3">
-                <h1 className="text-2xl font-bold text-slate-900">
+                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-1.5">
+                  {isVacancyOverdue(vaga) && <OverdueVacancyIcon iconClassName="h-5 w-5" />}
                   {vaga.expand?.cargo?.nome || '—'}
                 </h1>
                 <Badge variant="outline" className={getVacancyStatusBadgeClass(vaga.status_vaga)}>
