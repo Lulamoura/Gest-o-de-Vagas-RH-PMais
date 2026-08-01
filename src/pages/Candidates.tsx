@@ -14,6 +14,7 @@ import {
   CandidateRecord,
   VacancyRecord,
   CandidateStatus,
+  VacancyStatus,
   ClinicaRecord,
   CandidateEmailLogRecord,
 } from '@/types'
@@ -44,6 +45,8 @@ import { getCandidateStatusBadgeClass } from '@/lib/status-utils'
 import { toast } from 'sonner'
 import { Plus, Search, Pencil, Trash2, Mail, Stethoscope, Check, Eye, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { OverdueVacancyIcon } from '@/components/OverdueVacancyIcon'
+import { isVacancyOverdue } from '@/lib/vacancy-overdue'
 
 const ALL_STATUSES: CandidateStatus[] = [
   'Análise do RH',
@@ -69,6 +72,7 @@ export default function Candidates() {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [vacancyFilter, setVacancyFilter] = useState<string>('all')
+  const [vacancyStatusFilter, setVacancyStatusFilter] = useState<VacancyStatus | 'all'>('Aberta')
 
   const [editOpen, setEditOpen] = useState(false)
   const [editingCandidate, setEditingCandidate] = useState<CandidateRecord | null>(null)
@@ -271,8 +275,11 @@ export default function Candidates() {
 
     const matchesStatus = statusFilter === 'all' || c.status_candidato === statusFilter
     const matchesVacancy = vacancyFilter === 'all' || c.vacancy_id === vacancyFilter
+    const matchesVacancyStatus =
+      vacancyStatusFilter === 'all' ||
+      (c.vacancy_id != null && c.expand?.vacancy_id?.status_vaga === vacancyStatusFilter)
 
-    return matchesSearch && matchesStatus && matchesVacancy
+    return matchesSearch && matchesStatus && matchesVacancy && matchesVacancyStatus
   })
 
   const currentStatus = formData.status_candidato
@@ -305,7 +312,7 @@ export default function Candidates() {
 
       <Card className="border-slate-200">
         <CardContent className="p-4 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
               <Input
@@ -341,6 +348,20 @@ export default function Candidates() {
                 ))}
               </SelectContent>
             </Select>
+            <Select
+              value={vacancyStatusFilter}
+              onValueChange={(val) => setVacancyStatusFilter(val as VacancyStatus | 'all')}
+            >
+              <SelectTrigger className="text-xs">
+                <SelectValue placeholder="Status da vaga" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="Aberta">Aberta</SelectItem>
+                <SelectItem value="Concluída">Concluída</SelectItem>
+                <SelectItem value="Cancelada">Cancelada</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </CardContent>
       </Card>
@@ -367,7 +388,10 @@ export default function Candidates() {
                       <CardTitle className="text-base font-bold text-slate-900 line-clamp-1">
                         {c.nome}
                       </CardTitle>
-                      <p className="text-xs text-slate-500 mt-0.5">
+                      <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+                        {vacancy && isVacancyOverdue(vacancy) && (
+                          <OverdueVacancyIcon iconClassName="h-3.5 w-3.5" />
+                        )}
                         {vacancy?.expand?.cargo?.nome || vacancy?.expand?.cliente?.nome || '—'}
                       </p>
                     </div>

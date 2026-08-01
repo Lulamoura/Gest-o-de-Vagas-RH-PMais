@@ -7,6 +7,8 @@ import { VacancyRecord, CandidateRecord, ClienteRecord } from '@/types'
 import { useRealtime } from '@/hooks/use-realtime'
 import { MandatoryIndicatorCard } from '@/components/MandatoryIndicatorCard'
 import { calculateDaysOpen, formatCurrency, CANDIDATE_STATUS_TO_PHASE } from '@/lib/status-utils'
+import { isVacancyOverdue } from '@/lib/vacancy-overdue'
+import { OverdueVacancyIcon } from '@/components/OverdueVacancyIcon'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -819,7 +821,12 @@ export default function Dashboard() {
                   stalledVacancies.map((vaga) => (
                     <TableRow key={vaga.id} className="hover:bg-slate-50">
                       <TableCell className="font-semibold text-slate-900 text-sm">
-                        {vaga.expand?.cargo?.nome || '—'}
+                        <div className="flex items-center gap-1.5">
+                          {isVacancyOverdue(vaga) && (
+                            <OverdueVacancyIcon iconClassName="h-3.5 w-3.5" />
+                          )}
+                          {vaga.expand?.cargo?.nome || '—'}
+                        </div>
                       </TableCell>
                       <TableCell className="text-slate-600 text-sm">
                         <div className="flex items-center space-x-1.5">
