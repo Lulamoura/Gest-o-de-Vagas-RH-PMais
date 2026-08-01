@@ -36,6 +36,7 @@ import { toast } from 'sonner'
 import { PlusCircle, Pencil, Trash2, Database } from 'lucide-react'
 import { CostConsultationsForm } from '@/components/CostConsultationsForm'
 import { ClinicasManager } from '@/components/ClinicasManager'
+import { SystemParametersForm } from '@/components/SystemParametersForm'
 import { RecordModel } from 'pocketbase'
 
 type CollectionKey =
@@ -46,9 +47,10 @@ type CollectionKey =
   | 'tipos_contrato'
   | 'custos_consultas'
   | 'clinicas'
+  | 'system_parameters'
 
 const CONFIG: Record<
-  Exclude<CollectionKey, 'custos_consultas'>,
+  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'system_parameters'>,
   {
     label: string
     list: () => Promise<RecordModel[]>
@@ -94,7 +96,10 @@ const CONFIG: Record<
   },
 }
 
-const FIELD_MAP: Record<Exclude<CollectionKey, 'custos_consultas'>, string> = {
+const FIELD_MAP: Record<
+  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'system_parameters'>,
+  string
+> = {
   clientes: 'cliente',
   cargos: 'cargo',
   cidades: 'cidade',
@@ -116,7 +121,12 @@ export default function ReferenceData() {
   const [saving, setSaving] = useState(false)
 
   const loadData = async () => {
-    if (activeTab === 'custos_consultas') return
+    if (
+      activeTab === 'custos_consultas' ||
+      activeTab === 'clinicas' ||
+      activeTab === 'system_parameters'
+    )
+      return
     setLoading(true)
     try {
       const data = await CONFIG[activeTab as Exclude<CollectionKey, 'custos_consultas'>].list()
@@ -211,6 +221,9 @@ export default function ReferenceData() {
             ))}
           <TabsTrigger value="custos_consultas">Custo de Consultas</TabsTrigger>
           {canManage && <TabsTrigger value="clinicas">Clínicas</TabsTrigger>}
+          {isSuperAdmin && (
+            <TabsTrigger value="system_parameters">Parâmetros do Sistema</TabsTrigger>
+          )}
         </TabsList>
 
         {canManage &&
@@ -296,6 +309,12 @@ export default function ReferenceData() {
         {canManage && (
           <TabsContent value="clinicas">
             <ClinicasManager />
+          </TabsContent>
+        )}
+
+        {isSuperAdmin && (
+          <TabsContent value="system_parameters">
+            <SystemParametersForm />
           </TabsContent>
         )}
       </Tabs>

@@ -40,6 +40,17 @@ routerAdd(
         }
       }
 
+      var mapsLinkHtml = ''
+      if (clinicaEndereco && clinicaEndereco.trim()) {
+        var mapsUrl =
+          'https://www.google.com/maps/search/?api=1&query=' +
+          encodeURIComponent(clinicaEndereco.trim())
+        mapsLinkHtml =
+          '<p><a href="' +
+          mapsUrl +
+          '" target="_blank" rel="noopener noreferrer">Ver localização no Google Maps</a></p>'
+      }
+
       if (custoExames > 0) {
         const currentCost = candidate.getFloat('custo_exames') || 0
         candidate.set('custo_exames', currentCost + custoExames)
@@ -73,7 +84,7 @@ routerAdd(
 
       let subject = 'Encaminhamento para Exames Ocupacionais - PMais'
       let bodyHtml =
-        '<p>Olá <strong>{{nome}}</strong>,</p><p>Você foi encaminhado(a) para exames ocupacionais para a vaga de <strong>{{vaga}}</strong>.</p><p><strong>Clínica:</strong> {{clinica_nome}}<br><strong>Endereço:</strong> {{clinica_endereco}}<br><strong>Telefone:</strong> {{clinica_telefone}}</p><p><strong>Orientações:</strong><br>{{comentario}}</p><p>Atenciosamente,<br>Equipe RH PMais</p>'
+        '<p>Olá <strong>{{nome}}</strong>,</p><p>Você foi encaminhado(a) para exames ocupacionais para a vaga de <strong>{{vaga}}</strong>.</p><p><strong>Clínica:</strong> {{clinica_nome}}<br><strong>Endereço:</strong> {{clinica_endereco}}<br><strong>Telefone:</strong> {{clinica_telefone}}</p>{{maps_link_html}}<p><strong>Orientações:</strong><br>{{comentario}}</p><p>Atenciosamente,<br>Equipe RH PMais</p>'
 
       try {
         const template = $app.findFirstRecordByData(
@@ -99,6 +110,7 @@ routerAdd(
         clinica_contato: clinicaContato,
         comentario: comentario,
         observacao: comentario,
+        maps_link_html: mapsLinkHtml,
         company_name: 'PMais Terceirização',
       }
       for (var key in replacements) {

@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster'
 import { Toaster as Sonner } from '@/components/ui/sonner'
 import { TooltipProvider } from '@/components/ui/tooltip'
 import { AuthProvider } from '@/hooks/use-auth'
+import { SystemParametersProvider } from '@/hooks/use-system-parameters'
 import { ProtectedRoute } from '@/components/ProtectedRoute'
 import Index from './pages/Index'
 import Login from './pages/Login'
@@ -25,35 +26,37 @@ import Layout from './components/Layout'
 
 const App = () => (
   <AuthProvider>
-    <BrowserRouter>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/candidato/:id/preencher" element={<CandidatePublicForm />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<Layout />}>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/dashboard" element={<Dashboard />} />
-              <Route path="/vagas" element={<Vacancies />} />
-              <Route path="/vagas/nova" element={<VacancyForm />} />
-              <Route path="/vagas/:id" element={<VacancyDetail />} />
-              <Route path="/vagas/:id/editar" element={<VacancyForm />} />
-              <Route path="/candidatos" element={<Candidates />} />
-              <Route path="/candidatos/:id" element={<CandidateDetail />} />
-              <Route path="/usuarios" element={<Users />} />
-              <Route path="/referencias" element={<ReferenceData />} />
-              <Route path="/modelos-email" element={<EmailTemplates />} />
-              <Route path="/wordpress" element={<WordPressLogs />} />
-              <Route path="/relatorios" element={<Reports />} />
-              <Route path="/profile/senha" element={<ChangePassword />} />
+    <SystemParametersProvider>
+      <BrowserRouter>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/candidato/:id/preencher" element={<CandidatePublicForm />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<Layout />}>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/vagas" element={<Vacancies />} />
+                <Route path="/vagas/nova" element={<VacancyForm />} />
+                <Route path="/vagas/:id" element={<VacancyDetail />} />
+                <Route path="/vagas/:id/editar" element={<VacancyForm />} />
+                <Route path="/candidatos" element={<Candidates />} />
+                <Route path="/candidatos/:id" element={<CandidateDetail />} />
+                <Route path="/usuarios" element={<Users />} />
+                <Route path="/referencias" element={<ReferenceData />} />
+                <Route path="/modelos-email" element={<EmailTemplates />} />
+                <Route path="/wordpress" element={<WordPressLogs />} />
+                <Route path="/relatorios" element={<Reports />} />
+                <Route path="/profile/senha" element={<ChangePassword />} />
+              </Route>
             </Route>
-          </Route>
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
-    </BrowserRouter>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </BrowserRouter>
+    </SystemParametersProvider>
   </AuthProvider>
 )
 

@@ -156,6 +156,12 @@ export interface CandidatoConsultaJuridicaRecord extends RecordModel {
   }
 }
 
+export interface SystemParameterRecord extends RecordModel {
+  prazo_alerta_dias: number
+  nome_remetente?: string
+  email_remetente?: string
+}
+
 export type EmailType = 'complement_data' | 'disqualification' | 'encaminhamento_exames'
 
 export interface EmailTemplateRecord extends RecordModel {
