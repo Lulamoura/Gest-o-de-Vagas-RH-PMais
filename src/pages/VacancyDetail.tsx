@@ -884,13 +884,13 @@ export default function VacancyDetail() {
                     return (
                       <TableRow key={cand.id}>
                         <TableCell className="font-semibold text-slate-900 text-sm">
-                          <Link
-                            to={`/candidatos/${cand.id}`}
-                            state={{ fromVacancy: vaga.id }}
-                            className="hover:text-indigo-600 hover:underline"
+                          <button
+                            type="button"
+                            onClick={() => handleEditCandidate(cand)}
+                            className="hover:text-indigo-600 hover:underline text-left"
                           >
                             {cand.nome}
-                          </Link>
+                          </button>
                         </TableCell>
                         <TableCell>
                           {cand.rank ? (
@@ -1496,20 +1496,19 @@ export default function VacancyDetail() {
               <StarRating value={editRank} onChange={setEditRank} size={28} />
             </div>
 
-            {canEditCandidate && (
-              <div className="space-y-1.5">
-                <Label htmlFor="eObs" className="text-xs font-bold text-slate-700">
-                  Observações
-                </Label>
-                <Textarea
-                  id="eObs"
-                  value={editObservacao}
-                  onChange={(e) => setEditObservacao(e.target.value)}
-                  placeholder="Adicione observações sobre o candidato..."
-                  rows={3}
-                />
-              </div>
-            )}
+            <div className="space-y-1.5">
+              <Label htmlFor="eObs" className="text-xs font-bold text-slate-700">
+                Observações
+              </Label>
+              <Textarea
+                id="eObs"
+                value={editObservacao}
+                onChange={(e) => setEditObservacao(e.target.value)}
+                placeholder="Adicione observações sobre o candidato..."
+                rows={3}
+                disabled={!canEditCandidate}
+              />
+            </div>
 
             <div className="pt-2 border-t border-slate-100">
               <span className="text-xs font-bold text-slate-700 block mb-2">
