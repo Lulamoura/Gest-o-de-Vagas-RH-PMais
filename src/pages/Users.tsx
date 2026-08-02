@@ -35,7 +35,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { toast } from 'sonner'
-import { UserCheck, PlusCircle, Pencil, Trash2, Shield } from 'lucide-react'
+import { UserCheck, PlusCircle, Pencil, Trash2, Shield, X } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useRealtime } from '@/hooks/use-realtime'
 
@@ -265,7 +265,7 @@ export default function Users() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-xs text-slate-600">
-                      {u.expand?.departamento?.nome || '-'}
+                      {u.expand?.departamento?.nome || 'Sem departamento'}
                     </TableCell>
                     <TableCell className="text-xs text-slate-500">
                       {formatDateBR(u.created)}
@@ -370,22 +370,39 @@ export default function Users() {
 
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-slate-700">Departamento</Label>
-              <Select
-                value={departamento}
-                onValueChange={handleSelectDepartamento}
-                disabled={!isSuperAdmin}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione o departamento" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departamentos.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select
+                  value={departamento}
+                  onValueChange={handleSelectDepartamento}
+                  disabled={!isSuperAdmin}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o departamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departamentos.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {isSuperAdmin && departamento && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 text-slate-500 hover:text-rose-600"
+                    onClick={() => setDepartamento('')}
+                    title="Limpar departamento"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+              {fieldErrors.departamento && (
+                <p className="text-[11px] text-rose-500">{fieldErrors.departamento}</p>
+              )}
               {!isSuperAdmin && (
                 <p className="text-[11px] text-slate-500">
                   Apenas Super Admin pode alterar o departamento.

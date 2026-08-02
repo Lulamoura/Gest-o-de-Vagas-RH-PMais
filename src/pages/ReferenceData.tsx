@@ -44,6 +44,7 @@ import { CostConsultationsForm } from '@/components/CostConsultationsForm'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ClinicasManager } from '@/components/ClinicasManager'
 import { SystemParametersForm } from '@/components/SystemParametersForm'
+import { UserDepartmentManager } from '@/components/UserDepartmentManager'
 import { RecordModel } from 'pocketbase'
 
 type CollectionKey =
@@ -394,6 +395,8 @@ export default function ReferenceData() {
         loading={deleting}
         onConfirm={handleConfirmDelete}
       />
+
+      {isSuperAdmin && <UserDepartmentManager />}
     </div>
   )
 }
