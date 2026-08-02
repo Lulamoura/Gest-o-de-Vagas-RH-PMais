@@ -9,6 +9,12 @@ import {
   updateTipoContrato,
   deleteTipoContrato,
 } from '@/services/tipos_contrato'
+import {
+  getDepartamentos,
+  createDepartamento,
+  updateDepartamento,
+  deleteDepartamento,
+} from '@/services/departamentos'
 import { countReferenceInUse } from '@/services/vacancies'
 import { useAuth } from '@/hooks/use-auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -46,6 +52,7 @@ type CollectionKey =
   | 'cidades'
   | 'tipos_vaga'
   | 'tipos_contrato'
+  | 'departamentos'
   | 'custos_consultas'
   | 'clinicas'
   | 'system_parameters'
@@ -95,6 +102,13 @@ const CONFIG: Record<
     update: updateTipoContrato,
     del: deleteTipoContrato,
   },
+  departamentos: {
+    label: 'Departamentos',
+    list: getDepartamentos,
+    create: createDepartamento,
+    update: updateDepartamento,
+    del: deleteDepartamento,
+  },
 }
 
 const FIELD_MAP: Record<
@@ -106,6 +120,7 @@ const FIELD_MAP: Record<
   cidades: 'cidade',
   tipos_vaga: 'tipo_vaga',
   tipos_contrato: 'tipo_contrato',
+  departamentos: '',
 }
 
 const REF_TABS = Object.keys(CONFIG) as Exclude<CollectionKey, 'custos_consultas'>[]
@@ -189,10 +204,13 @@ export default function ReferenceData() {
 
   const promptDelete = async (r: RecordModel) => {
     const tab = activeTab as Exclude<CollectionKey, 'custos_consultas'>
-    const count = await countReferenceInUse(FIELD_MAP[tab], r.id)
-    if (count > 0) {
-      toast.error(`Não é possível excluir: este registro está em uso por ${count} vaga(s).`)
-      return
+    const fieldName = FIELD_MAP[tab]
+    if (fieldName) {
+      const count = await countReferenceInUse(fieldName, r.id)
+      if (count > 0) {
+        toast.error(`Não é possível excluir: este registro está em uso por ${count} vaga(s).`)
+        return
+      }
     }
     setRecordToDelete({ id: r.id, nome: r.nome })
     setDeleteDialogOpen(true)

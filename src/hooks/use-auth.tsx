@@ -8,6 +8,7 @@ interface AuthContextType {
   isAdmin: boolean
   isOperator: boolean
   isSuperAdmin: boolean
+  isRH: boolean
   canEditVacancy: boolean
   canManageUsers: boolean
   signIn: (email: string, password: string) => Promise<{ error: any }>
@@ -74,6 +75,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAdmin = user?.profile === 'admin'
   const isOperator = user?.profile === 'operator' || isAdmin
   const isSuperAdmin = user?.profile === 'superadmin'
+  const isRH = user?.departamento === 'rh'
   const canEditVacancy = isAdmin || isSuperAdmin
   const canManageUsers = isAdmin || isSuperAdmin
 
@@ -85,6 +87,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isAdmin,
         isOperator,
         isSuperAdmin,
+        isRH,
         canEditVacancy,
         canManageUsers,
         signIn,

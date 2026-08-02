@@ -207,12 +207,84 @@ export interface CustosConsultasRecord extends RecordModel {
   capa_processo: number
 }
 
-export type RequisitionStatus = 'Rascunho' | 'Aguardando aprovação'
+export type RequisitionStatus =
+  | 'Rascunho'
+  | 'Aguardando aprovação'
+  | 'Em análise'
+  | 'Aprovada'
+  | 'Reprovada'
+  | 'Cancelada'
+
+export interface DepartamentoRecord extends RecordModel {
+  nome: string
+}
+
+export interface RequisitionHistoryRecord extends RecordModel {
+  requisition_id: string
+  usuario_id?: string
+  status_anterior?: string
+  status_novo: string
+  acao?: string
+  observacao?: string
+  data_mudanca?: string
+  expand?: {
+    usuario_id?: UserRecord
+  }
+}
+
+export interface RequisitionCommentRecord extends RecordModel {
+  requisition_id: string
+  usuario_id: string
+  comentario: string
+  expand?: {
+    usuario_id?: UserRecord
+  }
+}
+
+export interface RequisitionAttachmentRecord extends RecordModel {
+  requisition_id: string
+  uploaded_by: string
+  arquivo: string
+  nome_arquivo?: string
+  expand?: {
+    uploaded_by?: UserRecord
+  }
+}
 
 export type RequisitionDepartamento = 'comercial' | 'operacional' | 'rh'
 
+export interface NotificationRecord extends RecordModel {
+  user: string
+  requisition: string
+  type: string
+  message: string
+  read: boolean
+  expand?: {
+    user?: UserRecord
+    requisition?: RequisitionRecord
+  }
+}
+
+export interface RequisitionChangeRequestRecord extends RecordModel {
+  requisition: string
+  solicitante: string
+  campos_alterados: string
+  valores_propostos: string
+  justificativa: string
+  status: 'Pendente' | 'Aprovada' | 'Reprovada'
+  decisao_comentario?: string
+  decidido_por?: string
+  decidido_em?: string
+  expand?: {
+    solicitante?: UserRecord
+    decidido_por?: UserRecord
+    requisition?: RequisitionRecord
+  }
+}
+
 export interface RequisitionRecord extends RecordModel {
   solicitante: string
+  numero_oe?: string
   departamento?: RequisitionDepartamento
   cliente?: string
   cargo?: string

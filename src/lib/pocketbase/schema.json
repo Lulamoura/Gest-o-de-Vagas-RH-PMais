@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-01T22:59:01.983Z",
+  "generatedAt": "2026-08-02T00:00:18.546Z",
   "collections": [
     {
       "name": "users",
@@ -1192,7 +1192,7 @@
         "list": "@request.auth.id != ''",
         "view": "@request.auth.id != ''",
         "create": "@request.auth.profile = 'operator' || @request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
-        "update": "status = 'Rascunho' && (@request.auth.id = solicitante || @request.auth.profile = 'admin' || @request.auth.profile = 'superadmin')",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin' || @request.auth.departamento = 'rh' || (status = 'Rascunho' && @request.auth.id = solicitante)",
         "delete": "@request.auth.profile = 'superadmin'"
       },
       "fields": [
@@ -1289,11 +1289,137 @@
           "system": false
         },
         {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        },
+        {
+          "name": "numero_oe",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
           "name": "status",
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["Rascunho", "Aguardando aprovação"]
+          "selectValues": [
+            "Rascunho",
+            "Aguardando aprovação",
+            "Em análise",
+            "Aprovada",
+            "Reprovada",
+            "Cancelada"
+          ]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_requisitions_status ON requisitions (status)",
+        "CREATE INDEX idx_requisitions_solicitante ON requisitions (solicitante)",
+        "CREATE INDEX idx_requisitions_departamento ON requisitions (departamento)",
+        "CREATE INDEX idx_requisitions_created ON requisitions (created DESC)",
+        "CREATE INDEX `idx_requisitions_numero_oe` ON `requisitions` (numero_oe)"
+      ]
+    },
+    {
+      "name": "departamentos",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
+    },
+    {
+      "name": "requisition_history",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "requisition_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "requisitions"
+        },
+        {
+          "name": "usuario_id",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "status_anterior",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "status_novo",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "acao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "observacao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_mudanca",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
         },
         {
           "name": "created",
@@ -1311,10 +1437,276 @@
         }
       ],
       "indexes": [
-        "CREATE INDEX idx_requisitions_status ON requisitions (status)",
-        "CREATE INDEX idx_requisitions_solicitante ON requisitions (solicitante)",
-        "CREATE INDEX idx_requisitions_departamento ON requisitions (departamento)",
-        "CREATE INDEX idx_requisitions_created ON requisitions (created DESC)"
+        "CREATE INDEX idx_requisition_history_req ON requisition_history (requisition_id)"
+      ]
+    },
+    {
+      "name": "requisition_comments",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id = usuario_id",
+        "delete": "@request.auth.id = usuario_id || @request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "requisition_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "requisitions"
+        },
+        {
+          "name": "usuario_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "comentario",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_requisition_comments_req ON requisition_comments (requisition_id)"
+      ]
+    },
+    {
+      "name": "requisition_attachments",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.id = uploaded_by || @request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.id = uploaded_by || @request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "requisition_id",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "requisitions"
+        },
+        {
+          "name": "uploaded_by",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "arquivo",
+          "type": "file",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "nome_arquivo",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_requisition_attachments_req ON requisition_attachments (requisition_id)"
+      ]
+    },
+    {
+      "name": "notifications",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id = user",
+        "view": "@request.auth.id = user",
+        "create": null,
+        "update": "@request.auth.id = user",
+        "delete": "@request.auth.id = user"
+      },
+      "fields": [
+        {
+          "name": "user",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "requisition",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "requisitions"
+        },
+        {
+          "name": "type",
+          "type": "select",
+          "required": true,
+          "system": false,
+          "selectValues": [
+            "requisition_submitted",
+            "requisition_approved",
+            "requisition_reproved",
+            "new_comment",
+            "change_request_submitted",
+            "change_request_approved",
+            "change_request_reproved"
+          ]
+        },
+        {
+          "name": "message",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "read",
+          "type": "bool",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_notifications_user ON notifications (user)",
+        "CREATE INDEX idx_notifications_read ON notifications (read)",
+        "CREATE INDEX idx_notifications_created ON notifications (created DESC)"
+      ]
+    },
+    {
+      "name": "requisition_change_requests",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.id != ''",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.profile = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "requisition",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "requisitions"
+        },
+        {
+          "name": "solicitante",
+          "type": "relation",
+          "required": true,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "campos_alterados",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "valores_propostos",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "justificativa",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Pendente", "Aprovada", "Reprovada"]
+        },
+        {
+          "name": "decisao_comentario",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "decidido_por",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "users"
+        },
+        {
+          "name": "decidido_em",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": [
+        "CREATE INDEX idx_change_requests_requisition ON requisition_change_requests (requisition)",
+        "CREATE INDEX idx_change_requests_status ON requisition_change_requests (status)",
+        "CREATE INDEX idx_change_requests_created ON requisition_change_requests (created DESC)"
       ]
     }
   ]

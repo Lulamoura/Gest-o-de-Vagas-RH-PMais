@@ -1,90 +1,70 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
-import { getRequisitions, deleteRequisition } from '@/services/requisitions'
-import { getClientes } from '@/services/clientes'
-import { getCargos } from '@/services/cargos'
-import { RequisitionRecord, ClienteRecord, CargoRecord } from '@/types'
+import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Loader2, Search, Copy, Eye, Pencil, Plus, Layers, Layers3, BarChart2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
-import { formatDateBR, toDateInputValue } from '@/lib/status-utils'
-import {
-  DEPARTAMENTO_LABELS,
-  REQUISITION_STATUS_BADGE,
-  DEPARTAMENTO_OPTIONS,
-} from '@/lib/requisition-utils'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   Select,
-  SelectTrigger,
-  SelectValue,
   SelectContent,
   SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from '@/components/ui/select'
 import {
   Table,
-  TableHeader,
-  TableRow,
-  TableHead,
   TableBody,
   TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from '@/components/ui/table'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { toast } from 'sonner'
-import { PlusCircle, Search, Eye, Pencil, Trash2, Filter, XCircle, Building2 } from 'lucide-react'
+import { getPriorityBadgeClass, getVacancyStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
+import { getRequisitions } from '@/services/requisitions'
+import { getClientes } from '@/services/clientes'
+import { getCargos } from '@/services/cargos'
+import type { RequisitionRecord, ClienteRecord, CargoRecord } from '@/types'
+import { cn } from '@/lib/utils'
+
+const statusLabels: Record<string, string> = {
+  Rascunho: 'Rascunho',
+  'Aguardando aprovação': 'Aguardando Aprovação',
+  'Em análise': 'Em Análise',
+  Aprovada: 'Aprovada',
+  Reprovada: 'Reprovada',
+  Cancelada: 'Cancelada',
+}
 
 export default function Requisitions() {
-  const { user, isSuperAdmin, isAdmin } = useAuth()
-  const [searchParams, setSearchParams] = useSearchParams()
+  const navigate = useNavigate()
+  const { user } = useAuth()
   const [requisitions, setRequisitions] = useState<RequisitionRecord[]>([])
   const [clientes, setClientes] = useState<ClienteRecord[]>([])
   const [cargos, setCargos] = useState<CargoRecord[]>([])
   const [loading, setLoading] = useState(true)
-  const [deleteTarget, setDeleteTarget] = useState<RequisitionRecord | null>(null)
-  const [deleting, setDeleting] = useState(false)
-  const deletingRef = useRef(false)
+  const [search, setSearch] = useState('')
+  const [fStatus, setFStatus] = useState('all')
+  const [fDepartamento, setFDepartamento] = useState('all')
+  const [fCliente, setFCliente] = useState('all')
+  const [fCargo, setFCargo] = useState('all')
+  const [fNumeroOe, setFNumeroOe] = useState('')
+  const [fDateFrom, setFDateFrom] = useState('')
+  const [fDateTo, setFDateTo] = useState('')
+  const [groupByOe, setGroupByOe] = useState(false)
 
-  const search = searchParams.get('q') || ''
-  const statusFilter = searchParams.get('status') || 'ALL'
-  const departamentoFilter = searchParams.get('departamento') || 'ALL'
-  const clienteFilter = searchParams.get('cliente') || 'ALL'
-  const cargoFilter = searchParams.get('cargo') || 'ALL'
-  const dateFrom = searchParams.get('from') || ''
-  const dateTo = searchParams.get('to') || ''
-
-  const canCreate =
-    user?.profile === 'operator' || user?.profile === 'admin' || user?.profile === 'superadmin'
-
-  const updateParam = (key: string, value: string) => {
-    const next = new URLSearchParams(searchParams)
-    if (value && value !== 'ALL') next.set(key, value)
-    else next.delete(key)
-    setSearchParams(next, { replace: true })
-  }
+  const canCreate = ['operator', 'admin', 'superadmin'].includes(user?.profile || '')
 
   const loadData = async () => {
     try {
-      const [reqData, clData, cgData] = await Promise.all([
-        getRequisitions(),
-        getClientes(),
-        getCargos(),
-      ])
-      setRequisitions(reqData)
-      setClientes(clData)
-      setCargos(cgData)
+      const [reqs, cli, car] = await Promise.all([getRequisitions(), getClientes(), getCargos()])
+      setRequisitions(reqs)
+      setClientes(cli)
+      setCargos(car)
     } catch {
-      toast.error('Erro ao carregar requisições')
+      /* ignore */
     } finally {
       setLoading(false)
     }
@@ -99,141 +79,172 @@ export default function Requisitions() {
 
   const filtered = useMemo(() => {
     return requisitions.filter((r) => {
-      const solicitanteNome = r.expand?.solicitante?.name || ''
-      const clienteNome = r.expand?.cliente?.nome || ''
-      const cargoNome = r.expand?.cargo?.nome || ''
-      const matchesSearch =
-        !search ||
-        solicitanteNome.toLowerCase().includes(search.toLowerCase()) ||
-        clienteNome.toLowerCase().includes(search.toLowerCase()) ||
-        cargoNome.toLowerCase().includes(search.toLowerCase())
-      const matchesStatus = statusFilter === 'ALL' || r.status === statusFilter
-      const matchesDepto = departamentoFilter === 'ALL' || r.departamento === departamentoFilter
-      const matchesCliente = clienteFilter === 'ALL' || r.cliente === clienteFilter
-      const matchesCargo = cargoFilter === 'ALL' || r.cargo === cargoFilter
-      const createdDate = r.created ? new Date(r.created) : null
-      const matchesFrom = !dateFrom || (createdDate && createdDate >= new Date(dateFrom))
-      const matchesTo = !dateTo || (createdDate && createdDate <= new Date(dateTo + 'T23:59:59'))
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesDepto &&
-        matchesCliente &&
-        matchesCargo &&
-        matchesFrom &&
-        matchesTo
-      )
+      const s = search.toLowerCase()
+      if (s) {
+        const matches =
+          (r.numero_oe || '').toLowerCase().includes(s) ||
+          (r.expand?.cliente?.nome || '').toLowerCase().includes(s) ||
+          (r.expand?.cargo?.nome || '').toLowerCase().includes(s) ||
+          (r.expand?.solicitante?.name || '').toLowerCase().includes(s)
+        if (!matches) return false
+      }
+      if (fStatus !== 'all' && r.status !== fStatus) return false
+      if (fDepartamento !== 'all' && r.departamento !== fDepartamento) return false
+      if (fCliente !== 'all' && r.cliente !== fCliente) return false
+      if (fCargo !== 'all' && r.cargo !== fCargo) return false
+      if (fNumeroOe && !(r.numero_oe || '').toLowerCase().includes(fNumeroOe.toLowerCase()))
+        return false
+      if (fDateFrom && new Date(r.created) < new Date(fDateFrom)) return false
+      if (fDateTo && new Date(r.created) > new Date(fDateTo + 'T23:59:59')) return false
+      return true
     })
   }, [
     requisitions,
     search,
-    statusFilter,
-    departamentoFilter,
-    clienteFilter,
-    cargoFilter,
-    dateFrom,
-    dateTo,
+    fStatus,
+    fDepartamento,
+    fCliente,
+    fCargo,
+    fNumeroOe,
+    fDateFrom,
+    fDateTo,
   ])
 
-  const canEdit = (r: RequisitionRecord) => {
-    if (r.status !== 'Rascunho') return false
-    if (isAdmin || isSuperAdmin) return true
-    return r.solicitante === user?.id
-  }
-
-  const handleDelete = async () => {
-    if (!deleteTarget || deletingRef.current) return
-    deletingRef.current = true
-    setDeleting(true)
-    try {
-      await deleteRequisition(deleteTarget.id)
-      toast.success('Requisição excluída com sucesso!')
-      setDeleteTarget(null)
-      loadData()
-    } catch {
-      toast.error('Erro ao excluir requisição')
-    } finally {
-      deletingRef.current = false
-      setDeleting(false)
+  const grouped = useMemo(() => {
+    if (!groupByOe) return null
+    const map = new Map<string, RequisitionRecord[]>()
+    for (const r of filtered) {
+      const key = r.numero_oe || 'Sem OE'
+      const arr = map.get(key) || []
+      arr.push(r)
+      map.set(key, arr)
     }
-  }
+    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+  }, [filtered, groupByOe])
 
-  const clearFilters = () => setSearchParams({}, { replace: true })
+  const canEdit = (r: RequisitionRecord) =>
+    r.status === 'Rascunho' &&
+    (user?.id === r.solicitante || ['admin', 'superadmin'].includes(user?.profile || ''))
+
+  const renderRow = (r: RequisitionRecord) => (
+    <TableRow key={r.id}>
+      <TableCell className="font-medium">{r.numero_oe || '-'}</TableCell>
+      <TableCell>
+        <Badge className={getVacancyStatusBadgeClass(r.status)}>
+          {statusLabels[r.status] || r.status}
+        </Badge>
+      </TableCell>
+      <TableCell className="capitalize">{r.departamento || '-'}</TableCell>
+      <TableCell>{r.expand?.cliente?.nome || '-'}</TableCell>
+      <TableCell>{r.expand?.cargo?.nome || '-'}</TableCell>
+      <TableCell className="text-center">{r.quantidade_vagas || 0}</TableCell>
+      <TableCell>
+        <Badge className={getPriorityBadgeClass(r.prioridade || '')}>{r.prioridade || '-'}</Badge>
+      </TableCell>
+      <TableCell>{r.prazo_desejado ? formatDateBR(r.prazo_desejado) : '-'}</TableCell>
+      <TableCell>{r.expand?.solicitante?.name || '-'}</TableCell>
+      <TableCell>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/requisicoes/${r.id}`)}
+            title="Visualizar"
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+          {canEdit(r) && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(`/requisicoes/${r.id}/editar`)}
+              title="Editar"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          )}
+          {canCreate && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate(`/requisicoes/nova?duplicate=${r.id}`)}
+              title="Duplicar"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </TableCell>
+    </TableRow>
+  )
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600" />
+      <div className="flex items-center justify-center p-8">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
       </div>
     )
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-xl font-bold text-slate-900">Requisições de Vagas</h2>
-          <p className="text-xs text-slate-500">Crie e acompanhe requisições de vagas internas</p>
-        </div>
-        {canCreate && (
-          <Button asChild className="bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm">
-            <Link to="/requisicoes/nova">
-              <PlusCircle className="h-4 w-4 mr-2" /> Nova Requisição
-            </Link>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold">Requisições de Vagas</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/requisicoes/indicadores')}>
+            <BarChart2 className="h-4 w-4 mr-2" /> Indicadores
           </Button>
-        )}
+          {canCreate && (
+            <Button onClick={() => navigate('/requisicoes/nova')}>
+              <Plus className="h-4 w-4 mr-2" /> Nova Requisição
+            </Button>
+          )}
+        </div>
       </div>
 
-      <Card className="border-slate-200 shadow-2xs">
-        <CardContent className="p-4 space-y-3">
-          <div className="flex items-center space-x-2 pb-2 border-b border-slate-100">
-            <Filter className="h-4 w-4 text-slate-500" />
-            <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">
-              Filtros
-            </span>
+      <Card>
+        <CardContent className="pt-6 space-y-4">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Buscar por OE, cliente, cargo, solicitante..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Buscar..."
-                value={search}
-                onChange={(e) => updateParam('q', e.target.value)}
-                className="pl-9 h-9 text-xs"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={(v) => updateParam('status', v)}>
-              <SelectTrigger className="h-9 text-xs">
+          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-2">
+            <Select value={fStatus} onValueChange={setFStatus}>
+              <SelectTrigger>
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">Todos os Status</SelectItem>
+                <SelectItem value="all">Todos os status</SelectItem>
                 <SelectItem value="Rascunho">Rascunho</SelectItem>
-                <SelectItem value="Aguardando aprovação">Aguardando aprovação</SelectItem>
+                <SelectItem value="Aguardando aprovação">Aguardando Aprovação</SelectItem>
+                <SelectItem value="Em análise">Em Análise</SelectItem>
+                <SelectItem value="Aprovada">Aprovada</SelectItem>
+                <SelectItem value="Reprovada">Reprovada</SelectItem>
+                <SelectItem value="Cancelada">Cancelada</SelectItem>
               </SelectContent>
             </Select>
-            <Select
-              value={departamentoFilter}
-              onValueChange={(v) => updateParam('departamento', v)}
-            >
-              <SelectTrigger className="h-9 text-xs">
-                <SelectValue placeholder="Departamento" />
+            <Select value={fDepartamento} onValueChange={setFDepartamento}>
+              <SelectTrigger>
+                <SelectValue placeholder="Depto" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">Todos os Departamentos</SelectItem>
-                {DEPARTAMENTO_OPTIONS.map((d) => (
-                  <SelectItem key={d.value} value={d.value}>
-                    {d.label}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">Todos os deptos</SelectItem>
+                <SelectItem value="comercial">Comercial</SelectItem>
+                <SelectItem value="operacional">Operacional</SelectItem>
+                <SelectItem value="rh">RH</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={clienteFilter} onValueChange={(v) => updateParam('cliente', v)}>
-              <SelectTrigger className="h-9 text-xs">
+            <Select value={fCliente} onValueChange={setFCliente}>
+              <SelectTrigger>
                 <SelectValue placeholder="Cliente" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">Todos os Clientes</SelectItem>
+                <SelectItem value="all">Todos os clientes</SelectItem>
                 {clientes.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.nome}
@@ -241,12 +252,12 @@ export default function Requisitions() {
                 ))}
               </SelectContent>
             </Select>
-            <Select value={cargoFilter} onValueChange={(v) => updateParam('cargo', v)}>
-              <SelectTrigger className="h-9 text-xs">
+            <Select value={fCargo} onValueChange={setFCargo}>
+              <SelectTrigger>
                 <SelectValue placeholder="Cargo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="ALL">Todos os Cargos</SelectItem>
+                <SelectItem value="all">Todos os cargos</SelectItem>
                 {cargos.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.nome}
@@ -255,214 +266,87 @@ export default function Requisitions() {
               </SelectContent>
             </Select>
             <Input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => updateParam('from', e.target.value)}
-              className="h-9 text-xs"
-              placeholder="De"
+              placeholder="Número da OE"
+              value={fNumeroOe}
+              onChange={(e) => setFNumeroOe(e.target.value)}
             />
-            <Input
-              type="date"
-              value={dateTo}
-              onChange={(e) => updateParam('to', e.target.value)}
-              className="h-9 text-xs"
-              placeholder="Até"
-            />
+            <Input type="date" value={fDateFrom} onChange={(e) => setFDateFrom(e.target.value)} />
+            <Input type="date" value={fDateTo} onChange={(e) => setFDateTo(e.target.value)} />
           </div>
-          {searchParams.toString() && (
-            <div className="flex justify-end pt-1">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={clearFilters}
-                className="text-xs text-rose-600 hover:text-rose-700 h-7"
-              >
-                <XCircle className="h-3.5 w-3.5 mr-1" /> Limpar Filtros
-              </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={groupByOe ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setGroupByOe(!groupByOe)}
+            >
+              {groupByOe ? (
+                <Layers3 className="h-4 w-4 mr-1" />
+              ) : (
+                <Layers className="h-4 w-4 mr-1" />
+              )}
+              Agrupar por Número da OE
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          {filtered.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">Nenhuma requisição encontrada</p>
+          ) : groupByOe && grouped ? (
+            <div className="space-y-6">
+              {grouped.map(([oe, items]) => (
+                <div key={oe}>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Badge variant="secondary" className="text-sm">
+                      OE: {oe}
+                    </Badge>
+                    <span className="text-sm text-muted-foreground">
+                      {items.length} requisição(ões)
+                    </span>
+                  </div>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nº OE</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Depto</TableHead>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Cargo</TableHead>
+                        <TableHead className="text-center">Qtd</TableHead>
+                        <TableHead>Prioridade</TableHead>
+                        <TableHead>Prazo</TableHead>
+                        <TableHead>Solicitante</TableHead>
+                        <TableHead>Ações</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>{items.map(renderRow)}</TableBody>
+                  </Table>
+                </div>
+              ))}
             </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nº OE</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Depto</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Cargo</TableHead>
+                  <TableHead className="text-center">Qtd</TableHead>
+                  <TableHead>Prioridade</TableHead>
+                  <TableHead>Prazo</TableHead>
+                  <TableHead>Solicitante</TableHead>
+                  <TableHead>Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>{filtered.map(renderRow)}</TableBody>
+            </Table>
           )}
         </CardContent>
       </Card>
-
-      <Card className="border-slate-200 shadow-2xs hidden md:block">
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader className="bg-slate-50">
-              <TableRow>
-                <TableHead className="text-xs font-semibold text-slate-600">Solicitante</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Depto</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">
-                  Cliente / Cargo
-                </TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Vagas</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Prazo</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600">Criado em</TableHead>
-                <TableHead className="text-xs font-semibold text-slate-600 text-right">
-                  Ações
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-slate-500 text-sm">
-                    Nenhuma requisição encontrada.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((r) => (
-                  <TableRow key={r.id} className="hover:bg-slate-50/80 transition-colors">
-                    <TableCell className="font-bold text-slate-900 text-sm">
-                      {r.expand?.solicitante?.name || '—'}
-                    </TableCell>
-                    <TableCell className="text-xs text-slate-600">
-                      {r.departamento ? DEPARTAMENTO_LABELS[r.departamento] : '—'}
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm font-medium text-slate-800">
-                        {r.expand?.cliente?.nome || '—'}
-                      </div>
-                      <div className="text-xs text-slate-500 flex items-center gap-1">
-                        <Building2 className="h-3 w-3" />
-                        {r.expand?.cargo?.nome || '—'}
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-xs font-semibold text-slate-800">
-                      {r.quantidade_vagas || 0}
-                    </TableCell>
-                    <TableCell className="text-xs text-slate-600">
-                      {formatDateBR(r.prazo_desejado)}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className={REQUISITION_STATUS_BADGE[r.status]}>
-                        {r.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs text-slate-600">
-                      {formatDateBR(r.created)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end space-x-1">
-                        <Button
-                          asChild
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-slate-600 hover:text-indigo-600"
-                          title="Visualizar"
-                        >
-                          <Link to={`/requisicoes/${r.id}`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button>
-                        {canEdit(r) && (
-                          <Button
-                            asChild
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-slate-600 hover:text-amber-600"
-                            title="Editar"
-                          >
-                            <Link to={`/requisicoes/${r.id}/editar`}>
-                              <Pencil className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                        )}
-                        {isSuperAdmin && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => setDeleteTarget(r)}
-                            className="h-8 w-8 text-slate-600 hover:text-rose-600"
-                            title="Excluir"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      <div className="md:hidden space-y-3">
-        {filtered.map((r) => (
-          <Card key={r.id} className="border-slate-200 shadow-2xs">
-            <CardContent className="p-4 space-y-2">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm">
-                    {r.expand?.solicitante?.name || '—'}
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    {r.expand?.cliente?.nome || '—'} • {r.expand?.cargo?.nome || '—'}
-                  </p>
-                </div>
-                <Badge variant="outline" className={REQUISITION_STATUS_BADGE[r.status]}>
-                  {r.status}
-                </Badge>
-              </div>
-              <div className="flex items-center gap-3 text-xs text-slate-600">
-                <span>
-                  Vagas: <strong>{r.quantidade_vagas || 0}</strong>
-                </span>
-                <span>
-                  Depto:{' '}
-                  <strong>{r.departamento ? DEPARTAMENTO_LABELS[r.departamento] : '—'}</strong>
-                </span>
-                <span>
-                  Criado: <strong>{formatDateBR(r.created)}</strong>
-                </span>
-              </div>
-              <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
-                <Button asChild variant="outline" size="sm" className="flex-1 text-xs">
-                  <Link to={`/requisicoes/${r.id}`}>Ver</Link>
-                </Button>
-                {canEdit(r) && (
-                  <Button asChild variant="outline" size="sm" className="flex-1 text-xs">
-                    <Link to={`/requisicoes/${r.id}/editar`}>Editar</Link>
-                  </Button>
-                )}
-                {isSuperAdmin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setDeleteTarget(r)}
-                    className="text-xs border-rose-200 text-rose-700"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Requisição</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-rose-600 hover:bg-rose-500 text-white"
-            >
-              {deleting ? 'Excluindo...' : 'Confirmar'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

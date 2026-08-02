@@ -20,8 +20,10 @@ import {
   Mail,
   ClipboardCheck,
   ClipboardList,
+  TrendingUp,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { NotificationCenter } from '@/components/NotificationCenter'
 
 export function Layout() {
   const { user, isAdmin, isSuperAdmin, signOut } = useAuth()
@@ -34,6 +36,7 @@ export function Layout() {
     { label: 'Vagas', path: '/vagas', icon: Briefcase },
     { label: 'Candidatos', path: '/candidatos', icon: Users },
     { label: 'Requisições', path: '/requisicoes', icon: ClipboardList },
+    { label: 'Indicadores', path: '/requisicoes/indicadores', icon: TrendingUp },
     { label: 'Integração', path: '/integracao', icon: ClipboardCheck },
     ...(isAdmin || isSuperAdmin ? [{ label: 'Usuários', path: '/usuarios', icon: UserCheck }] : []),
     ...(isAdmin || isSuperAdmin
@@ -265,14 +268,7 @@ export function Layout() {
               PMais RH Ativo
             </div>
 
-            <Button
-              variant="ghost"
-              size="icon"
-              className="text-slate-500 hover:text-slate-900 relative"
-            >
-              <Bell className="h-5 w-5" />
-              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-indigo-600" />
-            </Button>
+            <NotificationCenter />
 
             <div className="h-6 w-[1px] bg-slate-200 hidden sm:block" />
 

@@ -26,6 +26,7 @@ import CandidateIntegrationView from './pages/CandidateIntegrationView'
 import Requisitions from './pages/Requisitions'
 import RequisitionWizard from './pages/RequisitionWizard'
 import RequisitionDetail from './pages/RequisitionDetail'
+import RequisitionIndicators from './pages/RequisitionIndicators'
 import NotFound from './pages/NotFound'
 import Layout from './components/Layout'
 
@@ -51,6 +52,7 @@ const App = () => (
                 <Route path="/candidatos/:id" element={<CandidateDetail />} />
                 <Route path="/requisicoes" element={<Requisitions />} />
                 <Route path="/requisicoes/nova" element={<RequisitionWizard />} />
+                <Route path="/requisicoes/indicadores" element={<RequisitionIndicators />} />
                 <Route path="/requisicoes/:id" element={<RequisitionDetail />} />
                 <Route path="/requisicoes/:id/editar" element={<RequisitionWizard />} />
                 <Route path="/integracao" element={<GestaoIntegracao />} />
