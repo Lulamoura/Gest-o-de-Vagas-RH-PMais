@@ -33,6 +33,34 @@ routerAdd(
     var acao = ''
 
     if (newStatus === 'Aguardando aprovação' && oldStatus === 'Rascunho' && isSolicitante) {
+      var requiredFields = [
+        'cliente',
+        'cargo',
+        'cidade',
+        'tipo_vaga',
+        'tipo_contrato',
+        'departamento',
+        'prazo_desejado',
+        'prioridade',
+        'faixa_salarial',
+        'justificativa',
+        'especificacoes',
+        'numero_oe',
+      ]
+      var missingFields = []
+      for (var j = 0; j < requiredFields.length; j++) {
+        var val = req.getString(requiredFields[j])
+        if (!val || val === '') {
+          missingFields.push(requiredFields[j])
+        }
+      }
+      var qtdVagas = req.getInt('quantidade_vagas')
+      if (qtdVagas < 1) {
+        missingFields.push('quantidade_vagas')
+      }
+      if (missingFields.length > 0) {
+        return e.badRequestError('Campos obrigatórios não preenchidos: ' + missingFields.join(', '))
+      }
       allowed = true
       acao = 'Envio para aprovação'
     } else if (

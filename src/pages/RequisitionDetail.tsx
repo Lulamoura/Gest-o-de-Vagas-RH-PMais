@@ -12,6 +12,7 @@ import {
   Send,
   Globe,
   Edit3,
+  Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
@@ -33,7 +34,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { ChangeRequestDialog } from '@/components/ChangeRequestDialog'
 import { RequisitionChangeRequests } from '@/components/RequisitionChangeRequests'
 import { getPriorityBadgeClass, formatDateBR } from '@/lib/status-utils'
-import { getRequisition, changeRequisitionStatus } from '@/services/requisitions'
+import { getRequisition, changeRequisitionStatus, deleteRequisition } from '@/services/requisitions'
 import { RequisitionHistory } from '@/components/RequisitionHistory'
 import { RequisitionComments } from '@/components/RequisitionComments'
 import { RequisitionAttachments } from '@/components/RequisitionAttachments'
@@ -44,6 +45,7 @@ import {
   getMissingApprovalFields,
 } from '@/lib/requisition-utils'
 import type { RequisitionRecord } from '@/types'
+import { cn } from '@/lib/utils'
 
 export default function RequisitionDetail() {
   const { id } = useParams()
@@ -56,6 +58,8 @@ export default function RequisitionDetail() {
   const [rejectReason, setRejectReason] = useState('')
   const [showCancel, setShowCancel] = useState(false)
   const [showChangeRequest, setShowChangeRequest] = useState(false)
+  const [showDelete, setShowDelete] = useState(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   const loadReq = useCallback(async () => {
     if (!id) return
@@ -91,6 +95,21 @@ export default function RequisitionDetail() {
   const canSubmitForApproval = missingApprovalFields.length === 0
   const canEdit = req.status === 'Rascunho' && (isSolicitante || isAdmin)
   const canCreate = ['operator', 'admin', 'superadmin'].includes(user?.profile || '')
+  const canDeleteReq = user?.profile === 'superadmin'
+
+  const handleDelete = async () => {
+    if (!id) return
+    setDeleteLoading(true)
+    try {
+      await deleteRequisition(id)
+      toast.success('Requisição excluída com sucesso!')
+      navigate('/requisicoes')
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao excluir requisição')
+    } finally {
+      setDeleteLoading(false)
+    }
+  }
 
   const handleChange = async (status: string, obs?: string) => {
     if (!id) return
@@ -105,6 +124,20 @@ export default function RequisitionDetail() {
       setActionLoading(false)
     }
   }
+
+  const REQUIRED_LABELS = new Set([
+    'Número da OE',
+    'Departamento',
+    'Cliente',
+    'Cargo',
+    'Cidade',
+    'Tipo de Vaga',
+    'Tipo de Contrato',
+    'Qtd. Vagas',
+    'Prazo',
+    'Prioridade',
+    'Faixa Salarial',
+  ])
 
   const fields: [string, string | undefined][] = [
     ['Número da OE', req.numero_oe],
@@ -176,6 +209,15 @@ export default function RequisitionDetail() {
               <Edit3 className="h-4 w-4 mr-2" /> Solicitar Alteração
             </Button>
           )}
+          {canDeleteReq && (
+            <Button
+              variant="outline"
+              onClick={() => setShowDelete(true)}
+              className="text-rose-600 border-rose-300 hover:bg-rose-50"
+            >
+              <Trash2 className="h-4 w-4 mr-2" /> Excluir
+            </Button>
+          )}
         </div>
       </div>
 
@@ -240,12 +282,26 @@ export default function RequisitionDetail() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {fields.map(([label, value]) => (
-              <div key={label} className="border-b pb-2">
-                <p className="text-sm text-muted-foreground">{label}</p>
-                <p className="font-medium">{value || '-'}</p>
-              </div>
-            ))}
+            {fields.map(([label, value]) => {
+              const isMissing =
+                req.status === 'Rascunho' && REQUIRED_LABELS.has(label) && (!value || value === '0')
+              return (
+                <div key={label} className={cn('border-b pb-2', isMissing && 'border-rose-300')}>
+                  <p
+                    className={cn(
+                      'text-sm',
+                      isMissing ? 'text-rose-500 font-medium' : 'text-muted-foreground',
+                    )}
+                  >
+                    {label}
+                    {isMissing && ' *'}
+                  </p>
+                  <p className={cn('font-medium', isMissing && 'text-rose-500')}>
+                    {value || (isMissing ? '— Pendente' : '-')}
+                  </p>
+                </div>
+              )
+            })}
           </div>
         </CardContent>
       </Card>
@@ -277,6 +333,24 @@ export default function RequisitionDetail() {
           </CardHeader>
           <CardContent>
             <p className="text-sm whitespace-pre-wrap">{req.observacoes_internas}</p>
+          </CardContent>
+        </Card>
+      )}
+      {req.status === 'Rascunho' && (!req.justificativa || !req.especificacoes) && (
+        <Card className="border-rose-200 bg-rose-50/50">
+          <CardContent className="pt-6">
+            <div className="space-y-1">
+              {!req.justificativa && (
+                <p className="text-sm text-rose-600 font-medium">
+                  • Justificativa é obrigatória para envio à aprovação
+                </p>
+              )}
+              {!req.especificacoes && (
+                <p className="text-sm text-rose-600 font-medium">
+                  • Especificações são obrigatórias para envio à aprovação
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
       )}
@@ -352,6 +426,18 @@ export default function RequisitionDetail() {
         onOpenChange={setShowChangeRequest}
         requisitionId={req.id}
         solicitanteId={user?.id || ''}
+      />
+
+      <ConfirmDialog
+        open={showDelete}
+        onOpenChange={setShowDelete}
+        title="Excluir Requisição"
+        description="Deseja realmente excluir esta requisição? Esta ação não pode ser desfeita e todos os registros relacionados (histórico, comentários, anexos, notificações) serão removidos."
+        confirmText="Sim, Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+        loading={deleteLoading}
+        onConfirm={handleDelete}
       />
     </div>
   )

@@ -41,9 +41,16 @@ export function getMissingApprovalFields(req: Partial<RequisitionRecord>): strin
   const missing: string[] = []
   if (!req.cliente) missing.push('Cliente')
   if (!req.cargo) missing.push('Cargo')
+  if (!req.cidade) missing.push('Cidade')
+  if (!req.tipo_vaga) missing.push('Tipo de Vaga')
+  if (!req.tipo_contrato) missing.push('Tipo de Contrato')
   if (!req.departamento) missing.push('Departamento')
   if (!req.quantidade_vagas || req.quantidade_vagas < 1) missing.push('Quantidade de Vagas')
+  if (!req.prazo_desejado?.trim()) missing.push('Prazo Desejado')
+  if (!req.prioridade?.trim()) missing.push('Prioridade')
+  if (!req.faixa_salarial?.trim()) missing.push('Faixa Salarial')
   if (!req.justificativa?.trim()) missing.push('Justificativa')
+  if (!req.especificacoes?.trim()) missing.push('Especificações')
   if (!req.numero_oe?.trim()) missing.push('Número da OE')
   return missing
 }

@@ -169,18 +169,34 @@ export default function RequisitionWizard() {
     const errs: Record<string, string> = {}
     if (!formData.justificativa.trim()) errs.justificativa = 'Justificativa é obrigatória'
     if (forApproval) {
-      if (!formData.numero_oe.trim()) errs.numero_oe = 'Número da OE é obrigatório para envio ao RH'
+      if (!formData.numero_oe.trim()) errs.numero_oe = 'Número da OE é obrigatório'
       if (!formData.cliente) errs.cliente = 'Cliente é obrigatório'
       if (!formData.cargo) errs.cargo = 'Cargo é obrigatório'
+      if (!formData.cidade) errs.cidade = 'Cidade é obrigatória'
+      if (!formData.tipo_vaga) errs.tipo_vaga = 'Tipo de Vaga é obrigatório'
+      if (!formData.tipo_contrato) errs.tipo_contrato = 'Tipo de Contrato é obrigatório'
       if (!formData.departamento) errs.departamento = 'Departamento é obrigatório'
       if (!formData.quantidade_vagas || formData.quantidade_vagas < 1)
         errs.quantidade_vagas = 'Quantidade de vagas deve ser maior que zero'
+      if (!formData.prazo_desejado) errs.prazo_desejado = 'Prazo desejado é obrigatório'
+      if (!formData.prioridade) errs.prioridade = 'Prioridade é obrigatória'
+      if (!formData.faixa_salarial.trim()) errs.faixa_salarial = 'Faixa salarial é obrigatória'
+      if (!formData.especificacoes.trim()) errs.especificacoes = 'Especificações são obrigatórias'
     }
     setErrors(errs)
     if (Object.keys(errs).length > 0) {
-      if (errs.numero_oe || errs.cliente || errs.cargo || errs.departamento) setCurrentStep(0)
-      else if (errs.quantidade_vagas) setCurrentStep(1)
-      else if (errs.justificativa) setCurrentStep(2)
+      if (errs.numero_oe || errs.cliente || errs.cargo || errs.departamento || errs.cidade)
+        setCurrentStep(0)
+      else if (
+        errs.quantidade_vagas ||
+        errs.tipo_vaga ||
+        errs.tipo_contrato ||
+        errs.prazo_desejado ||
+        errs.prioridade ||
+        errs.faixa_salarial
+      )
+        setCurrentStep(1)
+      else if (errs.justificativa || errs.especificacoes) setCurrentStep(2)
       return false
     }
     return true
@@ -290,7 +306,7 @@ export default function RequisitionWizard() {
                 {fieldErr('departamento')}
               </div>
               <div>
-                <Label>Cliente</Label>
+                <Label>Cliente *</Label>
                 <Select value={formData.cliente} onValueChange={(v) => updateField('cliente', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
@@ -306,7 +322,7 @@ export default function RequisitionWizard() {
                 {fieldErr('cliente')}
               </div>
               <div>
-                <Label>Cargo</Label>
+                <Label>Cargo *</Label>
                 <Select value={formData.cargo} onValueChange={(v) => updateField('cargo', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
@@ -322,7 +338,7 @@ export default function RequisitionWizard() {
                 {fieldErr('cargo')}
               </div>
               <div>
-                <Label>Cidade</Label>
+                <Label>Cidade *</Label>
                 <Select value={formData.cidade} onValueChange={(v) => updateField('cidade', v)}>
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione" />
@@ -335,6 +351,7 @@ export default function RequisitionWizard() {
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldErr('cidade')}
               </div>
             </>
           )}
@@ -343,7 +360,7 @@ export default function RequisitionWizard() {
             <>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Tipo de Vaga</Label>
+                  <Label>Tipo de Vaga *</Label>
                   <Select
                     value={formData.tipo_vaga}
                     onValueChange={(v) => updateField('tipo_vaga', v)}
@@ -359,9 +376,10 @@ export default function RequisitionWizard() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldErr('tipo_vaga')}
                 </div>
                 <div>
-                  <Label>Tipo de Contrato</Label>
+                  <Label>Tipo de Contrato *</Label>
                   <Select
                     value={formData.tipo_contrato}
                     onValueChange={(v) => updateField('tipo_contrato', v)}
@@ -377,6 +395,7 @@ export default function RequisitionWizard() {
                       ))}
                     </SelectContent>
                   </Select>
+                  {fieldErr('tipo_contrato')}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -391,17 +410,18 @@ export default function RequisitionWizard() {
                   {fieldErr('quantidade_vagas')}
                 </div>
                 <div>
-                  <Label>Prazo Desejado</Label>
+                  <Label>Prazo Desejado *</Label>
                   <Input
                     type="date"
                     value={formData.prazo_desejado}
                     onChange={(e) => updateField('prazo_desejado', e.target.value)}
                   />
+                  {fieldErr('prazo_desejado')}
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Prioridade</Label>
+                  <Label>Prioridade *</Label>
                   <Select
                     value={formData.prioridade}
                     onValueChange={(v) => updateField('prioridade', v)}
@@ -415,14 +435,16 @@ export default function RequisitionWizard() {
                       <SelectItem value="Baixa">Baixa</SelectItem>
                     </SelectContent>
                   </Select>
+                  {fieldErr('prioridade')}
                 </div>
                 <div>
-                  <Label>Faixa Salarial</Label>
+                  <Label>Faixa Salarial *</Label>
                   <Input
                     value={formData.faixa_salarial}
                     onChange={(e) => updateField('faixa_salarial', e.target.value)}
                     placeholder="Ex: R$ 2.000 - R$ 3.000"
                   />
+                  {fieldErr('faixa_salarial')}
                 </div>
               </div>
             </>
@@ -440,12 +462,13 @@ export default function RequisitionWizard() {
                 {fieldErr('justificativa')}
               </div>
               <div>
-                <Label>Especificações</Label>
+                <Label>Especificações *</Label>
                 <Textarea
                   rows={4}
                   value={formData.especificacoes}
                   onChange={(e) => updateField('especificacoes', e.target.value)}
                 />
+                {fieldErr('especificacoes')}
               </div>
               <div>
                 <Label>Observações Internas</Label>
@@ -476,6 +499,7 @@ export default function RequisitionWizard() {
                 ['Prioridade', formData.prioridade],
                 ['Faixa Salarial', formData.faixa_salarial],
                 ['Justificativa', formData.justificativa],
+                ['Especificações', formData.especificacoes],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between border-b pb-2">
                   <span className="text-muted-foreground">{label}</span>

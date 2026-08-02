@@ -22,8 +22,12 @@ export const createUser = async (data: {
   })
 }
 
-export const updateUser = async (id: string, data: Partial<UserRecord>) => {
-  return pb.collection<UserRecord>('users').update(id, data)
+export const updateUser = async (
+  id: string,
+  data: Partial<UserRecord>,
+  params?: { expand?: string },
+) => {
+  return pb.collection<UserRecord>('users').update(id, data, params)
 }
 
 export const deleteUser = async (id: string) => {

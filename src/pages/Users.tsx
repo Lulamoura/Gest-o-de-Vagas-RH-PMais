@@ -37,6 +37,7 @@ import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/poc
 import { toast } from 'sonner'
 import { UserCheck, PlusCircle, Pencil, Trash2, Shield } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { useRealtime } from '@/hooks/use-realtime'
 
 export default function Users() {
   const { canManageUsers, isSuperAdmin } = useAuth()
@@ -81,6 +82,26 @@ export default function Users() {
     loadData()
   }, [canManageUsers])
 
+  useRealtime(
+    'departamentos',
+    () => {
+      getDepartamentos()
+        .then(setDepartamentos)
+        .catch(() => {})
+    },
+    canManageUsers,
+  )
+
+  useRealtime(
+    'users',
+    () => {
+      getUsers()
+        .then(setUsersList)
+        .catch(() => {})
+    },
+    canManageUsers,
+  )
+
   if (!canManageUsers) {
     return <Navigate to="/dashboard" replace />
   }
@@ -107,6 +128,10 @@ export default function Users() {
     setModalOpen(true)
   }
 
+  const handleSelectDepartamento = (val: string) => {
+    setDepartamento(val)
+  }
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim() || !email.trim()) {
@@ -120,9 +145,14 @@ export default function Users() {
     }
 
     setSaving(true)
+    setFieldErrors({})
     try {
       if (editingUser) {
-        await updateUser(editingUser.id, { name, profile, departamento })
+        const updateData: Record<string, any> = { name, profile }
+        if (isSuperAdmin) {
+          updateData.departamento = departamento || null
+        }
+        await updateUser(editingUser.id, updateData, { expand: 'departamento' })
         toast.success('Usuário atualizado com sucesso!')
       } else {
         if (!password) {
@@ -137,7 +167,8 @@ export default function Users() {
       loadData()
     } catch (err) {
       setFieldErrors(extractFieldErrors(err))
-      toast.error(getErrorMessage(err))
+      const errMsg = getErrorMessage(err)
+      toast.error(errMsg || 'Erro ao salvar usuário. Verifique os campos e tente novamente.')
     } finally {
       setSaving(false)
     }
@@ -158,7 +189,7 @@ export default function Users() {
       setUserToDelete(null)
       loadData()
     } catch (err) {
-      toast.error('Erro ao excluir usuário')
+      toast.error(getErrorMessage(err) || 'Erro ao excluir usuário')
     } finally {
       setDeleting(false)
     }
@@ -192,6 +223,7 @@ export default function Users() {
                 <TableHead className="text-xs font-semibold text-slate-600">
                   Perfil / Permissão
                 </TableHead>
+                <TableHead className="text-xs font-semibold text-slate-600">Departamento</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600">Criado em</TableHead>
                 <TableHead className="text-xs font-semibold text-slate-600 text-right">
                   Ações
@@ -201,7 +233,7 @@ export default function Users() {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6">
+                  <TableCell colSpan={6} className="text-center py-6">
                     Carregando...
                   </TableCell>
                 </TableRow>
@@ -231,6 +263,9 @@ export default function Users() {
                               ? 'Operador'
                               : 'Visualizador'}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-600">
+                      {u.expand?.departamento?.nome || '-'}
                     </TableCell>
                     <TableCell className="text-xs text-slate-500">
                       {formatDateBR(u.created)}
@@ -335,7 +370,11 @@ export default function Users() {
 
             <div className="space-y-1.5">
               <Label className="text-xs font-bold text-slate-700">Departamento</Label>
-              <Select value={departamento} onValueChange={setDepartamento}>
+              <Select
+                value={departamento}
+                onValueChange={handleSelectDepartamento}
+                disabled={!isSuperAdmin}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione o departamento" />
                 </SelectTrigger>
@@ -347,6 +386,11 @@ export default function Users() {
                   ))}
                 </SelectContent>
               </Select>
+              {!isSuperAdmin && (
+                <p className="text-[11px] text-slate-500">
+                  Apenas Super Admin pode alterar o departamento.
+                </p>
+              )}
             </div>
 
             <DialogFooter className="pt-3">

@@ -309,5 +309,6 @@ export interface RequisitionRecord extends RecordModel {
     cidade?: CidadeRecord
     tipo_vaga?: TipoVagaRecord
     tipo_contrato?: TipoContratoRecord
+    departamento?: DepartamentoRecord
   }
 }

@@ -1,6 +1,17 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2, Search, Copy, Eye, Pencil, Plus, Layers, Layers3, BarChart2 } from 'lucide-react'
+import {
+  Loader2,
+  Search,
+  Copy,
+  Eye,
+  Pencil,
+  Plus,
+  Layers,
+  Layers3,
+  BarChart2,
+  Trash2,
+} from 'lucide-react'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Button } from '@/components/ui/button'
@@ -23,11 +34,14 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { getPriorityBadgeClass, getVacancyStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
-import { getRequisitions } from '@/services/requisitions'
+import { getRequisitions, deleteRequisition } from '@/services/requisitions'
 import { getClientes } from '@/services/clientes'
 import { getCargos } from '@/services/cargos'
-import type { RequisitionRecord, ClienteRecord, CargoRecord } from '@/types'
+import { getDepartamentos } from '@/services/departamentos'
+import type { RequisitionRecord, ClienteRecord, CargoRecord, DepartamentoRecord } from '@/types'
 import { cn } from '@/lib/utils'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { toast } from 'sonner'
 
 const statusLabels: Record<string, string> = {
   Rascunho: 'Rascunho',
@@ -44,7 +58,11 @@ export default function Requisitions() {
   const [requisitions, setRequisitions] = useState<RequisitionRecord[]>([])
   const [clientes, setClientes] = useState<ClienteRecord[]>([])
   const [cargos, setCargos] = useState<CargoRecord[]>([])
+  const [departamentos, setDepartamentos] = useState<DepartamentoRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [reqToDelete, setReqToDelete] = useState<RequisitionRecord | null>(null)
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [search, setSearch] = useState('')
   const [fStatus, setFStatus] = useState('all')
   const [fDepartamento, setFDepartamento] = useState('all')
@@ -56,13 +74,20 @@ export default function Requisitions() {
   const [groupByOe, setGroupByOe] = useState(false)
 
   const canCreate = ['operator', 'admin', 'superadmin'].includes(user?.profile || '')
+  const canDelete = user?.profile === 'superadmin'
 
   const loadData = async () => {
     try {
-      const [reqs, cli, car] = await Promise.all([getRequisitions(), getClientes(), getCargos()])
+      const [reqs, cli, car, depts] = await Promise.all([
+        getRequisitions(),
+        getClientes(),
+        getCargos(),
+        getDepartamentos(),
+      ])
       setRequisitions(reqs)
       setClientes(cli)
       setCargos(car)
+      setDepartamentos(depts)
     } catch {
       /* ignore */
     } finally {
@@ -126,6 +151,22 @@ export default function Requisitions() {
     r.status === 'Rascunho' &&
     (user?.id === r.solicitante || ['admin', 'superadmin'].includes(user?.profile || ''))
 
+  const handleConfirmDelete = async () => {
+    if (!reqToDelete) return
+    setDeleting(true)
+    try {
+      await deleteRequisition(reqToDelete.id)
+      toast.success('Requisição excluída com sucesso!')
+      setDeleteDialogOpen(false)
+      setReqToDelete(null)
+      loadData()
+    } catch {
+      toast.error('Erro ao excluir requisição')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const renderRow = (r: RequisitionRecord) => (
     <TableRow key={r.id}>
       <TableCell className="font-medium">{r.numero_oe || '-'}</TableCell>
@@ -134,7 +175,7 @@ export default function Requisitions() {
           {statusLabels[r.status] || r.status}
         </Badge>
       </TableCell>
-      <TableCell className="capitalize">{r.departamento || '-'}</TableCell>
+      <TableCell>{r.expand?.departamento?.nome || '-'}</TableCell>
       <TableCell>{r.expand?.cliente?.nome || '-'}</TableCell>
       <TableCell>{r.expand?.cargo?.nome || '-'}</TableCell>
       <TableCell className="text-center">{r.quantidade_vagas || 0}</TableCell>
@@ -171,6 +212,20 @@ export default function Requisitions() {
               title="Duplicar"
             >
               <Copy className="h-4 w-4" />
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setReqToDelete(r)
+                setDeleteDialogOpen(true)
+              }}
+              title="Excluir"
+              className="text-slate-600 hover:text-rose-600"
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
           )}
         </div>
@@ -234,9 +289,11 @@ export default function Requisitions() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todos os deptos</SelectItem>
-                <SelectItem value="comercial">Comercial</SelectItem>
-                <SelectItem value="operacional">Operacional</SelectItem>
-                <SelectItem value="rh">RH</SelectItem>
+                {departamentos.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
             <Select value={fCliente} onValueChange={setFCliente}>
@@ -347,6 +404,18 @@ export default function Requisitions() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Excluir Requisição"
+        description="Deseja realmente excluir esta requisição? Esta ação não pode ser desfeita e todos os registros relacionados (histórico, comentários, anexos, notificações) serão removidos."
+        confirmText="Sim, Excluir"
+        cancelText="Cancelar"
+        variant="destructive"
+        loading={deleting}
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }
