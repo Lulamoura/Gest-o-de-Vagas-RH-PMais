@@ -25,8 +25,9 @@ onRecordAfterUpdateSuccess((e) => {
     return
   } catch (_) {}
 
-  var emailDp = ''
-  var emailOperacional = ''
+  var emailDpLista = ''
+  var emailOperacionalLista = ''
+  var emailComercial = ''
   var senderName = 'PMais RH'
   var senderEmail = 'vagas@pmaisservicos.com.br'
   var sloganPmais = ''
@@ -35,17 +36,66 @@ onRecordAfterUpdateSuccess((e) => {
     var params = $app.findRecordsByFilter('system_parameters', '', 'created', 1, 0)
     if (params.length > 0) {
       var sp = params[0]
-      emailDp = sp.getString('email_dp') || ''
-      emailOperacional = sp.getString('email_operacional') || ''
+      emailDpLista = sp.getString('email_dp_lista') || sp.getString('email_dp') || ''
+      emailOperacionalLista =
+        sp.getString('email_operacional_lista') || sp.getString('email_operacional') || ''
+      emailComercial = sp.getString('email_comercial') || ''
       if (sp.getString('nome_remetente')) senderName = sp.getString('nome_remetente')
       if (sp.getString('email_remetente')) senderEmail = sp.getString('email_remetente')
       sloganPmais = sp.getString('slogan_pmais') || ''
     }
   } catch (_) {}
 
-  if (!emailDp && !emailOperacional) {
+  var dpEmails = emailDpLista
+    ? emailDpLista
+        .split(',')
+        .map(function (s) {
+          return s.trim()
+        })
+        .filter(function (s) {
+          return s.length > 0
+        })
+    : []
+  var opEmails = emailOperacionalLista
+    ? emailOperacionalLista
+        .split(',')
+        .map(function (s) {
+          return s.trim()
+        })
+        .filter(function (s) {
+          return s.length > 0
+        })
+    : []
+  var comEmails = emailComercial
+    ? emailComercial
+        .split(',')
+        .map(function (s) {
+          return s.trim()
+        })
+        .filter(function (s) {
+          return s.length > 0
+        })
+    : []
+
+  if (dpEmails.length === 0 && opEmails.length === 0 && comEmails.length === 0) {
     e.next()
     return
+  }
+
+  var toRecipients = []
+  var ccRecipients = []
+
+  if (dpEmails.length > 0) {
+    toRecipients.push(dpEmails[0])
+    for (var i = 1; i < dpEmails.length; i++) ccRecipients.push(dpEmails[i])
+  }
+  if (opEmails.length > 0) {
+    toRecipients.push(opEmails[0])
+    for (var j = 1; j < opEmails.length; j++) ccRecipients.push(opEmails[j])
+  }
+  if (comEmails.length > 0) {
+    toRecipients.push(comEmails[0])
+    for (var k = 1; k < comEmails.length; k++) ccRecipients.push(comEmails[k])
   }
 
   var candidateNome = record.getString('nome') || 'Candidato'
@@ -94,15 +144,21 @@ onRecordAfterUpdateSuccess((e) => {
       '</p>'
   }
 
-  var recipients = []
-  if (emailDp) recipients.push(emailDp)
-  if (emailOperacional) recipients.push(emailOperacional)
-
   var sendError = ''
   var resendKey = $secrets.get('RESEND_API_KEY')
 
-  if (resendKey && recipients.length > 0) {
+  if (resendKey && toRecipients.length > 0) {
     try {
+      var emailPayload = {
+        from: senderName + ' <' + senderEmail + '>',
+        to: toRecipients,
+        subject: subject,
+        html: bodyHtml,
+      }
+      if (ccRecipients.length > 0) {
+        emailPayload.cc = ccRecipients
+      }
+
       var res = $http.send({
         url: 'https://api.resend.com/emails',
         method: 'POST',
@@ -110,12 +166,7 @@ onRecordAfterUpdateSuccess((e) => {
           'Content-Type': 'application/json',
           Authorization: 'Bearer ' + resendKey,
         },
-        body: JSON.stringify({
-          from: senderName + ' <' + senderEmail + '>',
-          to: recipients,
-          subject: subject,
-          html: bodyHtml,
-        }),
+        body: JSON.stringify(emailPayload),
         timeout: 15,
       })
 

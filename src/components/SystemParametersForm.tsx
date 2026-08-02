@@ -12,6 +12,34 @@ import { useSystemParameters } from '@/hooks/use-system-parameters'
 import { toast } from 'sonner'
 import { Save, Trash2, Settings } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import type { FieldErrors } from '@/lib/pocketbase/errors'
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function validateCommaEmails(value: string): string | null {
+  if (!value.trim()) return null
+  const emails = value
+    .split(',')
+    .map((e) => e.trim())
+    .filter((e) => e.length > 0)
+  for (const email of emails) {
+    if (!EMAIL_REGEX.test(email)) {
+      return `E-mail inválido: ${email}`
+    }
+  }
+  return null
+}
+
+function validateSingleEmail(value: string): string | null {
+  if (!value.trim()) return null
+  if (value.includes(',')) {
+    return 'Apenas um e-mail é permitido neste campo.'
+  }
+  if (!EMAIL_REGEX.test(value.trim())) {
+    return 'E-mail inválido.'
+  }
+  return null
+}
 
 export function SystemParametersForm() {
   const { parameters, refresh } = useSystemParameters()
@@ -19,11 +47,12 @@ export function SystemParametersForm() {
   const [nomeRemetente, setNomeRemetente] = useState('')
   const [emailRemetente, setEmailRemetente] = useState('')
   const [sloganPmais, setSloganPmais] = useState('')
-  const [emailDp, setEmailDp] = useState('')
-  const [emailOperacional, setEmailOperacional] = useState('')
+  const [emailDpLista, setEmailDpLista] = useState('')
+  const [emailOperacionalLista, setEmailOperacionalLista] = useState('')
+  const [emailComercial, setEmailComercial] = useState('')
   const [saving, setSaving] = useState(false)
   const [recordId, setRecordId] = useState<string | null>(null)
-
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
@@ -33,25 +62,47 @@ export function SystemParametersForm() {
       setNomeRemetente(parameters.nome_remetente || '')
       setEmailRemetente(parameters.email_remetente || '')
       setSloganPmais(parameters.slogan_pmais || '')
-      setEmailDp(parameters.email_dp || '')
-      setEmailOperacional(parameters.email_operacional || '')
+      setEmailDpLista(parameters.email_dp_lista || parameters.email_dp || '')
+      setEmailOperacionalLista(
+        parameters.email_operacional_lista || parameters.email_operacional || '',
+      )
+      setEmailComercial(parameters.email_comercial || '')
       setRecordId(parameters.id)
     } else {
       setPrazoAlertaDias('30')
       setNomeRemetente('')
       setEmailRemetente('')
       setSloganPmais('')
-      setEmailDp('')
-      setEmailOperacional('')
+      setEmailDpLista('')
+      setEmailOperacionalLista('')
+      setEmailComercial('')
       setRecordId(null)
     }
   }, [parameters])
+
+  const validateAll = (): boolean => {
+    const errors: FieldErrors = {}
+    const senderErr = validateSingleEmail(emailRemetente)
+    if (senderErr) errors.email_remetente = senderErr
+    const dpErr = validateCommaEmails(emailDpLista)
+    if (dpErr) errors.email_dp_lista = dpErr
+    const opErr = validateCommaEmails(emailOperacionalLista)
+    if (opErr) errors.email_operacional_lista = opErr
+    const comErr = validateCommaEmails(emailComercial)
+    if (comErr) errors.email_comercial = comErr
+    setFieldErrors(errors)
+    return Object.keys(errors).length === 0
+  }
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault()
     const dias = parseInt(prazoAlertaDias, 10)
     if (isNaN(dias) || dias <= 0) {
       toast.error('Prazo em dias deve ser um número positivo.')
+      return
+    }
+    if (!validateAll()) {
+      toast.error('Corrija os campos inválidos antes de salvar.')
       return
     }
     setSaving(true)
@@ -61,8 +112,9 @@ export function SystemParametersForm() {
         nome_remetente: nomeRemetente,
         email_remetente: emailRemetente,
         slogan_pmais: sloganPmais,
-        email_dp: emailDp,
-        email_operacional: emailOperacional,
+        email_dp_lista: emailDpLista,
+        email_operacional_lista: emailOperacionalLista,
+        email_comercial: emailComercial,
       }
       if (recordId) {
         await updateSystemParameters(recordId, data)
@@ -88,8 +140,9 @@ export function SystemParametersForm() {
       setNomeRemetente('')
       setEmailRemetente('')
       setSloganPmais('')
-      setEmailDp('')
-      setEmailOperacional('')
+      setEmailDpLista('')
+      setEmailOperacionalLista('')
+      setEmailComercial('')
       toast.success('Parâmetros excluídos com sucesso.')
       setDeleteDialogOpen(false)
       refresh()
@@ -151,9 +204,20 @@ export function SystemParametersForm() {
             <Input
               type="email"
               value={emailRemetente}
-              onChange={(e) => setEmailRemetente(e.target.value)}
+              onChange={(e) => {
+                setEmailRemetente(e.target.value)
+                if (fieldErrors.email_remetente) {
+                  setFieldErrors((prev) => ({ ...prev, email_remetente: '' }))
+                }
+              }}
               placeholder="Ex: vagas@pmaisservicos.com.br"
             />
+            {fieldErrors.email_remetente && (
+              <p className="text-xs text-red-500">{fieldErrors.email_remetente}</p>
+            )}
+            <p className="text-xs text-slate-500">
+              Apenas um e-mail. Não aceita múltiplos destinatários.
+            </p>
           </div>
 
           <div className="space-y-1.5">
@@ -171,26 +235,63 @@ export function SystemParametersForm() {
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-slate-700">E-mail do DP</Label>
             <Input
-              type="email"
-              value={emailDp}
-              onChange={(e) => setEmailDp(e.target.value)}
-              placeholder="Ex: dp@pmaisservicos.com.br"
+              value={emailDpLista}
+              onChange={(e) => {
+                setEmailDpLista(e.target.value)
+                if (fieldErrors.email_dp_lista) {
+                  setFieldErrors((prev) => ({ ...prev, email_dp_lista: '' }))
+                }
+              }}
+              placeholder="Ex: dp@pmaisservicos.com.br, dp2@pmaisservicos.com.br"
             />
+            {fieldErrors.email_dp_lista && (
+              <p className="text-xs text-red-500">{fieldErrors.email_dp_lista}</p>
+            )}
             <p className="text-xs text-slate-500">
-              E-mail do time de DP para receber avisos de integração de candidatos.
+              E-mails separados por vírgula. O primeiro será destinatário principal e os demais em
+              cópia.
             </p>
           </div>
 
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-slate-700">E-mail do Operacional</Label>
             <Input
-              type="email"
-              value={emailOperacional}
-              onChange={(e) => setEmailOperacional(e.target.value)}
+              value={emailOperacionalLista}
+              onChange={(e) => {
+                setEmailOperacionalLista(e.target.value)
+                if (fieldErrors.email_operacional_lista) {
+                  setFieldErrors((prev) => ({ ...prev, email_operacional_lista: '' }))
+                }
+              }}
               placeholder="Ex: operacional@pmaisservicos.com.br"
             />
+            {fieldErrors.email_operacional_lista && (
+              <p className="text-xs text-red-500">{fieldErrors.email_operacional_lista}</p>
+            )}
             <p className="text-xs text-slate-500">
-              E-mail do time Operacional para receber avisos de integração de candidatos.
+              E-mails separados por vírgula. O primeiro será destinatário principal e os demais em
+              cópia.
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs font-bold text-slate-700">E-mail do comercial</Label>
+            <Input
+              value={emailComercial}
+              onChange={(e) => {
+                setEmailComercial(e.target.value)
+                if (fieldErrors.email_comercial) {
+                  setFieldErrors((prev) => ({ ...prev, email_comercial: '' }))
+                }
+              }}
+              placeholder="Ex: comercial@pmaisservicos.com.br"
+            />
+            {fieldErrors.email_comercial && (
+              <p className="text-xs text-red-500">{fieldErrors.email_comercial}</p>
+            )}
+            <p className="text-xs text-slate-500">
+              E-mails separados por vírgula. O primeiro será destinatário principal e os demais em
+              cópia.
             </p>
           </div>
 

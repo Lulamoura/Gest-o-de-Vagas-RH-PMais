@@ -15,6 +15,9 @@ export const createSystemParameters = (data: {
   slogan_pmais?: string
   email_dp?: string
   email_operacional?: string
+  email_dp_lista?: string
+  email_operacional_lista?: string
+  email_comercial?: string
 }) => pb.collection('system_parameters').create<SystemParameterRecord>(data)
 
 export const updateSystemParameters = (
@@ -26,6 +29,9 @@ export const updateSystemParameters = (
     slogan_pmais: string
     email_dp: string
     email_operacional: string
+    email_dp_lista: string
+    email_operacional_lista: string
+    email_comercial: string
   }>,
 ) => pb.collection('system_parameters').update<SystemParameterRecord>(id, data)
 

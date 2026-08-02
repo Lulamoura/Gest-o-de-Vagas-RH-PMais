@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import pb from '@/lib/pocketbase/client'
+import { getDepartamentos } from '@/services/departamentos'
 import { UserRecord } from '@/types'
 
 interface AuthContextType {
@@ -11,6 +12,7 @@ interface AuthContextType {
   isRH: boolean
   canEditVacancy: boolean
   canManageUsers: boolean
+  canIntegrateCandidate: boolean
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => void
   loading: boolean
@@ -30,6 +32,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   )
   const [isAuthenticated, setIsAuthenticated] = useState(pb.authStore.isValid)
   const [loading, setLoading] = useState(true)
+  const [dpDepartmentId, setDpDepartmentId] = useState<string | null>(null)
 
   useEffect(() => {
     const unsubscribe = pb.authStore.onChange((_token, record) => {
@@ -55,6 +58,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isAuthenticated) return
+    getDepartamentos()
+      .then((depts) => {
+        const dpDept = depts.find((d) => d.nome === 'DP')
+        if (dpDept) setDpDepartmentId(dpDept.id)
+      })
+      .catch(() => {})
+  }, [isAuthenticated])
+
   const signIn = async (email: string, password: string) => {
     try {
       const authData = await pb.collection('users').authWithPassword(email, password, {
@@ -72,6 +85,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     pb.authStore.clear()
     setUser(null)
     setIsAuthenticated(false)
+    setDpDepartmentId(null)
   }
 
   const isAdmin = user?.profile === 'admin'
@@ -80,6 +94,13 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isRH = user?.expand?.departamento?.nome === 'rh'
   const canEditVacancy = isAdmin || isSuperAdmin
   const canManageUsers = isAdmin || isSuperAdmin
+  const canIntegrateCandidate =
+    isAdmin ||
+    isSuperAdmin ||
+    (user?.profile === 'operator' &&
+      !!dpDepartmentId &&
+      !!user?.departamento &&
+      user.departamento === dpDepartmentId)
 
   return (
     <AuthContext.Provider
@@ -92,6 +113,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         isRH,
         canEditVacancy,
         canManageUsers,
+        canIntegrateCandidate,
         signIn,
         signOut,
         loading,
