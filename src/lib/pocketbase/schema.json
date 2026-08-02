@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-02T00:00:18.546Z",
+  "generatedAt": "2026-08-02T00:28:16.533Z",
   "collections": [
     {
       "name": "users",
@@ -47,10 +47,10 @@
         },
         {
           "name": "departamento",
-          "type": "select",
+          "type": "relation",
           "required": false,
           "system": false,
-          "selectValues": ["comercial", "operacional", "rh"]
+          "collectionRef": "departamentos"
         }
       ],
       "indexes": [
@@ -1204,13 +1204,6 @@
           "collectionRef": "users"
         },
         {
-          "name": "departamento",
-          "type": "select",
-          "required": false,
-          "system": false,
-          "selectValues": ["comercial", "operacional", "rh"]
-        },
-        {
           "name": "cliente",
           "type": "relation",
           "required": false,
@@ -1321,6 +1314,13 @@
             "Reprovada",
             "Cancelada"
           ]
+        },
+        {
+          "name": "departamento",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "departamentos"
         }
       ],
       "indexes": [

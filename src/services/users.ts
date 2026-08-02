@@ -4,6 +4,7 @@ import { UserRecord } from '@/types'
 export const getUsers = async () => {
   return pb.collection<UserRecord>('users').getFullList({
     sort: 'name',
+    expand: 'departamento',
   })
 }
 

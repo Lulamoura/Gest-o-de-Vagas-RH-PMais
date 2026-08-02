@@ -1,4 +1,4 @@
-import { RequisitionStatus, RequisitionDepartamento } from '@/types'
+import { RequisitionStatus, RequisitionDepartamento, RequisitionRecord } from '@/types'
 
 export const DEPARTAMENTO_LABELS: Record<RequisitionDepartamento, string> = {
   comercial: 'Comercial',
@@ -36,3 +36,14 @@ export const WIZARD_STEPS = [
   { num: 3, title: 'Justificativa' },
   { num: 4, title: 'Revisão' },
 ]
+
+export function getMissingApprovalFields(req: Partial<RequisitionRecord>): string[] {
+  const missing: string[] = []
+  if (!req.cliente) missing.push('Cliente')
+  if (!req.cargo) missing.push('Cargo')
+  if (!req.departamento) missing.push('Departamento')
+  if (!req.quantidade_vagas || req.quantidade_vagas < 1) missing.push('Quantidade de Vagas')
+  if (!req.justificativa?.trim()) missing.push('Justificativa')
+  if (!req.numero_oe?.trim()) missing.push('Número da OE')
+  return missing
+}

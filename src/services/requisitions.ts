@@ -1,7 +1,7 @@
 import pb from '@/lib/pocketbase/client'
 import { RequisitionRecord } from '@/types'
 
-const EXPAND = 'solicitante,cliente,cargo,cidade,tipo_vaga,tipo_contrato'
+const EXPAND = 'solicitante,cliente,cargo,cidade,tipo_vaga,tipo_contrato,departamento'
 
 export const getRequisitions = async () =>
   pb.collection<RequisitionRecord>('requisitions').getFullList({

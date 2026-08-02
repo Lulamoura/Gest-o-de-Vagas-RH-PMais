@@ -40,7 +40,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (pb.authStore.isValid) {
       pb.collection('users')
-        .authRefresh()
+        .authRefresh({ expand: 'departamento' })
         .then((res) => {
           setUser(res.record as unknown as UserRecord)
         })
@@ -57,7 +57,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const authData = await pb.collection('users').authWithPassword(email, password)
+      const authData = await pb.collection('users').authWithPassword(email, password, {
+        expand: 'departamento',
+      })
       setUser(authData.record as unknown as UserRecord)
       setIsAuthenticated(true)
       return { error: null }
@@ -75,7 +77,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAdmin = user?.profile === 'admin'
   const isOperator = user?.profile === 'operator' || isAdmin
   const isSuperAdmin = user?.profile === 'superadmin'
-  const isRH = user?.departamento === 'rh'
+  const isRH = user?.expand?.departamento?.nome === 'rh'
   const canEditVacancy = isAdmin || isSuperAdmin
   const canManageUsers = isAdmin || isSuperAdmin
 

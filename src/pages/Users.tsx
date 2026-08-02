@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { getUsers, createUser, updateUser, deleteUser } from '@/services/users'
-import { UserRecord, UserProfile } from '@/types'
+import { getDepartamentos } from '@/services/departamentos'
+import { UserRecord, UserProfile, DepartamentoRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { formatDateBR } from '@/lib/status-utils'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -40,6 +41,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 export default function Users() {
   const { canManageUsers, isSuperAdmin } = useAuth()
   const [usersList, setUsersList] = useState<UserRecord[]>([])
+  const [departamentos, setDepartamentos] = useState<DepartamentoRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   // Modal
@@ -61,8 +63,9 @@ export default function Users() {
 
   const loadData = async () => {
     try {
-      const data = await getUsers()
+      const [data, depts] = await Promise.all([getUsers(), getDepartamentos()])
       setUsersList(data)
+      setDepartamentos(depts)
     } catch (err) {
       toast.error('Erro ao carregar usuários')
     } finally {
@@ -337,9 +340,11 @@ export default function Users() {
                   <SelectValue placeholder="Selecione o departamento" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="comercial">Comercial</SelectItem>
-                  <SelectItem value="operacional">Operacional</SelectItem>
-                  <SelectItem value="rh">RH</SelectItem>
+                  {departamentos.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.nome}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

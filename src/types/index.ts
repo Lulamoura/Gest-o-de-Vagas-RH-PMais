@@ -7,7 +7,10 @@ export interface UserRecord extends RecordModel {
   avatar?: string
   profile?: UserProfile
   email: string
-  departamento?: 'comercial' | 'operacional' | 'rh'
+  departamento?: string
+  expand?: {
+    departamento?: DepartamentoRecord
+  }
 }
 
 export type VacancyStatus = 'Aberta' | 'Concluída' | 'Cancelada'
@@ -285,7 +288,7 @@ export interface RequisitionChangeRequestRecord extends RecordModel {
 export interface RequisitionRecord extends RecordModel {
   solicitante: string
   numero_oe?: string
-  departamento?: RequisitionDepartamento
+  departamento?: string
   cliente?: string
   cargo?: string
   cidade?: string

@@ -23,6 +23,7 @@ import { getCargos } from '@/services/cargos'
 import { getCidades } from '@/services/cidades'
 import { getTiposVaga } from '@/services/tipos_vaga'
 import { getTiposContrato } from '@/services/tipos_contrato'
+import { getDepartamentos } from '@/services/departamentos'
 import { toDateInputValue } from '@/lib/status-utils'
 import type {
   ClienteRecord,
@@ -30,6 +31,7 @@ import type {
   CidadeRecord,
   TipoVagaRecord,
   TipoContratoRecord,
+  DepartamentoRecord,
 } from '@/types'
 
 const STEPS = ['Identificação', 'Detalhes da Vaga', 'Especificações', 'Revisão']
@@ -87,23 +89,26 @@ export default function RequisitionWizard() {
   const [cidades, setCidades] = useState<CidadeRecord[]>([])
   const [tiposVaga, setTiposVaga] = useState<TipoVagaRecord[]>([])
   const [tiposContrato, setTiposContrato] = useState<TipoContratoRecord[]>([])
+  const [departamentos, setDepartamentos] = useState<DepartamentoRecord[]>([])
   const [formData, setFormData] = useState<FormData>(emptyForm)
 
   useEffect(() => {
     const load = async () => {
       try {
-        const [cli, car, cid, tv, tc] = await Promise.all([
+        const [cli, car, cid, tv, tc, depts] = await Promise.all([
           getClientes(),
           getCargos(),
           getCidades(),
           getTiposVaga(),
           getTiposContrato(),
+          getDepartamentos(),
         ])
         setClientes(cli)
         setCargos(car)
         setCidades(cid)
         setTiposVaga(tv)
         setTiposContrato(tc)
+        setDepartamentos(depts)
 
         const sourceId = isEdit ? id : duplicateId
         if (sourceId) {
@@ -163,11 +168,18 @@ export default function RequisitionWizard() {
   const validate = (forApproval: boolean): boolean => {
     const errs: Record<string, string> = {}
     if (!formData.justificativa.trim()) errs.justificativa = 'Justificativa é obrigatória'
-    if (forApproval && !formData.numero_oe.trim())
-      errs.numero_oe = 'Número da OE é obrigatório para envio ao RH'
+    if (forApproval) {
+      if (!formData.numero_oe.trim()) errs.numero_oe = 'Número da OE é obrigatório para envio ao RH'
+      if (!formData.cliente) errs.cliente = 'Cliente é obrigatório'
+      if (!formData.cargo) errs.cargo = 'Cargo é obrigatório'
+      if (!formData.departamento) errs.departamento = 'Departamento é obrigatório'
+      if (!formData.quantidade_vagas || formData.quantidade_vagas < 1)
+        errs.quantidade_vagas = 'Quantidade de vagas deve ser maior que zero'
+    }
     setErrors(errs)
     if (Object.keys(errs).length > 0) {
-      if (errs.numero_oe) setCurrentStep(0)
+      if (errs.numero_oe || errs.cliente || errs.cargo || errs.departamento) setCurrentStep(0)
+      else if (errs.quantidade_vagas) setCurrentStep(1)
       else if (errs.justificativa) setCurrentStep(2)
       return false
     }
@@ -268,11 +280,14 @@ export default function RequisitionWizard() {
                     <SelectValue placeholder="Selecione" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="comercial">Comercial</SelectItem>
-                    <SelectItem value="operacional">Operacional</SelectItem>
-                    <SelectItem value="rh">RH</SelectItem>
+                    {departamentos.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.nome}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {fieldErr('departamento')}
               </div>
               <div>
                 <Label>Cliente</Label>
@@ -288,6 +303,7 @@ export default function RequisitionWizard() {
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldErr('cliente')}
               </div>
               <div>
                 <Label>Cargo</Label>
@@ -303,6 +319,7 @@ export default function RequisitionWizard() {
                     ))}
                   </SelectContent>
                 </Select>
+                {fieldErr('cargo')}
               </div>
               <div>
                 <Label>Cidade</Label>
@@ -371,6 +388,7 @@ export default function RequisitionWizard() {
                     value={formData.quantidade_vagas}
                     onChange={(e) => updateField('quantidade_vagas', parseInt(e.target.value) || 0)}
                   />
+                  {fieldErr('quantidade_vagas')}
                 </div>
                 <div>
                   <Label>Prazo Desejado</Label>
@@ -444,7 +462,7 @@ export default function RequisitionWizard() {
             <div className="space-y-3">
               {[
                 ['Número da OE', formData.numero_oe],
-                ['Departamento', formData.departamento],
+                ['Departamento', departamentos.find((d) => d.id === formData.departamento)?.nome],
                 ['Cliente', clientes.find((c) => c.id === formData.cliente)?.nome],
                 ['Cargo', cargos.find((c) => c.id === formData.cargo)?.nome],
                 ['Cidade', cidades.find((c) => c.id === formData.cidade)?.nome],

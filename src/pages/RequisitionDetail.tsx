@@ -38,7 +38,11 @@ import { RequisitionHistory } from '@/components/RequisitionHistory'
 import { RequisitionComments } from '@/components/RequisitionComments'
 import { RequisitionAttachments } from '@/components/RequisitionAttachments'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { REQUISITION_STATUS_BADGE, REQUISITION_STATUS_LABELS } from '@/lib/requisition-utils'
+import {
+  REQUISITION_STATUS_BADGE,
+  REQUISITION_STATUS_LABELS,
+  getMissingApprovalFields,
+} from '@/lib/requisition-utils'
 import type { RequisitionRecord } from '@/types'
 
 export default function RequisitionDetail() {
@@ -81,8 +85,10 @@ export default function RequisitionDetail() {
 
   const isSolicitante = user?.id === req.solicitante
   const isAdmin = user?.profile === 'admin' || user?.profile === 'superadmin'
-  const isRH = user?.departamento === 'rh'
+  const isRH = user?.expand?.departamento?.nome === 'rh'
   const canManage = isAdmin || isRH
+  const missingApprovalFields = getMissingApprovalFields(req)
+  const canSubmitForApproval = missingApprovalFields.length === 0
   const canEdit = req.status === 'Rascunho' && (isSolicitante || isAdmin)
   const canCreate = ['operator', 'admin', 'superadmin'].includes(user?.profile || '')
 
@@ -102,7 +108,7 @@ export default function RequisitionDetail() {
 
   const fields: [string, string | undefined][] = [
     ['Número da OE', req.numero_oe],
-    ['Departamento', req.departamento],
+    ['Departamento', req.expand?.departamento?.nome],
     ['Cliente', req.expand?.cliente?.nome],
     ['Cargo', req.expand?.cargo?.nome],
     ['Cidade', req.expand?.cidade?.nome],
@@ -175,9 +181,23 @@ export default function RequisitionDetail() {
 
       <div className="flex flex-wrap gap-2">
         {req.status === 'Rascunho' && isSolicitante && (
-          <Button disabled={actionLoading} onClick={() => handleChange('Aguardando aprovação')}>
-            <Send className="h-4 w-4 mr-2" /> Enviar para Aprovação
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span>
+                <Button
+                  disabled={actionLoading || !canSubmitForApproval}
+                  onClick={() => handleChange('Aguardando aprovação')}
+                >
+                  <Send className="h-4 w-4 mr-2" /> Enviar para Aprovação
+                </Button>
+              </span>
+            </TooltipTrigger>
+            {!canSubmitForApproval && (
+              <TooltipContent>
+                Campos obrigatórios pendentes: {missingApprovalFields.join(', ')}
+              </TooltipContent>
+            )}
+          </Tooltip>
         )}
         {(req.status === 'Rascunho' || req.status === 'Aguardando aprovação') && isSolicitante && (
           <Button variant="outline" disabled={actionLoading} onClick={() => setShowCancel(true)}>
