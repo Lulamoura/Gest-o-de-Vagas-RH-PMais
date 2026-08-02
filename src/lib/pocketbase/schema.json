@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-02T01:00:10.619Z",
+  "generatedAt": "2026-08-02T01:43:16.632Z",
   "collections": [
     {
       "name": "users",
@@ -1302,6 +1302,92 @@
           "system": false
         },
         {
+          "name": "departamento",
+          "type": "relation",
+          "required": false,
+          "system": false,
+          "collectionRef": "departamentos"
+        },
+        {
+          "name": "jornada",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "horario",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "escala",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "remuneracao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "beneficios",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "requisitos",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "escolaridade",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "experiencia",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wordpress_job_id",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wordpress_admin_url",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wordpress_sync_status",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["pendente", "sucesso", "erro"]
+        },
+        {
+          "name": "wordpress_sync_date",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "wordpress_error_message",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
           "name": "status",
           "type": "select",
           "required": false,
@@ -1312,15 +1398,9 @@
             "Em análise",
             "Aprovada",
             "Reprovada",
-            "Cancelada"
+            "Cancelada",
+            "Rascunho criado no WordPress"
           ]
-        },
-        {
-          "name": "departamento",
-          "type": "relation",
-          "required": false,
-          "system": false,
-          "collectionRef": "departamentos"
         }
       ],
       "indexes": [
@@ -1328,7 +1408,9 @@
         "CREATE INDEX idx_requisitions_solicitante ON requisitions (solicitante)",
         "CREATE INDEX idx_requisitions_departamento ON requisitions (departamento)",
         "CREATE INDEX idx_requisitions_created ON requisitions (created DESC)",
-        "CREATE INDEX `idx_requisitions_numero_oe` ON `requisitions` (numero_oe)"
+        "CREATE INDEX `idx_requisitions_numero_oe` ON `requisitions` (numero_oe)",
+        "CREATE UNIQUE INDEX `idx_requisitions_wp_job_id` ON `requisitions` (wordpress_job_id) WHERE wordpress_job_id != ''",
+        "CREATE INDEX `idx_requisitions_wp_sync_status` ON `requisitions` (wordpress_sync_status)"
       ]
     },
     {

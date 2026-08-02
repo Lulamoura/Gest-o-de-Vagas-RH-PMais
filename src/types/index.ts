@@ -217,6 +217,7 @@ export type RequisitionStatus =
   | 'Aprovada'
   | 'Reprovada'
   | 'Cancelada'
+  | 'Rascunho criado no WordPress'
 
 export interface DepartamentoRecord extends RecordModel {
   nome: string
@@ -301,6 +302,19 @@ export interface RequisitionRecord extends RecordModel {
   justificativa: string
   especificacoes?: string
   observacoes_internas?: string
+  jornada?: string
+  horario?: string
+  escala?: string
+  remuneracao?: string
+  beneficios?: string
+  requisitos?: string
+  escolaridade?: string
+  experiencia?: string
+  wordpress_job_id?: string
+  wordpress_admin_url?: string
+  wordpress_sync_status?: 'pendente' | 'sucesso' | 'erro'
+  wordpress_sync_date?: string
+  wordpress_error_message?: string
   status: RequisitionStatus
   expand?: {
     solicitante?: UserRecord

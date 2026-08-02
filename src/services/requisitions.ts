@@ -27,3 +27,6 @@ export const changeRequisitionStatus = async (id: string, status: string, observ
     body: JSON.stringify({ status, observacao: observacao || '' }),
     headers: { 'Content-Type': 'application/json' },
   })
+
+export const createWordpressDraft = async (id: string) =>
+  pb.send(`/backend/v1/requisitions/${id}/wordpress-draft`, { method: 'POST' })

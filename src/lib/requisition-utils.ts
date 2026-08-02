@@ -13,6 +13,7 @@ export const REQUISITION_STATUS_BADGE: Record<RequisitionStatus, string> = {
   Aprovada: 'bg-green-100 text-green-800 border-green-200',
   Reprovada: 'bg-rose-100 text-rose-800 border-rose-200',
   Cancelada: 'bg-slate-200 text-slate-700 border-slate-300',
+  'Rascunho criado no WordPress': 'bg-cyan-100 text-cyan-800 border-cyan-200',
 }
 
 export const REQUISITION_STATUS_LABELS: Record<RequisitionStatus, string> = {
@@ -22,6 +23,7 @@ export const REQUISITION_STATUS_LABELS: Record<RequisitionStatus, string> = {
   Aprovada: 'Aprovada',
   Reprovada: 'Reprovada',
   Cancelada: 'Cancelada',
+  'Rascunho criado no WordPress': 'Rascunho no WordPress',
 }
 
 export const DEPARTAMENTO_OPTIONS = [

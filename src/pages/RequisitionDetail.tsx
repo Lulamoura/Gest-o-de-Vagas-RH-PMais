@@ -13,6 +13,8 @@ import {
   Globe,
   Edit3,
   Trash2,
+  ExternalLink,
+  AlertCircle,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
@@ -31,10 +33,16 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { ChangeRequestDialog } from '@/components/ChangeRequestDialog'
 import { RequisitionChangeRequests } from '@/components/RequisitionChangeRequests'
 import { getPriorityBadgeClass, formatDateBR } from '@/lib/status-utils'
-import { getRequisition, changeRequisitionStatus, deleteRequisition } from '@/services/requisitions'
+import {
+  getRequisition,
+  changeRequisitionStatus,
+  deleteRequisition,
+  createWordpressDraft,
+} from '@/services/requisitions'
 import { RequisitionHistory } from '@/components/RequisitionHistory'
 import { RequisitionComments } from '@/components/RequisitionComments'
 import { RequisitionAttachments } from '@/components/RequisitionAttachments'
@@ -60,11 +68,19 @@ export default function RequisitionDetail() {
   const [showChangeRequest, setShowChangeRequest] = useState(false)
   const [showDelete, setShowDelete] = useState(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
+  const [wpLoading, setWpLoading] = useState(false)
+  const [wpError, setWpError] = useState<string | null>(null)
 
   const loadReq = useCallback(async () => {
     if (!id) return
     try {
-      setReq(await getRequisition(id))
+      const data = await getRequisition(id)
+      setReq(data)
+      if (data.wordpress_sync_status === 'erro') {
+        setWpError(data.wordpress_error_message || 'Erro ao criar rascunho no WordPress')
+      } else {
+        setWpError(null)
+      }
     } catch {
       navigate('/requisicoes')
     } finally {
@@ -122,6 +138,22 @@ export default function RequisitionDetail() {
       toast.error(err?.message || 'Erro ao atualizar status')
     } finally {
       setActionLoading(false)
+    }
+  }
+
+  const handleCreateWordpressDraft = async () => {
+    if (!id) return
+    setWpLoading(true)
+    setWpError(null)
+    try {
+      await createWordpressDraft(id)
+      toast.success('Rascunho criado no WordPress!')
+      loadReq()
+    } catch (err: any) {
+      setWpError(err?.message || 'Erro ao criar rascunho no WordPress')
+      loadReq()
+    } finally {
+      setWpLoading(false)
     }
   }
 
@@ -190,19 +222,22 @@ export default function RequisitionDetail() {
               <Copy className="h-4 w-4 mr-2" /> Duplicar
             </Button>
           )}
-          {req.status === 'Aprovada' && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span>
-                  <Button disabled variant="outline">
-                    <Globe className="h-4 w-4 mr-2" /> Criar Vaga no WordPress
-                  </Button>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                O endpoint do WordPress requer configuração antes de esta ação estar disponível.
-              </TooltipContent>
-            </Tooltip>
+          {req.status === 'Aprovada' && canManage && (
+            <Button variant="outline" disabled={wpLoading} onClick={handleCreateWordpressDraft}>
+              {wpLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Globe className="h-4 w-4 mr-2" />
+              )}
+              Criar Vaga no WordPress
+            </Button>
+          )}
+          {req.status === 'Rascunho criado no WordPress' && req.wordpress_admin_url && (
+            <a href={req.wordpress_admin_url} target="_blank" rel="noopener noreferrer">
+              <Button variant="outline">
+                <ExternalLink className="h-4 w-4 mr-2" /> Abrir rascunho no WordPress
+              </Button>
+            </a>
           )}
           {req.status === 'Aprovada' && (isSolicitante || canManage) && (
             <Button variant="outline" onClick={() => setShowChangeRequest(true)}>
@@ -275,6 +310,22 @@ export default function RequisitionDetail() {
           </>
         )}
       </div>
+
+      {wpError && req.status === 'Aprovada' && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Erro ao criar rascunho no WordPress</AlertTitle>
+          <AlertDescription>{wpError}</AlertDescription>
+        </Alert>
+      )}
+      {req.status === 'Rascunho criado no WordPress' && req.wordpress_job_id && (
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-xs">
+            WP #{req.wordpress_job_id}
+            {req.wordpress_sync_date && ` • ${formatDateBR(req.wordpress_sync_date)}`}
+          </Badge>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
