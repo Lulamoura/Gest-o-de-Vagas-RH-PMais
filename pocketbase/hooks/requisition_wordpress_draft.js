@@ -28,6 +28,58 @@ routerAdd(
       return e.forbiddenError('Você não tem permissão para esta ação')
     }
 
+    try {
+      var toStr = function (val) {
+        if (!val) return ''
+        return String(val)
+      }
+
+      var existingWpJobId = toStr(req.getString('wordpress_job_id'))
+      var existingSyncStatus = toStr(req.getString('wordpress_sync_status'))
+
+      var existingEditUrl = ''
+      try {
+        var reqCol = $app.findCollectionByNameOrId('requisitions')
+        var editUrlField = reqCol.fields.getByName('wordpress_edit_url')
+        if (editUrlField) {
+          existingEditUrl = toStr(req.getString('wordpress_edit_url'))
+        }
+      } catch (_) {}
+      if (!existingEditUrl) {
+        try {
+          existingEditUrl = toStr(req.getString('wordpress_admin_url'))
+        } catch (_) {}
+      }
+
+      if (
+        req.getString('status') === 'Rascunho criado no WordPress' &&
+        existingWpJobId !== '' &&
+        existingSyncStatus === 'sucesso'
+      ) {
+        return e.json(200, {
+          ok: true,
+          duplicate: true,
+          wordpress_job_id: existingWpJobId,
+          wordpress_edit_url: existingEditUrl,
+          message: 'Rascunho já criado anteriormente no WordPress.',
+        })
+      }
+    } catch (idemErr) {
+      try {
+        $app
+          .logger()
+          .error(
+            'wordpress-draft: idempotent check failed',
+            'requisition_id',
+            id,
+            'error',
+            String((idemErr && idemErr.message) || idemErr || 'unknown'),
+          )
+      } catch (_) {
+        console.log('wordpress-draft: idempotent check failed for ' + id)
+      }
+    }
+
     if (req.getString('status') !== 'Aprovada') {
       return e.badRequestError('Apenas requisições aprovadas podem criar vaga no WordPress')
     }
