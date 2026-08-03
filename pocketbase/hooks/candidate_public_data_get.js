@@ -29,11 +29,11 @@ routerAdd('GET', '/backend/v1/candidate-public-data/{id}', (e) => {
       tamanho_fardamento: candidate.getString('tamanho_fardamento'),
       tamanho_sapato: candidate.getString('tamanho_sapato'),
       vale_transporte_qtd: candidate.get('vale_transporte_qtd') || 0,
-      valor_unitario_transporte: candidate.get('valor_unitario_transporte') || 0,
-      data_nascimento: candidate.getString('data_nascimento') || '',
       nome_pai: candidate.getString('nome_pai'),
       nome_mae: candidate.getString('nome_mae'),
       telefone_emergencia: candidate.getString('telefone_emergencia'),
+      data_nascimento: candidate.getString('data_nascimento'),
+      valor_unitario_transporte: candidate.get('valor_unitario_transporte') || 0,
     })
   } catch (err) {
     return e.notFoundError('Candidato não encontrado')

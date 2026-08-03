@@ -61,7 +61,7 @@ type CollectionKey =
   | 'system_parameters'
 
 const CONFIG: Record<
-  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'system_parameters'>,
+  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'>,
   {
     label: string
     list: () => Promise<RecordModel[]>
@@ -115,7 +115,7 @@ const CONFIG: Record<
 }
 
 const FIELD_MAP: Record<
-  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'system_parameters'>,
+  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'>,
   string
 > = {
   clientes: 'cliente',
@@ -147,6 +147,7 @@ export default function ReferenceData() {
     if (
       activeTab === 'custos_consultas' ||
       activeTab === 'clinicas' ||
+      activeTab === 'base_integracao' ||
       activeTab === 'system_parameters'
     )
       return

@@ -1,13 +1,29 @@
 import { useState, useEffect } from 'react'
-import { getCandidates, deleteCandidate } from '@/services/candidates'
+import {
+  getCandidates,
+  createCandidate,
+  updateCandidate,
+  deleteCandidate,
+  sendComplementDataRequest,
+  sendDisqualificationNotice,
+} from '@/services/candidates'
 import { getVacancies } from '@/services/vacancies'
 import { getClinicas } from '@/services/clinicas'
-import { CandidateRecord, VacancyRecord, VacancyStatus, ClinicaRecord } from '@/types'
+import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
+import {
+  CandidateRecord,
+  VacancyRecord,
+  CandidateStatus,
+  VacancyStatus,
+  ClinicaRecord,
+  CandidateEmailLogRecord,
+} from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { useSystemParameters } from '@/hooks/use-system-parameters'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -15,19 +31,28 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { StarRating } from '@/components/StarRating'
-import { CandidateEditModal } from '@/components/CandidateEditModal'
+import { ExamReferralModal } from '@/components/ExamReferralModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { getCandidateStatusBadgeClass } from '@/lib/status-utils'
+import { getCandidateStatusBadgeClass, toDateInputValue } from '@/lib/status-utils'
+import { Checkbox } from '@/components/ui/checkbox'
+import { CurrencyInput } from '@/components/CurrencyInput'
 import { toast } from 'sonner'
-import { Plus, Search, Pencil, Trash2, Eye, User } from 'lucide-react'
+import { Plus, Search, Pencil, Trash2, Mail, Stethoscope, Check, Eye, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { OverdueVacancyIcon } from '@/components/OverdueVacancyIcon'
 import { isVacancyOverdue } from '@/lib/vacancy-overdue'
 
-const ALL_STATUSES = [
+const ALL_STATUSES: CandidateStatus[] = [
   'Análise do RH',
   'Análise do gestor',
   'Documentação e exame',
@@ -47,7 +72,7 @@ export default function Candidates() {
 
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
   const [vacancies, setVacancies] = useState<VacancyRecord[]>([])
-  const [, setClinicas] = useState<ClinicaRecord[]>([])
+  const [clinicas, setClinicas] = useState<ClinicaRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   const [search, setSearch] = useState('')
@@ -57,6 +82,56 @@ export default function Candidates() {
 
   const [editOpen, setEditOpen] = useState(false)
   const [editingCandidate, setEditingCandidate] = useState<CandidateRecord | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const [formData, setFormData] = useState<{
+    vacancy_id: string
+    nome: string
+    email: string
+    telefone: string
+    cpf: string
+    cidade: string
+    bairro: string
+    status_candidato: CandidateStatus
+    rank: number
+    rg: string
+    tamanho_fardamento: string
+    tamanho_sapato: string
+    vale_transporte_qtd: number
+    nome_pai: string
+    nome_mae: string
+    telefone_emergencia: string
+    integracao_ativa: boolean
+    data_integracao: string
+    hora_integracao: string
+    tipo_integracao: string
+    valor_unitario_transporte: number
+    data_nascimento: string
+  }>({
+    vacancy_id: '',
+    nome: '',
+    email: '',
+    telefone: '',
+    cpf: '',
+    cidade: '',
+    bairro: '',
+    status_candidato: 'Análise do RH',
+    rank: 0,
+    rg: '',
+    tamanho_fardamento: '',
+    tamanho_sapato: '',
+    vale_transporte_qtd: 0,
+    nome_pai: '',
+    nome_mae: '',
+    telefone_emergencia: '',
+    integracao_ativa: false,
+    data_integracao: '',
+  })
+
+  const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [sendingDisqual, setSendingDisqual] = useState(false)
+  const [examModalOpen, setExamModalOpen] = useState(false)
 
   const [candidateToDelete, setCandidateToDelete] = useState<CandidateRecord | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -87,12 +162,101 @@ export default function Candidates() {
 
   const openNewModal = () => {
     setEditingCandidate(null)
+    setEmailLogs([])
+    setFormData({
+      vacancy_id: vacancies[0]?.id || '',
+      nome: '',
+      email: '',
+      telefone: '',
+      cpf: '',
+      cidade: '',
+      bairro: '',
+      status_candidato: 'Análise do RH',
+      rank: 0,
+      rg: '',
+      tamanho_fardamento: '',
+      tamanho_sapato: '',
+      vale_transporte_qtd: 0,
+      nome_pai: '',
+      nome_mae: '',
+      telefone_emergencia: '',
+      integracao_ativa: false,
+      data_integracao: '',
+      hora_integracao: '',
+      tipo_integracao: '',
+      valor_unitario_transporte: 0,
+      data_nascimento: '',
+    })
     setEditOpen(true)
   }
 
-  const openEditModal = (c: CandidateRecord) => {
+  const openEditModal = async (c: CandidateRecord) => {
     setEditingCandidate(c)
+    setFormData({
+      vacancy_id: c.vacancy_id || '',
+      nome: c.nome || '',
+      email: c.email || '',
+      telefone: c.telefone || '',
+      cpf: c.cpf || '',
+      cidade: c.cidade || '',
+      bairro: c.bairro || '',
+      status_candidato: c.status_candidato || 'Análise do RH',
+      rank: c.rank || 0,
+      rg: c.rg || '',
+      tamanho_fardamento: c.tamanho_fardamento || '',
+      tamanho_sapato: c.tamanho_sapato || '',
+      vale_transporte_qtd: c.vale_transporte_qtd || 0,
+      nome_pai: c.nome_pai || '',
+      nome_mae: c.nome_mae || '',
+      telefone_emergencia: c.telefone_emergencia || '',
+      integracao_ativa: c.integracao_ativa || false,
+      data_integracao: toDateInputValue(c.data_integracao),
+      hora_integracao: c.hora_integracao || '',
+      tipo_integracao: c.tipo_integracao || '',
+      valor_unitario_transporte: c.valor_unitario_transporte || 0,
+      data_nascimento: toDateInputValue(c.data_nascimento),
+    })
     setEditOpen(true)
+
+    try {
+      const logs = await getEmailLogsForCandidate(c.id)
+      setEmailLogs(logs)
+    } catch {
+      setEmailLogs([])
+    }
+  }
+
+  const handleSave = async () => {
+    if (!formData.nome.trim()) {
+      toast.error('O nome é obrigatório.')
+      return
+    }
+    if (!formData.vacancy_id) {
+      toast.error('Selecione uma vaga para o candidato.')
+      return
+    }
+    if (formData.integracao_ativa && !formData.data_integracao) {
+      toast.error('A Data da Integração é obrigatória quando a integração está ativada.')
+      return
+    }
+
+    setSaving(true)
+    try {
+      if (editingCandidate) {
+        const updated = await updateCandidate(editingCandidate.id, formData)
+        setEditingCandidate(updated)
+        toast.success('Candidato salvo com sucesso!')
+      } else {
+        const created = await createCandidate(formData)
+        setEditingCandidate(created)
+        toast.success('Candidato criado e salvo com sucesso!')
+      }
+      loadData()
+    } catch {
+      toast.error('Erro ao salvar candidato.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const promptDelete = (c: CandidateRecord) => {
@@ -116,6 +280,36 @@ export default function Candidates() {
     }
   }
 
+  const handleSendEmail = async () => {
+    if (!editingCandidate) return
+    setSendingEmail(true)
+    try {
+      await sendComplementDataRequest(editingCandidate.id)
+      toast.success('E-mail de dados complementares enviado!')
+      const logs = await getEmailLogsForCandidate(editingCandidate.id)
+      setEmailLogs(logs)
+    } catch {
+      toast.error('Erro ao enviar e-mail')
+    } finally {
+      setSendingEmail(false)
+    }
+  }
+
+  const handleSendDisqualification = async () => {
+    if (!editingCandidate) return
+    setSendingDisqual(true)
+    try {
+      await sendDisqualificationNotice(editingCandidate.id)
+      toast.success('Aviso enviado com sucesso!')
+      const logs = await getEmailLogsForCandidate(editingCandidate.id)
+      setEmailLogs(logs)
+    } catch {
+      toast.error('Erro ao enviar e-mail')
+    } finally {
+      setSendingDisqual(false)
+    }
+  }
+
   const filteredCandidates = candidates.filter((c) => {
     const matchesSearch =
       !search ||
@@ -131,6 +325,14 @@ export default function Candidates() {
 
     return matchesSearch && matchesStatus && matchesVacancy && matchesVacancyStatus
   })
+
+  const currentStatus = formData.status_candidato
+  const showComplementBtn = canEdit && editingCandidate && currentStatus === 'Análise do gestor'
+  const showExamBtn = canEdit && editingCandidate && currentStatus === 'Documentação e exame'
+  const showDisqualBtn =
+    canEdit &&
+    editingCandidate &&
+    (currentStatus === 'Desclassificado' || currentStatus === 'Em banco')
 
   return (
     <div className="space-y-6">
@@ -295,12 +497,367 @@ export default function Candidates() {
         </div>
       )}
 
-      <CandidateEditModal
-        open={editOpen}
-        onOpenChange={setEditOpen}
+      {/* Candidate Modal */}
+      <Dialog open={editOpen} onOpenChange={setEditOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingCandidate ? `Editar Candidato - ${editingCandidate.nome}` : 'Novo Candidato'}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">
+                  Nome Completo <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  value={formData.nome}
+                  onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                  placeholder="Nome do candidato"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">
+                  Vaga <span className="text-rose-500">*</span>
+                </Label>
+                <Select
+                  value={formData.vacancy_id}
+                  onValueChange={(val) => setFormData({ ...formData, vacancy_id: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione uma vaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {vacancies.map((v) => (
+                      <SelectItem key={v.id} value={v.id}>
+                        {v.expand?.cargo?.nome || v.expand?.cliente?.nome || v.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">E-mail</Label>
+                <Input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Telefone</Label>
+                <Input
+                  value={formData.telefone}
+                  onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
+                  placeholder="(00) 00000-0000"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">CPF</Label>
+                <Input
+                  value={formData.cpf}
+                  onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
+                  placeholder="000.000.000-00"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Status no Pipeline</Label>
+                <Select
+                  value={formData.status_candidato}
+                  onValueChange={(val) =>
+                    setFormData({ ...formData, status_candidato: val as CandidateStatus })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {ALL_STATUSES.map((st) => (
+                      <SelectItem key={st} value={st}>
+                        {st}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Cidade</Label>
+                <Input
+                  value={formData.cidade}
+                  onChange={(e) => setFormData({ ...formData, cidade: e.target.value })}
+                  placeholder="Cidade"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Bairro</Label>
+                <Input
+                  value={formData.bairro}
+                  onChange={(e) => setFormData({ ...formData, bairro: e.target.value })}
+                  placeholder="Bairro"
+                />
+              </div>
+            </div>
+
+            {/* Dados Complementares */}
+            <div className="pt-3 border-t border-slate-200">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3">
+                Dados Complementares
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">RG</Label>
+                  <Input
+                    value={formData.rg}
+                    onChange={(e) => setFormData({ ...formData, rg: e.target.value })}
+                    placeholder="Número do RG"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Tamanho Fardamento</Label>
+                  <Select
+                    value={formData.tamanho_fardamento}
+                    onValueChange={(val) => setFormData({ ...formData, tamanho_fardamento: val })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="PP">PP</SelectItem>
+                      <SelectItem value="P">P</SelectItem>
+                      <SelectItem value="M">M</SelectItem>
+                      <SelectItem value="G">G</SelectItem>
+                      <SelectItem value="GG">GG</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Tamanho Sapato</Label>
+                  <Input
+                    value={formData.tamanho_sapato}
+                    onChange={(e) => setFormData({ ...formData, tamanho_sapato: e.target.value })}
+                    placeholder="Ex: 40"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">
+                    Vale-transporte (qtd/dia)
+                  </Label>
+                  <Input
+                    type="number"
+                    value={formData.vale_transporte_qtd}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        vale_transporte_qtd: parseInt(e.target.value, 10) || 0,
+                      })
+                    }
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Nome do Pai</Label>
+                  <Input
+                    value={formData.nome_pai}
+                    onChange={(e) => setFormData({ ...formData, nome_pai: e.target.value })}
+                    placeholder="Nome completo do pai"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Nome da Mãe</Label>
+                  <Input
+                    value={formData.nome_mae}
+                    onChange={(e) => setFormData({ ...formData, nome_mae: e.target.value })}
+                    placeholder="Nome completo da mãe"
+                  />
+                </div>
+
+                <div className="space-y-1 sm:col-span-2">
+                  <Label className="text-xs font-bold text-slate-700">
+                    Telefone para Emergência
+                  </Label>
+                  <Input
+                    value={formData.telefone_emergencia}
+                    onChange={(e) =>
+                      setFormData({ ...formData, telefone_emergencia: e.target.value })
+                    }
+                    placeholder="(00) 00000-0000"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Integration Section */}
+            {canEdit && formData.status_candidato === 'Cadastro DP' && (
+              <div className="pt-3 border-t border-slate-200">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider mb-3">
+                  Integração
+                </h4>
+                <div className="flex items-center gap-3 mb-3">
+                  <Checkbox
+                    checked={formData.integracao_ativa}
+                    onCheckedChange={(checked) => {
+                      const isChecked = checked === true
+                      setFormData({
+                        ...formData,
+                        integracao_ativa: isChecked,
+                        data_integracao: isChecked ? formData.data_integracao : '',
+                      })
+                    }}
+                  />
+                  <Label className="text-xs font-bold text-slate-700 cursor-pointer">
+                    Ativar Integração
+                  </Label>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Data da Integração</Label>
+                  <Input
+                    type="date"
+                    value={formData.data_integracao}
+                    onChange={(e) => setFormData({ ...formData, data_integracao: e.target.value })}
+                    disabled={!formData.integracao_ativa}
+                  />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Data de Nascimento</Label>
+                    <Input
+                      type="date"
+                      value={formData.data_nascimento}
+                      onChange={(e) =>
+                        setFormData({ ...formData, data_nascimento: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Hora da Integração</Label>
+                    <Input
+                      type="time"
+                      value={formData.hora_integracao}
+                      onChange={(e) =>
+                        setFormData({ ...formData, hora_integracao: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Tipo de Integração</Label>
+                    <Select
+                      value={formData.tipo_integracao}
+                      onValueChange={(val) => setFormData({ ...formData, tipo_integracao: val })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Presencial">Presencial</SelectItem>
+                        <SelectItem value="On-line">On-line</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">
+                      Valor Unitário do Transporte
+                    </Label>
+                    <CurrencyInput
+                      value={formData.valor_unitario_transporte}
+                      onChange={(val) =>
+                        setFormData({ ...formData, valor_unitario_transporte: val })
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Status-Driven Communication Actions */}
+            {(showComplementBtn || showExamBtn || showDisqualBtn) && (
+              <div className="pt-3 border-t border-slate-200 space-y-2">
+                {showComplementBtn && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendEmail}
+                    disabled={sendingEmail || !formData.email}
+                    className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
+                    {hasEmailBeenSent(emailLogs, 'complement_data') && (
+                      <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                    )}
+                  </Button>
+                )}
+
+                {showExamBtn && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setExamModalOpen(true)}
+                    disabled={!formData.email}
+                    className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
+                  >
+                    <Stethoscope className="h-4 w-4 mr-2" />
+                    Enviar Informações para Exames
+                    {hasEmailBeenSent(emailLogs, 'encaminhamento_exames') && (
+                      <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                    )}
+                  </Button>
+                )}
+
+                {showDisqualBtn && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendDisqualification}
+                    disabled={sendingDisqual || !formData.email}
+                    className="w-full border-amber-200 text-amber-700 hover:bg-amber-50"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {sendingDisqual ? 'Enviando...' : 'Aviso de Desclassificação/Banco'}
+                    {hasEmailBeenSent(emailLogs, 'disqualification') && (
+                      <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                    )}
+                  </Button>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => setEditOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white"
+            >
+              {saving ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <ExamReferralModal
+        open={examModalOpen}
+        onOpenChange={setExamModalOpen}
         candidate={editingCandidate}
-        vacancies={vacancies}
-        onSaved={loadData}
+        clinicas={clinicas}
+        onSuccess={loadData}
       />
 
       <ConfirmDialog

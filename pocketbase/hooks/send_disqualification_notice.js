@@ -24,13 +24,22 @@ routerAdd(
         try {
           const vacancy = $app.findRecordById('vacancies', vacancyId)
           const cargoId = vacancy.getString('cargo')
+          const clienteId = vacancy.getString('cliente')
           let cargoNome = ''
+          let clienteNome = ''
           if (cargoId) {
             try {
               cargoNome = $app.findRecordById('cargos', cargoId).getString('nome')
             } catch (_) {}
           }
-          if (cargoNome) vacancyName = cargoNome
+          if (clienteId) {
+            try {
+              clienteNome = $app.findRecordById('clientes', clienteId).getString('nome')
+            } catch (_) {}
+          }
+          if (cargoNome && clienteNome) vacancyName = cargoNome + ' - ' + clienteNome
+          else if (cargoNome) vacancyName = cargoNome
+          else if (clienteNome) vacancyName = clienteNome
         } catch (_) {}
       }
 

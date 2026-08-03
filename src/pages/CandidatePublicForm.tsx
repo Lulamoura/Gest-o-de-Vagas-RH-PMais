@@ -22,11 +22,11 @@ interface PublicCandidateData {
   tamanho_fardamento: string
   tamanho_sapato: string
   vale_transporte_qtd: number
-  valor_unitario_transporte: number
-  data_nascimento: string
   nome_pai: string
   nome_mae: string
   telefone_emergencia: string
+  data_nascimento: string
+  valor_unitario_transporte: number
 }
 
 export default function CandidatePublicForm() {
@@ -41,11 +41,11 @@ export default function CandidatePublicForm() {
   const [tamanhoFardamento, setTamanhoFardamento] = useState('')
   const [tamanhoSapato, setTamanhoSapato] = useState('')
   const [valeTransporteQtd, setValeTransporteQtd] = useState(0)
-  const [valorUnitarioTransporte, setValorUnitarioTransporte] = useState(0)
-  const [dataNascimento, setDataNascimento] = useState('')
   const [nomePai, setNomePai] = useState('')
   const [nomeMae, setNomeMae] = useState('')
   const [telefoneEmergencia, setTelefoneEmergencia] = useState('')
+  const [dataNascimento, setDataNascimento] = useState('')
+  const [valorUnitarioTransporte, setValorUnitarioTransporte] = useState(0)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const fetchData = () => {
@@ -63,11 +63,11 @@ export default function CandidatePublicForm() {
         setTamanhoFardamento(res.tamanho_fardamento || '')
         setTamanhoSapato(res.tamanho_sapato || '')
         setValeTransporteQtd(res.vale_transporte_qtd || 0)
-        setValorUnitarioTransporte(res.valor_unitario_transporte || 0)
-        setDataNascimento(res.data_nascimento || '')
         setNomePai(res.nome_pai || '')
         setNomeMae(res.nome_mae || '')
         setTelefoneEmergencia(res.telefone_emergencia || '')
+        setDataNascimento(res.data_nascimento || '')
+        setValorUnitarioTransporte(res.valor_unitario_transporte || 0)
       })
       .catch((err) => {
         if (err?.isAbort) {
@@ -111,11 +111,11 @@ export default function CandidatePublicForm() {
           tamanho_fardamento: tamanhoFardamento,
           tamanho_sapato: tamanhoSapato,
           vale_transporte_qtd: Number(valeTransporteQtd),
-          valor_unitario_transporte: Number(valorUnitarioTransporte),
-          data_nascimento: dataNascimento,
           nome_pai: nomePai,
           nome_mae: nomeMae,
           telefone_emergencia: telefoneEmergencia,
+          data_nascimento: dataNascimento,
+          valor_unitario_transporte: Number(valorUnitarioTransporte),
         }),
         headers: { 'Content-Type': 'application/json' },
       })
@@ -253,28 +253,6 @@ export default function CandidatePublicForm() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">
-                      Valor Unitário Transporte
-                    </Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={valorUnitarioTransporte}
-                      onChange={(e) => setValorUnitarioTransporte(Number(e.target.value))}
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">Data de Nascimento</Label>
-                    <Input
-                      type="date"
-                      value={dataNascimento}
-                      onChange={(e) => setDataNascimento(e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
                     <Label className="text-xs font-semibold text-slate-700">Nome do Pai</Label>
                     <Input
                       value={nomePai}
@@ -309,6 +287,32 @@ export default function CandidatePublicForm() {
                   {fieldErrors.telefone_emergencia && (
                     <p className="text-[10px] text-rose-500">{fieldErrors.telefone_emergencia}</p>
                   )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Data de Nascimento
+                    </Label>
+                    <Input
+                      type="date"
+                      value={dataNascimento}
+                      onChange={(e) => setDataNascimento(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Valor Unitário do Transporte
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={valorUnitarioTransporte}
+                      onChange={(e) => setValorUnitarioTransporte(Number(e.target.value))}
+                      className="h-9 text-sm"
+                    />
+                  </div>
                 </div>
                 {error && <p className="text-xs text-rose-500 text-center">{error}</p>}
                 <Button

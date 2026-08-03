@@ -37,7 +37,8 @@ routerAdd(
               clienteNome = $app.findRecordById('clientes', clienteId).getString('nome')
             } catch (_) {}
           }
-          if (cargoNome) vacancyName = cargoNome
+          if (cargoNome && clienteNome) vacancyName = cargoNome + ' - ' + clienteNome
+          else if (cargoNome) vacancyName = cargoNome
           else if (clienteNome) vacancyName = clienteNome
         } catch (_) {}
       }

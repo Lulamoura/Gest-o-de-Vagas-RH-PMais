@@ -1,7 +1,14 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getVacancy, updateVacancy, deleteVacancy } from '@/services/vacancies'
-import { getCandidates, createCandidate, updateCandidate } from '@/services/candidates'
+import {
+  getCandidates,
+  createCandidate,
+  updateCandidate,
+  sendComplementDataRequest,
+  sendDisqualificationNotice,
+} from '@/services/candidates'
+import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
 import { getPipelineHistory, createPipelineHistory } from '@/services/pipeline_history'
 import { getCandidateHistory } from '@/services/candidate_history'
 import {
@@ -11,6 +18,7 @@ import {
   CandidateHistoryRecord,
   VacancyStatus,
   CandidateStatus,
+  CandidateEmailLogRecord,
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -89,7 +97,6 @@ import { extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
 import { isCandidateStatusEnabled } from '@/lib/candidate-validation'
 import { isVacancyOverdue } from '@/lib/vacancy-overdue'
 import { OverdueVacancyIcon } from '@/components/OverdueVacancyIcon'
-import { CandidateEditModal } from '@/components/CandidateEditModal'
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
