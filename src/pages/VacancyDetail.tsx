@@ -1,14 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getVacancy, updateVacancy, deleteVacancy } from '@/services/vacancies'
-import {
-  getCandidates,
-  createCandidate,
-  updateCandidate,
-  sendComplementDataRequest,
-  sendDisqualificationNotice,
-} from '@/services/candidates'
-import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
+import { getCandidates, createCandidate, updateCandidate } from '@/services/candidates'
 import { getPipelineHistory, createPipelineHistory } from '@/services/pipeline_history'
 import { getCandidateHistory } from '@/services/candidate_history'
 import {
@@ -18,8 +11,6 @@ import {
   CandidateHistoryRecord,
   VacancyStatus,
   CandidateStatus,
-  CandidateEmailLogRecord,
-  ClinicaRecord,
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -36,7 +27,6 @@ import {
   VACANCY_STATUS_OPTIONS,
   VACANCY_STATUS_LABELS,
   CANDIDATE_STATUS_TO_PHASE,
-  toDateInputValue,
 } from '@/lib/status-utils'
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -91,17 +81,15 @@ import {
   UserCheck,
   Mail,
   Check,
-  Stethoscope,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 import { CurrencyInput } from '@/components/CurrencyInput'
-import { ExamReferralModal } from '@/components/ExamReferralModal'
 import { Textarea } from '@/components/ui/textarea'
-import { Checkbox } from '@/components/ui/checkbox'
 import { extractFieldErrors, type FieldErrors } from '@/lib/pocketbase/errors'
 import { isCandidateStatusEnabled } from '@/lib/candidate-validation'
 import { isVacancyOverdue } from '@/lib/vacancy-overdue'
 import { OverdueVacancyIcon } from '@/components/OverdueVacancyIcon'
+import { CandidateEditModal } from '@/components/CandidateEditModal'
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
@@ -158,14 +146,6 @@ export default function VacancyDetail() {
   const [editOrdemExecucao, setEditOrdemExecucao] = useState('')
   const [editFieldErrors, setEditFieldErrors] = useState<FieldErrors>({})
   const [savingEdit, setSavingEdit] = useState(false)
-  const [editIntegracaoAtiva, setEditIntegracaoAtiva] = useState(false)
-  const [editDataIntegracao, setEditDataIntegracao] = useState('')
-  const [editHoraIntegracao, setEditHoraIntegracao] = useState('')
-  const [editTipoIntegracao, setEditTipoIntegracao] = useState('')
-  const [editValorUnitarioTransporte, setEditValorUnitarioTransporte] = useState(0)
-  const [editDataNascimento, setEditDataNascimento] = useState('')
-  const [clinicas, setClinicas] = useState<ClinicaRecord[]>([])
-  const [examModalOpen, setExamModalOpen] = useState(false)
 
   const [rgCandidato, setRgCandidato] = useState('')
   const [tamanhoFardamentoCandidato, setTamanhoFardamentoCandidato] = useState('')
@@ -198,16 +178,14 @@ export default function VacancyDetail() {
       setVaga(vData)
       setLoadError(false)
       try {
-        const [cData, hData, chData, clList] = await Promise.all([
+        const [cData, hData, chData] = await Promise.all([
           getCandidates(`vacancy_id = "${id}"`).catch(() => []),
           getPipelineHistory(id).catch(() => []),
           getCandidateHistory(id).catch(() => []),
-          getClinicas().catch(() => []),
         ])
         setCandidates(cData)
         setHistory(hData)
         setCandidateHistory(chData)
-        setClinicas(clList)
       } catch (_) {
         // Non-critical: vacancy loaded but related data failed
       }
@@ -342,12 +320,6 @@ export default function VacancyDetail() {
     setEditTelefoneEmergencia(candidate.telefone_emergencia || '')
     setEditObservacao(candidate.observacao || '')
     setEditOrdemExecucao(candidate.ordem_execucao || '')
-    setEditIntegracaoAtiva(candidate.integracao_ativa || false)
-    setEditDataIntegracao(toDateInputValue(candidate.data_integracao))
-    setEditHoraIntegracao(candidate.hora_integracao || '')
-    setEditTipoIntegracao(candidate.tipo_integracao || '')
-    setEditValorUnitarioTransporte(candidate.valor_unitario_transporte || 0)
-    setEditDataNascimento(toDateInputValue(candidate.data_nascimento))
     setEditFieldErrors({})
     setEmailLogs([])
     getEmailLogsForCandidate(candidate.id)
@@ -363,24 +335,10 @@ export default function VacancyDetail() {
       setEditFieldErrors({ nome: 'Nome é obrigatório' })
       return
     }
-    if (editIntegracaoAtiva) {
-      if (!editDataIntegracao) {
-        setEditFieldErrors({ data_integracao: 'Data da Integração é obrigatória' })
-        return
-      }
-      if (!editHoraIntegracao) {
-        setEditFieldErrors({ hora_integracao: 'Hora da Integração é obrigatória' })
-        return
-      }
-      if (!editTipoIntegracao) {
-        setEditFieldErrors({ tipo_integracao: 'Tipo de Integração é obrigatório' })
-        return
-      }
-    }
     setEditFieldErrors({})
     setSavingEdit(true)
     try {
-      const updated = await updateCandidate(editingCandidate.id, {
+      await updateCandidate(editingCandidate.id, {
         nome: editNome.trim(),
         email: editEmail.trim() || undefined,
         telefone: editTelefone.trim() || undefined,
@@ -402,18 +360,10 @@ export default function VacancyDetail() {
         telefone_emergencia: editTelefoneEmergencia.trim() || undefined,
         observacao: editObservacao.trim() || undefined,
         ordem_execucao: editOrdemExecucao.trim() || undefined,
-        integracao_ativa: editIntegracaoAtiva,
-        data_integracao: editIntegracaoAtiva ? editDataIntegracao : '',
-        hora_integracao: editIntegracaoAtiva ? editHoraIntegracao : '',
-        tipo_integracao: editIntegracaoAtiva ? editTipoIntegracao : '',
-        valor_unitario_transporte: editValorUnitarioTransporte,
-        data_nascimento: editDataNascimento,
       })
       toast.success('Candidato atualizado com sucesso!')
-      setEditingCandidate(updated)
-      getEmailLogsForCandidate(updated.id)
-        .then(setEmailLogs)
-        .catch(() => {})
+      setEditModalOpen(false)
+      setEditingCandidate(null)
       loadData()
     } catch (err) {
       setEditFieldErrors(extractFieldErrors(err))
@@ -1677,91 +1627,8 @@ export default function VacancyDetail() {
                     placeholder="(00) 00000-0000"
                   />
                 </div>
-                <div>
-                  <Label htmlFor="eDataNasc" className="text-[10px] text-slate-500">
-                    Data de Nascimento
-                  </Label>
-                  <Input
-                    id="eDataNasc"
-                    type="date"
-                    value={editDataNascimento}
-                    onChange={(e) => setEditDataNascimento(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="eVUT" className="text-[10px] text-slate-500">
-                    Valor Unitário Transporte (R$)
-                  </Label>
-                  <Input
-                    id="eVUT"
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={editValorUnitarioTransporte}
-                    onChange={(e) => setEditValorUnitarioTransporte(Number(e.target.value))}
-                  />
-                </div>
               </div>
             </div>
-
-            {canEditCandidate && editStatus === 'Cadastro DP' && (
-              <div className="pt-2 border-t border-slate-100">
-                <span className="text-xs font-bold text-slate-700 block mb-2">Integração</span>
-                <div className="flex items-center gap-3 mb-3">
-                  <Checkbox
-                    checked={editIntegracaoAtiva}
-                    onCheckedChange={(checked) => {
-                      const isChecked = checked === true
-                      setEditIntegracaoAtiva(isChecked)
-                      if (!isChecked) {
-                        setEditDataIntegracao('')
-                        setEditHoraIntegracao('')
-                        setEditTipoIntegracao('')
-                      }
-                    }}
-                  />
-                  <Label className="text-xs font-bold text-slate-700 cursor-pointer">
-                    Ativar Integração
-                  </Label>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                  <div>
-                    <Label className="text-[10px] text-slate-500">Data da Integração</Label>
-                    <Input
-                      type="date"
-                      value={editDataIntegracao}
-                      onChange={(e) => setEditDataIntegracao(e.target.value)}
-                      disabled={!editIntegracaoAtiva}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-slate-500">Hora da Integração</Label>
-                    <Input
-                      type="time"
-                      value={editHoraIntegracao}
-                      onChange={(e) => setEditHoraIntegracao(e.target.value)}
-                      disabled={!editIntegracaoAtiva}
-                    />
-                  </div>
-                  <div>
-                    <Label className="text-[10px] text-slate-500">Tipo de Integração</Label>
-                    <Select
-                      value={editTipoIntegracao}
-                      onValueChange={setEditTipoIntegracao}
-                      disabled={!editIntegracaoAtiva}
-                    >
-                      <SelectTrigger disabled={!editIntegracaoAtiva}>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Presencial">Presencial</SelectItem>
-                        <SelectItem value="On-line">On-line</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-            )}
 
             {canEditCandidate && editingCandidate && (
               <div className="pt-2 border-t border-slate-100 space-y-2">
@@ -1777,22 +1644,6 @@ export default function VacancyDetail() {
                     <Mail className="h-4 w-4 mr-2" />
                     {sendingEmail ? 'Enviando...' : 'Solicitar dados complementares'}
                     {hasEmailBeenSent(emailLogs, 'complement_data') && (
-                      <Check className="h-4 w-4 ml-2 text-emerald-600" />
-                    )}
-                  </Button>
-                )}
-                {editStatus === 'Documentação e exame' && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setExamModalOpen(true)}
-                    disabled={!editingCandidate.email}
-                    className="w-full border-purple-200 text-purple-700 hover:bg-purple-50"
-                    title={!editingCandidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
-                  >
-                    <Stethoscope className="h-4 w-4 mr-2" />
-                    Enviar Informações para Exames
-                    {hasEmailBeenSent(emailLogs, 'encaminhamento_exames') && (
                       <Check className="h-4 w-4 ml-2 text-emerald-600" />
                     )}
                   </Button>
@@ -1831,14 +1682,6 @@ export default function VacancyDetail() {
           </form>
         </DialogContent>
       </Dialog>
-
-      <ExamReferralModal
-        open={examModalOpen}
-        onOpenChange={setExamModalOpen}
-        candidate={editingCandidate}
-        clinicas={clinicas}
-        onSuccess={loadData}
-      />
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

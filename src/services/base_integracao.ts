@@ -29,5 +29,5 @@ export const updateBaseIntegracao = async (
 }
 
 export const deleteBaseIntegracao = async (id: string) => {
-  return pb.collection<BaseIntegracoRecord>('base_integracao').delete(id)
+  return pb.collection<BaseIntegracaoRecord>('base_integracao').delete(id)
 }

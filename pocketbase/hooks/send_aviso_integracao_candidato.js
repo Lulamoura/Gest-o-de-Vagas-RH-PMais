@@ -3,25 +3,14 @@ routerAdd(
   '/backend/v1/send-aviso-integracao-candidato',
   (e) => {
     try {
-      const body = e.requestInfo().body || {}
-      const candidateId = body.candidate_id || body.candidateId
-      const baseIntegracaoId = body.base_integracao_id || body.baseIntegracaoId || ''
+      var body = e.requestInfo().body || {}
+      var candidateId = body.candidate_id || body.candidateId
+      if (!candidateId) return e.badRequestError('ID do candidato é obrigatório.')
 
-      if (!candidateId) {
-        return e.badRequestError('O ID do candidato é obrigatório.')
-      }
-
-      const candidate = $app.findRecordById('candidates', candidateId)
-      const candidateEmail = candidate.getString('email')
-
-      if (!candidateEmail || !candidateEmail.trim()) {
+      var candidate = $app.findRecordById('candidates', candidateId)
+      var candidateEmail = candidate.getString('email')
+      if (!candidateEmail || !candidateEmail.trim())
         return e.badRequestError('Candidato não possui e-mail cadastrado.')
-      }
-
-      const tipoIntegracao = candidate.getString('tipo_integracao') || ''
-      const dataIntegracao = candidate.getString('data_integracao') || ''
-      const horaIntegracao = candidate.getString('hora_integracao') || ''
-      const candidateNome = candidate.getString('nome') || 'Candidato'
 
       var vacancyName = 'Vaga PMais'
       var vacancyId = candidate.getString('vacancy_id')
@@ -37,87 +26,97 @@ routerAdd(
         } catch (_) {}
       }
 
-      var dataFormatada = dataIntegracao
-      if (dataIntegracao) {
-        var parts = dataIntegracao.split('-')
-        if (parts.length === 3) {
-          dataFormatada = parts[2] + '/' + parts[1] + '/' + parts[0]
-        }
+      var dataIntegracao = candidate.getString('data_nascimento')
+        ? candidate.getString('data_integracao')
+        : candidate.getString('data_integracao')
+      var horaIntegracao = candidate.getString('hora_integracao')
+      var tipoIntegracao = candidate.getString('tipo_integracao') || 'Presencial'
+
+      var baseNome = '',
+        baseEndereco = '',
+        baseTelefone = '',
+        baseContato = ''
+      if (tipoIntegracao === 'Presencial' && body.base_integracao_id) {
+        try {
+          var base = $app.findRecordById('base_integracao', body.base_integracao_id)
+          baseNome = base.getString('nome')
+          baseEndereco = base.getString('endereco')
+          baseTelefone = base.getString('telefone')
+          baseContato = base.getString('pessoa_contato')
+        } catch (_) {}
       }
 
-      var subject = 'Informações sobre sua Integração - PMais'
-      var bodyHtml = ''
+      var siteUrl = $secrets.get('SITE_URL') || 'https://vagaspmais.pmaisservicos.com.br'
+      if (siteUrl.endsWith('/')) siteUrl = siteUrl.slice(0, -1)
 
-      if (tipoIntegracao === 'On-line') {
-        bodyHtml =
-          '<p>Olá <strong>' +
-          candidateNome +
-          '</strong>,</p>' +
-          '<p>Sua integração para a vaga de <strong>' +
-          vacancyName +
-          '</strong> está agendada para <strong>' +
-          dataFormatada +
-          '</strong> às <strong>' +
-          horaIntegracao +
-          '</strong>.</p>' +
-          '<p>O link para a reunião online será enviado por este e-mail alguns minutos antes do horário agendado.</p>' +
-          '<p>Atenciosamente,<br>Equipe RH PMais</p>'
-      } else {
-        var baseNome = 'Base de Integração'
-        var baseEndereco = ''
-        var baseTelefone = ''
-        var baseContato = ''
+      var subject = 'Aviso de Integração - PMais'
+      var bodyHtml =
+        '<p>Olá <strong>{{nome}}</strong>,</p>' +
+        '<p>Sua integração para a vaga de <strong>{{vaga}}</strong> está agendada.</p>' +
+        '<p><strong>Data:</strong> {{data_integracao}}<br>' +
+        '<strong>Hora:</strong> {{hora_integracao}}<br>' +
+        '<strong>Tipo:</strong> {{tipo_integracao}}</p>' +
+        '{{base_info}}' +
+        '<p>Atenciosamente,<br>Equipe RH PMais</p>'
 
-        if (baseIntegracaoId) {
-          try {
-            var base = $app.findRecordById('base_integracao', baseIntegracaoId)
-            baseNome = base.getString('nome') || baseNome
-            baseEndereco = base.getString('endereco') || ''
-            baseTelefone = base.getString('telefone') || ''
-            baseContato = base.getString('pessoa_contato') || ''
-          } catch (_) {}
-        }
+      try {
+        var template = $app.findFirstRecordByData(
+          'email_templates',
+          'type',
+          'aviso_integracao_candidato',
+        )
+        if (template.getString('subject')) subject = template.getString('subject')
+        if (template.getString('body')) bodyHtml = template.getString('body')
+      } catch (_) {}
 
-        var mapsLink = ''
+      var baseInfoHtml = ''
+      if (tipoIntegracao === 'Presencial' && baseNome) {
+        baseInfoHtml = '<p><strong>Local de Integração:</strong><br>' + baseNome
+        if (baseEndereco) baseInfoHtml += '<br>' + baseEndereco
+        if (baseTelefone) baseInfoHtml += '<br>Telefone: ' + baseTelefone
+        if (baseContato) baseInfoHtml += '<br>Contato: ' + baseContato
+        baseInfoHtml += '</p>'
         if (baseEndereco) {
-          mapsLink = 'https://maps.google.com/?q=' + encodeURIComponent(baseEndereco)
+          baseInfoHtml +=
+            '<p><a href="https://www.google.com/maps/search/?api=1&query=' +
+            encodeURIComponent(baseEndereco) +
+            '">Ver no Google Maps</a></p>'
         }
+      } else if (tipoIntegracao === 'On-line') {
+        baseInfoHtml =
+          '<p><strong>Modalidade:</strong> On-line<br>O link de acesso será enviado em breve.</p>'
+      }
 
-        bodyHtml =
-          '<p>Olá <strong>' +
-          candidateNome +
-          '</strong>,</p>' +
-          '<p>Sua integração para a vaga de <strong>' +
-          vacancyName +
-          '</strong> está agendada para <strong>' +
-          dataFormatada +
-          '</strong> às <strong>' +
-          horaIntegracao +
-          '</strong>.</p>' +
-          '<p><strong>Local:</strong> ' +
-          baseNome +
-          '<br>'
-        if (baseEndereco) bodyHtml += '<strong>Endereço:</strong> ' + baseEndereco + '<br>'
-        if (baseTelefone) bodyHtml += '<strong>Telefone:</strong> ' + baseTelefone + '<br>'
-        if (baseContato) bodyHtml += '<strong>Contato:</strong> ' + baseContato + '<br>'
-        bodyHtml += '</p>'
-        if (mapsLink) {
-          bodyHtml +=
-            '<p><a href="' +
-            mapsLink +
-            '" target="_blank" rel="noopener noreferrer">Ver localização no Google Maps</a></p>'
-        }
-        bodyHtml += '<p>Atenciosamente,<br>Equipe RH PMais</p>'
+      var candidateNome = candidate.getString('nome') || 'Candidato'
+      var replacements = {
+        nome: candidateNome,
+        vaga: vacancyName,
+        data_integracao: dataIntegracao || 'A definir',
+        hora_integracao: horaIntegracao || 'A definir',
+        tipo_integracao: tipoIntegracao,
+        base_nome: baseNome,
+        base_endereco: baseEndereco,
+        base_telefone: baseTelefone,
+        base_contato: baseContato,
+        base_info: baseInfoHtml,
+        link: siteUrl,
+        company_name: 'PMais Terceirização',
+      }
+      for (var key in replacements) {
+        var val = replacements[key]
+        subject = subject
+          .replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val)
+          .replace(new RegExp('\\{' + key + '\\}', 'g'), val)
+        bodyHtml = bodyHtml
+          .replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val)
+          .replace(new RegExp('\\{' + key + '\\}', 'g'), val)
       }
 
       var sloganPmais = ''
       try {
         var spParams = $app.findRecordsByFilter('system_parameters', '', 'created', 1, 0)
-        if (spParams.length > 0) {
-          sloganPmais = spParams[0].getString('slogan_pmais') || ''
-        }
+        if (spParams.length > 0) sloganPmais = spParams[0].getString('slogan_pmais') || ''
       } catch (_) {}
-
       if (sloganPmais) {
         bodyHtml +=
           '<p style="text-align:center; color:#64748b; font-size:12px; margin-top:20px; padding-top:12px; border-top:1px solid #e2e8f0;">' +
@@ -125,9 +124,18 @@ routerAdd(
           '</p>'
       }
 
+      var senderName = 'PMais RH'
+      var senderEmail = 'vagas@pmaisservicos.com.br'
+      try {
+        var sp = $app.findRecordsByFilter('system_parameters', '', 'created', 1, 0)
+        if (sp.length > 0) {
+          if (sp[0].getString('nome_remetente')) senderName = sp[0].getString('nome_remetente')
+          if (sp[0].getString('email_remetente')) senderEmail = sp[0].getString('email_remetente')
+        }
+      } catch (_) {}
+
       var sendError = ''
       var resendKey = $secrets.get('RESEND_API_KEY')
-
       if (resendKey) {
         try {
           var res = $http.send({
@@ -138,27 +146,32 @@ routerAdd(
               Authorization: 'Bearer ' + resendKey,
             },
             body: JSON.stringify({
-              from: 'PMais RH <vagas@pmaisservicos.com.br>',
+              from: senderName + ' <' + senderEmail + '>',
               to: [candidateEmail],
               subject: subject,
               html: bodyHtml,
             }),
             timeout: 15,
           })
-
           if (res.statusCode >= 400) {
             sendError =
               'Resend HTTP ' + res.statusCode + ': ' + JSON.stringify(res.json || res.body)
             $app
               .logger()
-              .error('Erro ao enviar e-mail via Resend', 'status', res.statusCode, 'body', res.json)
+              .error(
+                'Erro ao enviar aviso_integracao_candidato',
+                'status',
+                res.statusCode,
+                'body',
+                res.json,
+              )
           }
         } catch (resendErr) {
           sendError = resendErr.message || String(resendErr)
-          $app.logger().error('Exceção ao chamar Resend API', 'error', sendError)
+          $app.logger().error('Exceção Resend (aviso_integracao_candidato)', 'error', sendError)
         }
       } else {
-        $app.logger().warn('RESEND_API_KEY não configurada')
+        $app.logger().warn('RESEND_API_KEY não configurada para aviso_integracao_candidato')
       }
 
       try {
@@ -166,15 +179,13 @@ routerAdd(
         var logRecord = new Record(emailLogCol)
         logRecord.set('candidate_id', candidate.id)
         logRecord.set('email_type', 'aviso_integracao_candidato')
-        if (e.auth) {
-          logRecord.set('sent_by', e.auth.id)
-        }
-        if (sendError) {
-          logRecord.set('error_message', sendError)
-        }
+        if (e.auth) logRecord.set('sent_by', e.auth.id)
+        if (sendError) logRecord.set('error_message', sendError)
         $app.save(logRecord)
       } catch (logErr) {
-        $app.logger().error('Erro ao gravar candidate_email_log', 'error', String(logErr))
+        $app
+          .logger()
+          .error('Erro ao gravar log (aviso_integracao_candidato)', 'error', String(logErr))
       }
 
       return e.json(200, {
@@ -182,8 +193,8 @@ routerAdd(
         message: 'Aviso de integração enviado para ' + candidateEmail,
       })
     } catch (err) {
-      $app.logger().error('Erro na rota send-aviso-integracao-candidato', 'error', String(err))
-      return e.badRequestError(err.message || 'Erro ao enviar aviso de integração.')
+      $app.logger().error('Erro em send-aviso-integracao-candidato', 'error', String(err))
+      return e.badRequestError(err.message || 'Erro ao enviar aviso.')
     }
   },
   $apis.requireAuth(),
