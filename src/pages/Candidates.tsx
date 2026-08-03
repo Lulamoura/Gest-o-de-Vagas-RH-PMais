@@ -102,10 +102,6 @@ export default function Candidates() {
     telefone_emergencia: string
     integracao_ativa: boolean
     data_integracao: string
-    hora_integracao: string
-    tipo_integracao: string
-    valor_unitario_transporte: number
-    data_nascimento: string
   }>({
     vacancy_id: '',
     nome: '',
@@ -125,10 +121,6 @@ export default function Candidates() {
     telefone_emergencia: '',
     integracao_ativa: false,
     data_integracao: '',
-    hora_integracao: '',
-    tipo_integracao: '',
-    valor_unitario_transporte: 0,
-    data_nascimento: '',
   })
 
   const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
@@ -185,10 +177,6 @@ export default function Candidates() {
       telefone_emergencia: '',
       integracao_ativa: false,
       data_integracao: '',
-      hora_integracao: '',
-      tipo_integracao: '',
-      valor_unitario_transporte: 0,
-      data_nascimento: '',
     })
     setEditOpen(true)
   }
@@ -214,10 +202,6 @@ export default function Candidates() {
       telefone_emergencia: c.telefone_emergencia || '',
       integracao_ativa: c.integracao_ativa || false,
       data_integracao: toDateInputValue(c.data_integracao),
-      hora_integracao: c.hora_integracao || '',
-      tipo_integracao: c.tipo_integracao || '',
-      valor_unitario_transporte: c.valor_unitario_transporte || 0,
-      data_nascimento: toDateInputValue(c.data_nascimento),
     })
     setEditOpen(true)
 
@@ -238,19 +222,9 @@ export default function Candidates() {
       toast.error('Selecione uma vaga para o candidato.')
       return
     }
-    if (formData.integracao_ativa) {
-      if (!formData.data_integracao) {
-        toast.error('A Data da Integração é obrigatória quando a integração está ativada.')
-        return
-      }
-      if (!formData.hora_integracao) {
-        toast.error('A Hora da Integração é obrigatória quando a integração está ativada.')
-        return
-      }
-      if (!formData.tipo_integracao) {
-        toast.error('O Tipo de Integração é obrigatório quando a integração está ativada.')
-        return
-      }
+    if (formData.integracao_ativa && !formData.data_integracao) {
+      toast.error('A Data da Integração é obrigatória quando a integração está ativada.')
+      return
     }
 
     setSaving(true)
@@ -681,33 +655,6 @@ export default function Candidates() {
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-700">
-                    Valor Unitário Transporte (R$)
-                  </Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min={0}
-                    value={formData.valor_unitario_transporte}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        valor_unitario_transporte: parseFloat(e.target.value) || 0,
-                      })
-                    }
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-700">Data de Nascimento</Label>
-                  <Input
-                    type="date"
-                    value={formData.data_nascimento}
-                    onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
-                  />
-                </div>
-
-                <div className="space-y-1">
                   <Label className="text-xs font-bold text-slate-700">Nome do Pai</Label>
                   <Input
                     value={formData.nome_pai}
@@ -755,8 +702,6 @@ export default function Candidates() {
                         ...formData,
                         integracao_ativa: isChecked,
                         data_integracao: isChecked ? formData.data_integracao : '',
-                        hora_integracao: isChecked ? formData.hora_integracao : '',
-                        tipo_integracao: isChecked ? formData.tipo_integracao : '',
                       })
                     }}
                   />
@@ -772,35 +717,6 @@ export default function Candidates() {
                     onChange={(e) => setFormData({ ...formData, data_integracao: e.target.value })}
                     disabled={!formData.integracao_ativa}
                   />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">Hora da Integração</Label>
-                    <Input
-                      type="time"
-                      value={formData.hora_integracao}
-                      onChange={(e) =>
-                        setFormData({ ...formData, hora_integracao: e.target.value })
-                      }
-                      disabled={!formData.integracao_ativa}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">Tipo de Integração</Label>
-                    <Select
-                      value={formData.tipo_integracao}
-                      onValueChange={(val) => setFormData({ ...formData, tipo_integracao: val })}
-                      disabled={!formData.integracao_ativa}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Presencial">Presencial</SelectItem>
-                        <SelectItem value="On-line">On-line</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
                 </div>
               </div>
             )}

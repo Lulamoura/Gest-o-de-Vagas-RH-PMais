@@ -62,8 +62,10 @@ export function SystemParametersForm() {
       setNomeRemetente(parameters.nome_remetente || '')
       setEmailRemetente(parameters.email_remetente || '')
       setSloganPmais(parameters.slogan_pmais || '')
-      setEmailDpLista(parameters.email_dp_lista || '')
-      setEmailOperacionalLista(parameters.email_operacional_lista || '')
+      setEmailDpLista(parameters.email_dp_lista || parameters.email_dp || '')
+      setEmailOperacionalLista(
+        parameters.email_operacional_lista || parameters.email_operacional || '',
+      )
       setEmailComercial(parameters.email_comercial || '')
       setRecordId(parameters.id)
     } else {

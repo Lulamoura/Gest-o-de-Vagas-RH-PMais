@@ -43,7 +43,6 @@ import { PlusCircle, Pencil, Trash2, Database } from 'lucide-react'
 import { CostConsultationsForm } from '@/components/CostConsultationsForm'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ClinicasManager } from '@/components/ClinicasManager'
-import { BaseIntegracaoManager } from '@/components/BaseIntegracaoManager'
 import { SystemParametersForm } from '@/components/SystemParametersForm'
 import { UserDepartmentManager } from '@/components/UserDepartmentManager'
 import { RecordModel } from 'pocketbase'
@@ -57,11 +56,10 @@ type CollectionKey =
   | 'departamentos'
   | 'custos_consultas'
   | 'clinicas'
-  | 'base_integracao'
   | 'system_parameters'
 
 const CONFIG: Record<
-  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'>,
+  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'system_parameters'>,
   {
     label: string
     list: () => Promise<RecordModel[]>
@@ -115,7 +113,7 @@ const CONFIG: Record<
 }
 
 const FIELD_MAP: Record<
-  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'>,
+  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'system_parameters'>,
   string
 > = {
   clientes: 'cliente',
@@ -126,10 +124,7 @@ const FIELD_MAP: Record<
   departamentos: '',
 }
 
-const REF_TABS = Object.keys(CONFIG) as Exclude<
-  CollectionKey,
-  'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'
->[]
+const REF_TABS = Object.keys(CONFIG) as Exclude<CollectionKey, 'custos_consultas'>[]
 
 export default function ReferenceData() {
   const { isAdmin, isSuperAdmin } = useAuth()
@@ -150,7 +145,6 @@ export default function ReferenceData() {
     if (
       activeTab === 'custos_consultas' ||
       activeTab === 'clinicas' ||
-      activeTab === 'base_integracao' ||
       activeTab === 'system_parameters'
     )
       return
@@ -170,14 +164,7 @@ export default function ReferenceData() {
       setActiveTab('custos_consultas')
       return
     }
-    if (
-      canManage &&
-      activeTab !== 'custos_consultas' &&
-      activeTab !== 'clinicas' &&
-      activeTab !== 'base_integracao' &&
-      activeTab !== 'system_parameters'
-    )
-      loadData()
+    if (canManage) loadData()
   }, [activeTab, isAdmin, isSuperAdmin])
 
   const openCreate = () => {
@@ -199,10 +186,7 @@ export default function ReferenceData() {
     }
     setSaving(true)
     try {
-      const tab = activeTab as Exclude<
-        CollectionKey,
-        'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'
-      >
+      const tab = activeTab as Exclude<CollectionKey, 'custos_consultas'>
       if (editingId) {
         await CONFIG[tab].update(editingId, { nome })
         toast.success('Atualizado!')
@@ -220,10 +204,7 @@ export default function ReferenceData() {
   }
 
   const promptDelete = async (r: RecordModel) => {
-    const tab = activeTab as Exclude<
-      CollectionKey,
-      'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'
-    >
+    const tab = activeTab as Exclude<CollectionKey, 'custos_consultas'>
     const fieldName = FIELD_MAP[tab]
     if (fieldName) {
       const count = await countReferenceInUse(fieldName, r.id)
@@ -238,10 +219,7 @@ export default function ReferenceData() {
 
   const handleConfirmDelete = async () => {
     if (!recordToDelete) return
-    const tab = activeTab as Exclude<
-      CollectionKey,
-      'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'
-    >
+    const tab = activeTab as Exclude<CollectionKey, 'custos_consultas'>
     setDeleting(true)
     try {
       await CONFIG[tab].del(recordToDelete.id)
@@ -278,7 +256,6 @@ export default function ReferenceData() {
             ))}
           <TabsTrigger value="custos_consultas">Custo de Consultas</TabsTrigger>
           {canManage && <TabsTrigger value="clinicas">Clínicas</TabsTrigger>}
-          {canManage && <TabsTrigger value="base_integracao">Base de Integração</TabsTrigger>}
           {isSuperAdmin && (
             <TabsTrigger value="system_parameters">Parâmetros do Sistema</TabsTrigger>
           )}
@@ -370,12 +347,6 @@ export default function ReferenceData() {
           </TabsContent>
         )}
 
-        {canManage && (
-          <TabsContent value="base_integracao">
-            <BaseIntegracaoManager />
-          </TabsContent>
-        )}
-
         {isSuperAdmin && (
           <TabsContent value="system_parameters">
             <SystemParametersForm />
@@ -388,14 +359,7 @@ export default function ReferenceData() {
           <DialogHeader>
             <DialogTitle>
               {editingId ? 'Editar' : 'Novo'} —{' '}
-              {
-                CONFIG[
-                  activeTab as Exclude<
-                    CollectionKey,
-                    'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'
-                  >
-                ]?.label
-              }
+              {CONFIG[activeTab as Exclude<CollectionKey, 'custos_consultas'>]?.label}
             </DialogTitle>
             <DialogDescription>Digite o nome do registro</DialogDescription>
           </DialogHeader>

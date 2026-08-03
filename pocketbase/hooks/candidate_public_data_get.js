@@ -32,8 +32,6 @@ routerAdd('GET', '/backend/v1/candidate-public-data/{id}', (e) => {
       nome_pai: candidate.getString('nome_pai'),
       nome_mae: candidate.getString('nome_mae'),
       telefone_emergencia: candidate.getString('telefone_emergencia'),
-      valor_unitario_transporte: candidate.get('valor_unitario_transporte') || 0,
-      data_nascimento: candidate.getString('data_nascimento'),
     })
   } catch (err) {
     return e.notFoundError('Candidato não encontrado')

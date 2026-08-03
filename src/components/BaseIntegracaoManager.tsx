@@ -41,13 +41,7 @@ import { toast } from 'sonner'
 import { PlusCircle, Pencil, Trash2, Search, MapPin } from 'lucide-react'
 import { BaseIntegracaoRecord } from '@/types'
 
-const emptyForm = {
-  nome: '',
-  endereco: '',
-  telefone: '',
-  email: '',
-  pessoa_contato: '',
-}
+const emptyForm = { nome: '', endereco: '', telefone: '', email: '', pessoa_contato: '' }
 
 export function BaseIntegracaoManager() {
   const { isAdmin, isSuperAdmin } = useAuth()
@@ -76,7 +70,6 @@ export function BaseIntegracaoManager() {
   useEffect(() => {
     loadData()
   }, [])
-
   useRealtime<BaseIntegracaoRecord>('base_integracao', () => {
     loadData()
   })
@@ -96,7 +89,6 @@ export function BaseIntegracaoManager() {
     setForm(emptyForm)
     setModalOpen(true)
   }
-
   const openEdit = (r: BaseIntegracaoRecord) => {
     setEditingId(r.id)
     setForm({
@@ -119,15 +111,15 @@ export function BaseIntegracaoManager() {
     try {
       if (editingId) {
         await updateBaseIntegracao(editingId, form)
-        toast.success('Base de integração atualizada!')
+        toast.success('Base atualizada!')
       } else {
         await createBaseIntegracao(form)
-        toast.success('Base de integração criada!')
+        toast.success('Base criada!')
       }
       setModalOpen(false)
       loadData()
     } catch {
-      toast.error('Erro ao salvar base de integração')
+      toast.error('Erro ao salvar')
     } finally {
       setSaving(false)
     }
@@ -138,10 +130,10 @@ export function BaseIntegracaoManager() {
     setDeleting(true)
     try {
       await deleteBaseIntegracao(deleteId)
-      toast.success('Base de integração excluída')
+      toast.success('Base excluída')
       loadData()
     } catch {
-      toast.error('Erro ao excluir base de integração')
+      toast.error('Erro ao excluir')
     } finally {
       setDeleting(false)
       setDeleteId(null)
@@ -159,7 +151,7 @@ export function BaseIntegracaoManager() {
           <div className="relative">
             <Search className="h-4 w-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <Input
-              placeholder="Buscar base..."
+              placeholder="Buscar..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="pl-9 h-9 w-56 text-sm"
@@ -246,17 +238,12 @@ export function BaseIntegracaoManager() {
           </TableBody>
         </Table>
       </CardContent>
-
       <Dialog open={modalOpen} onOpenChange={setModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
-              {editingId ? 'Editar Base de Integração' : 'Nova Base de Integração'}
-            </DialogTitle>
+            <DialogTitle>{editingId ? 'Editar Base' : 'Nova Base'}</DialogTitle>
             <DialogDescription>
-              {editingId
-                ? 'Atualize os dados da base.'
-                : 'Preencha os dados da nova base de integração.'}
+              {editingId ? 'Atualize os dados.' : 'Preencha os dados da nova base.'}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSave} className="space-y-3 py-2">
@@ -315,13 +302,12 @@ export function BaseIntegracaoManager() {
           </form>
         </DialogContent>
       </Dialog>
-
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir Base de Integração</AlertDialogTitle>
+            <AlertDialogTitle>Excluir Base</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza que deseja excluir esta base? Esta ação não pode ser desfeita.
+              Tem certeza? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

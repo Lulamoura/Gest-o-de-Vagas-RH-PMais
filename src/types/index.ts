@@ -45,6 +45,14 @@ export interface ClinicaRecord extends RecordModel {
   pessoa_contato?: string
 }
 
+export interface BaseIntegracaoRecord extends RecordModel {
+  nome: string
+  endereco?: string
+  telefone?: string
+  email?: string
+  pessoa_contato?: string
+}
+
 export interface VacancyRecord extends RecordModel {
   wordpress_job_id?: string
   cliente: string
@@ -173,6 +181,9 @@ export interface SystemParameterRecord extends RecordModel {
   slogan_pmais?: string
   email_dp?: string
   email_operacional?: string
+  email_dp_lista?: string
+  email_operacional_lista?: string
+  email_comercial?: string
 }
 
 export type EmailType =

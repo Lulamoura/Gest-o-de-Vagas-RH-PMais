@@ -36,8 +36,9 @@ onRecordAfterUpdateSuccess((e) => {
     var params = $app.findRecordsByFilter('system_parameters', '', 'created', 1, 0)
     if (params.length > 0) {
       var sp = params[0]
-      emailDpLista = sp.getString('email_dp_lista') || ''
-      emailOperacionalLista = sp.getString('email_operacional_lista') || ''
+      emailDpLista = sp.getString('email_dp_lista') || sp.getString('email_dp') || ''
+      emailOperacionalLista =
+        sp.getString('email_operacional_lista') || sp.getString('email_operacional') || ''
       emailComercial = sp.getString('email_comercial') || ''
       if (sp.getString('nome_remetente')) senderName = sp.getString('nome_remetente')
       if (sp.getString('email_remetente')) senderEmail = sp.getString('email_remetente')

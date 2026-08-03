@@ -14,7 +14,6 @@ const TYPE_LABELS: Record<string, string> = {
   complement_data: 'Solicitar Dados Complementares',
   disqualification: 'Aviso de Desclassificação',
   encaminhamento_exames: 'Encaminhamento para Exames',
-  aviso_integracao_candidato: 'Aviso de Integração ao Candidato',
 }
 
 export default function EmailTemplates() {

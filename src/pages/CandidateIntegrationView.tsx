@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getCandidate, updateCandidate } from '@/services/candidates'
-import { getBaseIntegracao } from '@/services/base_integracao'
-import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
-import { sendIntegrationNotice } from '@/services/candidates'
-import { CandidateRecord, BaseIntegracaoRecord, CandidateEmailLogRecord } from '@/types'
+import { CandidateRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -12,7 +9,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
-import { IntegrationNoticeModal } from '@/components/IntegrationNoticeModal'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,34 +21,24 @@ import {
 } from '@/components/ui/alert-dialog'
 import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
 import { toast } from 'sonner'
-import { ArrowLeft, CheckCircle, Calendar, Clock, MapPin, Mail, Check } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Calendar } from 'lucide-react'
 
 export default function CandidateIntegrationView() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { isOperator, isSuperAdmin, isAdmin } = useAuth()
-  const canMarkIntegrated = isOperator || isSuperAdmin || isAdmin
+  const { isOperator, isSuperAdmin } = useAuth()
+  const canMarkIntegrated = isOperator || isSuperAdmin
 
   const [candidate, setCandidate] = useState<CandidateRecord | null>(null)
-  const [baseIntegracaoList, setBaseIntegracaoList] = useState<BaseIntegracaoRecord[]>([])
-  const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [integrating, setIntegrating] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
-  const [integrationModalOpen, setIntegrationModalOpen] = useState(false)
-  const [sendingIntegrationEmail, setSendingIntegrationEmail] = useState(false)
 
   const loadData = async () => {
     if (!id) return
     try {
-      const [data, bases, logs] = await Promise.all([
-        getCandidate(id),
-        getBaseIntegracao(),
-        getEmailLogsForCandidate(id).catch(() => []),
-      ])
+      const data = await getCandidate(id)
       setCandidate(data)
-      setBaseIntegracaoList(bases)
-      setEmailLogs(logs)
     } catch {
       toast.error('Erro ao carregar candidato')
     } finally {
@@ -65,12 +51,6 @@ export default function CandidateIntegrationView() {
   }, [id])
 
   useRealtime('candidates', () => loadData())
-  useRealtime('candidate_email_log', () => {
-    if (id)
-      getEmailLogsForCandidate(id)
-        .then(setEmailLogs)
-        .catch(() => {})
-  })
 
   const handleMarkIntegrated = async () => {
     if (!candidate) return
@@ -87,25 +67,6 @@ export default function CandidateIntegrationView() {
     }
   }
 
-  const handleSendIntegrationEmail = async () => {
-    if (!candidate) return
-    if (candidate.tipo_integracao === 'On-line') {
-      setSendingIntegrationEmail(true)
-      try {
-        await sendIntegrationNotice(candidate.id, 'On-line', null)
-        toast.success('Aviso de integração enviado com sucesso!')
-        const logs = await getEmailLogsForCandidate(candidate.id)
-        setEmailLogs(logs)
-      } catch {
-        toast.error('Erro ao enviar aviso de integração')
-      } finally {
-        setSendingIntegrationEmail(false)
-      }
-    } else if (candidate.tipo_integracao === 'Presencial') {
-      setIntegrationModalOpen(true)
-    }
-  }
-
   if (loading || !candidate) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -115,10 +76,6 @@ export default function CandidateIntegrationView() {
   }
 
   const vacancy = candidate.expand?.vacancy_id
-  const showIntegrationEmailBtn =
-    canMarkIntegrated &&
-    candidate.status_candidato === 'Cadastro DP' &&
-    candidate.integracao_ativa === true
 
   return (
     <div className="space-y-6">
@@ -174,24 +131,6 @@ export default function CandidateIntegrationView() {
               <Label className="text-xs font-bold text-slate-700">Bairro</Label>
               <Input value={candidate.bairro || '—'} disabled />
             </div>
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Data de Nascimento</Label>
-              <Input
-                value={candidate.data_nascimento ? formatDateBR(candidate.data_nascimento) : '—'}
-                disabled
-              />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-xs font-bold text-slate-700">Valor Unitário Transporte</Label>
-              <Input
-                value={
-                  candidate.valor_unitario_transporte
-                    ? `R$ ${candidate.valor_unitario_transporte.toFixed(2)}`
-                    : '—'
-                }
-                disabled
-              />
-            </div>
           </div>
 
           <div className="pt-3 border-t border-slate-200">
@@ -233,42 +172,18 @@ export default function CandidateIntegrationView() {
           </div>
 
           <div className="pt-3 border-t border-slate-200 space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Calendar className="h-5 w-5 text-indigo-600" />
-                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                    Data da Integração
-                  </p>
-                </div>
-                <p className="text-lg font-bold text-indigo-900">
-                  {candidate.data_integracao
-                    ? formatDateBR(candidate.data_integracao)
-                    : 'Não definida'}
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
+              <div className="flex items-center justify-center gap-2 mb-1">
+                <Calendar className="h-5 w-5 text-indigo-600" />
+                <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
+                  Data da Integração
                 </p>
               </div>
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <Clock className="h-5 w-5 text-indigo-600" />
-                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                    Hora da Integração
-                  </p>
-                </div>
-                <p className="text-lg font-bold text-indigo-900">
-                  {candidate.hora_integracao || 'Não definida'}
-                </p>
-              </div>
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                  <MapPin className="h-5 w-5 text-indigo-600" />
-                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                    Tipo de Integração
-                  </p>
-                </div>
-                <p className="text-lg font-bold text-indigo-900">
-                  {candidate.tipo_integracao || 'Não definido'}
-                </p>
-              </div>
+              <p className="text-xl font-bold text-indigo-900">
+                {candidate.data_integracao
+                  ? formatDateBR(candidate.data_integracao)
+                  : 'Não definida'}
+              </p>
             </div>
 
             <div className="flex items-center justify-center gap-3">
@@ -279,23 +194,6 @@ export default function CandidateIntegrationView() {
                 {candidate.status_candidato}
               </Badge>
             </div>
-
-            {showIntegrationEmailBtn && (
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleSendIntegrationEmail}
-                disabled={sendingIntegrationEmail || !candidate.email}
-                className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
-                title={!candidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
-              >
-                <Mail className="h-4 w-4 mr-2" />
-                {sendingIntegrationEmail ? 'Enviando...' : 'Enviar Aviso de Integração'}
-                {hasEmailBeenSent(emailLogs, 'aviso_integracao_candidato') && (
-                  <Check className="h-4 w-4 ml-2 text-emerald-600" />
-                )}
-              </Button>
-            )}
 
             {canMarkIntegrated && candidate.status_candidato === 'Cadastro DP' && (
               <Button
@@ -336,15 +234,6 @@ export default function CandidateIntegrationView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      <IntegrationNoticeModal
-        open={integrationModalOpen}
-        onOpenChange={setIntegrationModalOpen}
-        candidateId={candidate.id}
-        tipoIntegracao={candidate.tipo_integracao || 'Presencial'}
-        baseIntegracaoList={baseIntegracaoList}
-        onSuccess={loadData}
-      />
     </div>
   )
 }

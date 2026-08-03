@@ -65,18 +65,9 @@ export const updateCandidatePublicData = (candidateId: string, data: any) =>
     headers: { 'Content-Type': 'application/json' },
   })
 
-export const sendIntegrationNotice = (
-  candidateId: string,
-  tipoIntegracao: string,
-  baseIntegracaoId: string | null,
-) =>
+export const sendAvisoIntegracaoCandidato = (candidateId: string, baseIntegracaoId?: string) =>
   pb.send('/backend/v1/send-aviso-integracao-candidato', {
     method: 'POST',
-    body: JSON.stringify({
-      candidate_id: candidateId,
-      candidateId,
-      tipo_integracao: tipoIntegracao,
-      base_integracao_id: baseIntegracaoId,
-    }),
+    body: JSON.stringify({ candidate_id: candidateId, base_integracao_id: baseIntegracaoId }),
     headers: { 'Content-Type': 'application/json' },
   })

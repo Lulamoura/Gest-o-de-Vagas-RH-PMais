@@ -16,7 +16,7 @@ import { ExamReferralModal } from '@/components/ExamReferralModal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, formatDateBR, getCandidateStatusBadgeClass } from '@/lib/status-utils'
+import { formatCurrency, getCandidateStatusBadgeClass } from '@/lib/status-utils'
 import {
   ArrowLeft,
   Mail,
@@ -199,21 +199,6 @@ export default function CandidateDetail() {
               <span className="text-slate-400 font-semibold">Custo total:</span>
               <span className="text-slate-700 font-bold">{formatCurrency(totalCost)}</span>
             </div>
-            {candidate.data_nascimento && (
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400 font-semibold">Data Nasc.:</span>
-                <span className="text-slate-700">{formatDateBR(candidate.data_nascimento)}</span>
-              </div>
-            )}
-            {candidate.valor_unitario_transporte != null &&
-              candidate.valor_unitario_transporte > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-400 font-semibold">Vl. Unit. Transp.:</span>
-                  <span className="text-slate-700">
-                    {formatCurrency(candidate.valor_unitario_transporte)}
-                  </span>
-                </div>
-              )}
           </div>
 
           <div className="flex items-center gap-3 pt-2 border-t border-slate-100">
@@ -225,35 +210,6 @@ export default function CandidateDetail() {
             </Badge>
             {candidate.rank != null && <StarRating value={candidate.rank} readOnly size={14} />}
           </div>
-
-          {candidate.integracao_ativa && (
-            <div className="pt-2 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
-                <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
-                  Data Integração
-                </p>
-                <p className="text-sm font-bold text-indigo-900">
-                  {candidate.data_integracao ? formatDateBR(candidate.data_integracao) : '—'}
-                </p>
-              </div>
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
-                <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
-                  Hora Integração
-                </p>
-                <p className="text-sm font-bold text-indigo-900">
-                  {candidate.hora_integracao || '—'}
-                </p>
-              </div>
-              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-center">
-                <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider">
-                  Tipo Integração
-                </p>
-                <p className="text-sm font-bold text-indigo-900">
-                  {candidate.tipo_integracao || '—'}
-                </p>
-              </div>
-            </div>
-          )}
 
           {(showComplementBtn || showExamBtn || showDisqualBtn) && (
             <div className="pt-2 border-t border-slate-100 space-y-2">
