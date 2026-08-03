@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-03T21:10:21.042Z",
+  "generatedAt": "2026-08-03T21:17:47.269Z",
   "collections": [
     {
       "name": "users",
@@ -1038,7 +1038,12 @@
           "type": "select",
           "required": true,
           "system": false,
-          "selectValues": ["complement_data", "disqualification", "encaminhamento_exames"]
+          "selectValues": [
+            "complement_data",
+            "disqualification",
+            "encaminhamento_exames",
+            "aviso_integracao_candidato"
+          ]
         }
       ],
       "indexes": ["CREATE UNIQUE INDEX idx_email_templates_type ON email_templates (type)"]

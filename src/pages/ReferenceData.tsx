@@ -61,10 +61,8 @@ type CollectionKey =
   | 'system_parameters'
 
 const CONFIG: Record<
-Exclude<
-  CollectionKey,
-  'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'
->,  {
+  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'>,
+  {
     label: string
     list: () => Promise<RecordModel[]>
     create: (d: { nome: string }) => Promise<RecordModel>
@@ -117,10 +115,7 @@ Exclude<
 }
 
 const FIELD_MAP: Record<
-  Exclude<
-    CollectionKey,
-    'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'
-  >,
+  Exclude<CollectionKey, 'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'>,
   string
 > = {
   clientes: 'cliente',
@@ -229,7 +224,8 @@ export default function ReferenceData() {
       CollectionKey,
       'custos_consultas' | 'clinicas' | 'base_integracao' | 'system_parameters'
     >
-    const fieldName = FIELD_MAP[tab]    if (fieldName) {
+    const fieldName = FIELD_MAP[tab]
+    if (fieldName) {
       const count = await countReferenceInUse(fieldName, r.id)
       if (count > 0) {
         toast.error(`Não é possível excluir: este registro está em uso por ${count} vaga(s).`)

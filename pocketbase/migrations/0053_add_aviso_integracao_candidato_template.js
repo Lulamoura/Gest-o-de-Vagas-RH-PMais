@@ -3,7 +3,7 @@ migrate(
     var col = app.findCollectionByNameOrId('email_templates')
     var typeField = col.fields.getByName('type')
     if (typeField) {
-      col.fields.remove(typeField)
+      col.fields.removeByName('type')
     }
     col.fields.add(
       new SelectField({
@@ -53,7 +53,7 @@ migrate(
     var col = app.findCollectionByNameOrId('email_templates')
     var typeField = col.fields.getByName('type')
     if (typeField) {
-      col.fields.remove(typeField)
+      col.fields.removeByName('type')
     }
     col.fields.add(
       new SelectField({
