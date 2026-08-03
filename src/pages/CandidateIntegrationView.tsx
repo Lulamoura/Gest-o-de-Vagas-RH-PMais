@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getCandidate, updateCandidate, sendIntegrationNotice } from '@/services/candidates'
+import { getCandidate, updateCandidate, sendAvisoIntegracaoCandidato } from '@/services/candidates'
 import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
-import { getBaseIntegracoes } from '@/services/base_integracao'
+import { getBaseIntegracao } from '@/services/base_integracao'
 import { CandidateRecord, CandidateEmailLogRecord, BaseIntegracaoRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -47,7 +47,7 @@ export default function CandidateIntegrationView() {
       const [data, logs, bases] = await Promise.all([
         getCandidate(id),
         getEmailLogsForCandidate(id),
-        getBaseIntegracoes(),
+        getBaseIntegracao(),
       ])
       setCandidate(data)
       setEmailLogs(logs)
@@ -84,7 +84,7 @@ export default function CandidateIntegrationView() {
     if (!candidate) return
     setSendingIntegration(true)
     try {
-      await sendIntegrationNotice(candidate.id, baseIntegracaoId)
+      await sendAvisoIntegracaoCandidato(candidate.id, baseIntegracaoId)
       toast.success('E-mail de integração enviado!')
       const logs = await getEmailLogsForCandidate(candidate.id)
       setEmailLogs(logs)
