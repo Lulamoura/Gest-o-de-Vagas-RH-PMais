@@ -36,9 +36,8 @@ onRecordAfterUpdateSuccess((e) => {
     var params = $app.findRecordsByFilter('system_parameters', '', 'created', 1, 0)
     if (params.length > 0) {
       var sp = params[0]
-      emailDpLista = sp.getString('email_dp_lista') || sp.getString('email_dp') || ''
-      emailOperacionalLista =
-        sp.getString('email_operacional_lista') || sp.getString('email_operacional') || ''
+      emailDpLista = sp.getString('email_dp_lista') || ''
+      emailOperacionalLista = sp.getString('email_operacional_lista') || ''
       emailComercial = sp.getString('email_comercial') || ''
       if (sp.getString('nome_remetente')) senderName = sp.getString('nome_remetente')
       if (sp.getString('email_remetente')) senderEmail = sp.getString('email_remetente')
@@ -105,22 +104,13 @@ onRecordAfterUpdateSuccess((e) => {
     try {
       var vacancy = $app.findRecordById('vacancies', vacancyId)
       var cargoId = vacancy.getString('cargo')
-      var clienteId = vacancy.getString('cliente')
       var cargoNome = ''
-      var clienteNome = ''
       if (cargoId) {
         try {
           cargoNome = $app.findRecordById('cargos', cargoId).getString('nome')
         } catch (_) {}
       }
-      if (clienteId) {
-        try {
-          clienteNome = $app.findRecordById('clientes', clienteId).getString('nome')
-        } catch (_) {}
-      }
-      if (cargoNome && clienteNome) vacancyName = cargoNome + ' - ' + clienteNome
-      else if (cargoNome) vacancyName = cargoNome
-      else if (clienteNome) vacancyName = clienteNome
+      if (cargoNome) vacancyName = cargoNome
     } catch (_) {}
   }
 

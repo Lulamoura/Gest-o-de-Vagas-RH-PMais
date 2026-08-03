@@ -15,6 +15,9 @@ routerAdd('POST', '/backend/v1/candidate-public-data/{id}', (e) => {
     if (body.nome_mae !== undefined) candidate.set('nome_mae', body.nome_mae)
     if (body.telefone_emergencia !== undefined)
       candidate.set('telefone_emergencia', body.telefone_emergencia)
+    if (body.valor_unitario_transporte !== undefined)
+      candidate.set('valor_unitario_transporte', body.valor_unitario_transporte)
+    if (body.data_nascimento !== undefined) candidate.set('data_nascimento', body.data_nascimento)
 
     $app.save(candidate)
     return e.json(200, { success: true })

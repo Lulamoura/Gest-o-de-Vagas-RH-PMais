@@ -43,6 +43,7 @@ import { PlusCircle, Pencil, Trash2, Database } from 'lucide-react'
 import { CostConsultationsForm } from '@/components/CostConsultationsForm'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { ClinicasManager } from '@/components/ClinicasManager'
+import { BaseIntegracaoManager } from '@/components/BaseIntegracaoManager'
 import { SystemParametersForm } from '@/components/SystemParametersForm'
 import { UserDepartmentManager } from '@/components/UserDepartmentManager'
 import { RecordModel } from 'pocketbase'
@@ -56,6 +57,7 @@ type CollectionKey =
   | 'departamentos'
   | 'custos_consultas'
   | 'clinicas'
+  | 'base_integracao'
   | 'system_parameters'
 
 const CONFIG: Record<
@@ -256,6 +258,7 @@ export default function ReferenceData() {
             ))}
           <TabsTrigger value="custos_consultas">Custo de Consultas</TabsTrigger>
           {canManage && <TabsTrigger value="clinicas">Clínicas</TabsTrigger>}
+          {canManage && <TabsTrigger value="base_integracao">Base de Integração</TabsTrigger>}
           {isSuperAdmin && (
             <TabsTrigger value="system_parameters">Parâmetros do Sistema</TabsTrigger>
           )}
@@ -344,6 +347,12 @@ export default function ReferenceData() {
         {canManage && (
           <TabsContent value="clinicas">
             <ClinicasManager />
+          </TabsContent>
+        )}
+
+        {canManage && (
+          <TabsContent value="base_integracao">
+            <BaseIntegracaoManager />
           </TabsContent>
         )}
 
