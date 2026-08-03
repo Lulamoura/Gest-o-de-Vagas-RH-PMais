@@ -55,6 +55,17 @@ export const sendExamReferral = (
     headers: { 'Content-Type': 'application/json' },
   })
 
+export const sendIntegrationNotice = (candidateId: string, baseIntegracaoId?: string) =>
+  pb.send('/backend/v1/send-aviso-integracao-candidato', {
+    method: 'POST',
+    body: JSON.stringify({
+      candidate_id: candidateId,
+      candidateId,
+      base_integracao_id: baseIntegracaoId || '',
+    }),
+    headers: { 'Content-Type': 'application/json' },
+  })
+
 export const getCandidatePublicData = (candidateId: string) =>
   pb.send(`/backend/v1/candidate-public-data/${candidateId}`, { method: 'GET' })
 

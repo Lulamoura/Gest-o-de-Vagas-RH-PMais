@@ -25,6 +25,8 @@ interface PublicCandidateData {
   nome_pai: string
   nome_mae: string
   telefone_emergencia: string
+  valor_unitario_transporte: number
+  data_nascimento: string
 }
 
 export default function CandidatePublicForm() {
@@ -42,6 +44,8 @@ export default function CandidatePublicForm() {
   const [nomePai, setNomePai] = useState('')
   const [nomeMae, setNomeMae] = useState('')
   const [telefoneEmergencia, setTelefoneEmergencia] = useState('')
+  const [valorUnitarioTransporte, setValorUnitarioTransporte] = useState(0)
+  const [dataNascimento, setDataNascimento] = useState('')
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
 
   const fetchData = () => {
@@ -62,6 +66,8 @@ export default function CandidatePublicForm() {
         setNomePai(res.nome_pai || '')
         setNomeMae(res.nome_mae || '')
         setTelefoneEmergencia(res.telefone_emergencia || '')
+        setValorUnitarioTransporte(res.valor_unitario_transporte || 0)
+        setDataNascimento(res.data_nascimento || '')
       })
       .catch((err) => {
         if (err?.isAbort) {
@@ -108,6 +114,8 @@ export default function CandidatePublicForm() {
           nome_pai: nomePai,
           nome_mae: nomeMae,
           telefone_emergencia: telefoneEmergencia,
+          valor_unitario_transporte: Number(valorUnitarioTransporte),
+          data_nascimento: dataNascimento,
         }),
         headers: { 'Content-Type': 'application/json' },
       })
@@ -279,6 +287,30 @@ export default function CandidatePublicForm() {
                   {fieldErrors.telefone_emergencia && (
                     <p className="text-[10px] text-rose-500">{fieldErrors.telefone_emergencia}</p>
                   )}
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">Data de Nascimento</Label>
+                    <Input
+                      type="date"
+                      value={dataNascimento}
+                      onChange={(e) => setDataNascimento(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">
+                      Valor Unitário Transporte (R$)
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={valorUnitarioTransporte}
+                      onChange={(e) => setValorUnitarioTransporte(Number(e.target.value))}
+                      className="h-9 text-sm"
+                    />
+                  </div>
                 </div>
                 {error && <p className="text-xs text-rose-500 text-center">{error}</p>}
                 <Button

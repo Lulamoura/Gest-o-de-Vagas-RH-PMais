@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getCandidate, updateCandidate } from '@/services/candidates'
-import { CandidateRecord } from '@/types'
+import { getCandidate, updateCandidate, sendIntegrationNotice } from '@/services/candidates'
+import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
+import { getBaseIntegracoes } from '@/services/base_integracao'
+import { CandidateRecord, CandidateEmailLogRecord, BaseIntegracaoRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
+import { IntegrationNoticeModal } from '@/components/IntegrationNoticeModal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -21,7 +24,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
 import { toast } from 'sonner'
-import { ArrowLeft, CheckCircle, Calendar } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Calendar, Mail, Check } from 'lucide-react'
 
 export default function CandidateIntegrationView() {
   const { id } = useParams<{ id: string }>()
@@ -33,12 +36,22 @@ export default function CandidateIntegrationView() {
   const [loading, setLoading] = useState(true)
   const [integrating, setIntegrating] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
+  const [sendingIntegration, setSendingIntegration] = useState(false)
+  const [integrationModalOpen, setIntegrationModalOpen] = useState(false)
+  const [baseIntegracoes, setBaseIntegracoes] = useState<BaseIntegracaoRecord[]>([])
 
   const loadData = async () => {
     if (!id) return
     try {
-      const data = await getCandidate(id)
+      const [data, logs, bases] = await Promise.all([
+        getCandidate(id),
+        getEmailLogsForCandidate(id),
+        getBaseIntegracoes(),
+      ])
       setCandidate(data)
+      setEmailLogs(logs)
+      setBaseIntegracoes(bases)
     } catch {
       toast.error('Erro ao carregar candidato')
     } finally {
@@ -64,6 +77,30 @@ export default function CandidateIntegrationView() {
       toast.error('Erro ao atualizar status do candidato')
     } finally {
       setIntegrating(false)
+    }
+  }
+
+  const handleSendIntegrationNotice = async (baseIntegracaoId?: string) => {
+    if (!candidate) return
+    setSendingIntegration(true)
+    try {
+      await sendIntegrationNotice(candidate.id, baseIntegracaoId)
+      toast.success('E-mail de integração enviado!')
+      const logs = await getEmailLogsForCandidate(candidate.id)
+      setEmailLogs(logs)
+    } catch {
+      toast.error('Erro ao enviar e-mail')
+    } finally {
+      setSendingIntegration(false)
+    }
+  }
+
+  const handleIntegrationEmailClick = () => {
+    if (!candidate) return
+    if (candidate.tipo_integracao === 'Presencial') {
+      setIntegrationModalOpen(true)
+    } else {
+      handleSendIntegrationNotice()
     }
   }
 
@@ -195,6 +232,23 @@ export default function CandidateIntegrationView() {
               </Badge>
             </div>
 
+            {candidate.status_candidato === 'Cadastro DP' && candidate.integracao_ativa && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleIntegrationEmailClick}
+                disabled={sendingIntegration || !candidate.email}
+                className="w-full border-indigo-200 text-indigo-700 hover:bg-indigo-50"
+                title={!candidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
+              >
+                <Mail className="h-4 w-4 mr-2" />
+                {sendingIntegration ? 'Enviando...' : 'Enviar Aviso de Integração'}
+                {hasEmailBeenSent(emailLogs, 'aviso_integracao_candidato') && (
+                  <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                )}
+              </Button>
+            )}
+
             {canMarkIntegrated && candidate.status_candidato === 'Cadastro DP' && (
               <Button
                 onClick={() => setConfirmOpen(true)}
@@ -234,6 +288,17 @@ export default function CandidateIntegrationView() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <IntegrationNoticeModal
+        open={integrationModalOpen}
+        onOpenChange={setIntegrationModalOpen}
+        candidate={candidate}
+        baseIntegracoes={baseIntegracoes}
+        onSend={(baseId) => {
+          handleSendIntegrationNotice(baseId)
+          setIntegrationModalOpen(false)
+        }}
+      />
     </div>
   )
 }
