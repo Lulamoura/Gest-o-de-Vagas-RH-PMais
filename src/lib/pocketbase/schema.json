@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-02T10:52:25.078Z",
+  "generatedAt": "2026-08-03T21:10:21.042Z",
   "collections": [
     {
       "name": "users",
@@ -419,6 +419,31 @@
         },
         {
           "name": "data_integracao",
+          "type": "date",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "hora_integracao",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "tipo_integracao",
+          "type": "select",
+          "required": false,
+          "system": false,
+          "selectValues": ["Presencial", "On-line"]
+        },
+        {
+          "name": "valor_unitario_transporte",
+          "type": "number",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "data_nascimento",
           "type": "date",
           "required": false,
           "system": false
@@ -962,7 +987,8 @@
             "complement_data",
             "disqualification",
             "encaminhamento_exames",
-            "aviso_integracao"
+            "aviso_integracao",
+            "aviso_integracao_candidato"
           ]
         }
       ],
@@ -1808,6 +1834,64 @@
         "CREATE INDEX idx_change_requests_status ON requisition_change_requests (status)",
         "CREATE INDEX idx_change_requests_created ON requisition_change_requests (created DESC)"
       ]
+    },
+    {
+      "name": "base_integracao",
+      "type": "base",
+      "apiRules": {
+        "list": "@request.auth.id != ''",
+        "view": "@request.auth.id != ''",
+        "create": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "update": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'",
+        "delete": "@request.auth.profile = 'admin' || @request.auth.profile = 'superadmin'"
+      },
+      "fields": [
+        {
+          "name": "nome",
+          "type": "text",
+          "required": true,
+          "system": false
+        },
+        {
+          "name": "endereco",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "telefone",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "pessoa_contato",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "created",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate"]
+        },
+        {
+          "name": "updated",
+          "type": "autodate",
+          "required": false,
+          "system": false,
+          "autodateTriggers": ["onCreate", "onUpdate"]
+        }
+      ],
+      "indexes": []
     }
   ]
 }

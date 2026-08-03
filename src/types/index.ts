@@ -111,6 +111,10 @@ export interface CandidateRecord extends RecordModel {
   status_candidato: CandidateStatus
   integracao_ativa?: boolean
   data_integracao?: string
+  hora_integracao?: string
+  tipo_integracao?: 'Presencial' | 'On-line'
+  valor_unitario_transporte?: number
+  data_nascimento?: string
   expand?: {
     vacancy_id?: VacancyRecord
   }
@@ -176,6 +180,7 @@ export type EmailType =
   | 'disqualification'
   | 'encaminhamento_exames'
   | 'aviso_integracao'
+  | 'aviso_integracao_candidato'
 
 export interface EmailTemplateRecord extends RecordModel {
   type: EmailType
