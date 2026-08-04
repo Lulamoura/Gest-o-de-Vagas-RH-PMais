@@ -1416,7 +1416,7 @@ export default function VacancyDetail() {
 
       {/* Edit Candidate Modal */}
       <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
-        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Editar Candidato</DialogTitle>
             <DialogDescription>
@@ -1426,26 +1426,35 @@ export default function VacancyDetail() {
           </DialogHeader>
 
           <form onSubmit={handleUpdateCandidate} className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="eNome" className="text-xs font-bold text-slate-700">
-                Nome Completo <span className="text-rose-500">*</span>
-              </Label>
-              <Input
-                id="eNome"
-                placeholder="Ex: Juliana Rocha"
-                value={editNome}
-                onChange={(e) => setEditNome(e.target.value)}
-                required
-              />
-              {editFieldErrors.nome && (
-                <p className="text-xs text-rose-500 mt-0.5">{editFieldErrors.nome}</p>
-              )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="eNome" className="text-xs font-bold text-slate-700">
+                  Nome Completo <span className="text-rose-500">*</span>
+                </Label>
+                <Input
+                  id="eNome"
+                  placeholder="Ex: Juliana Rocha"
+                  value={editNome}
+                  onChange={(e) => setEditNome(e.target.value)}
+                  required
+                />
+                {editFieldErrors.nome && (
+                  <p className="text-xs text-rose-500 mt-0.5">{editFieldErrors.nome}</p>
+                )}
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">Vaga</Label>
+                <Input
+                  value={vaga?.expand?.cargo?.nome || vaga?.expand?.cliente?.nome || '—'}
+                  disabled
+                />
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label htmlFor="eEmail" className="text-xs font-semibold text-slate-700">
-                  Email
+                <Label htmlFor="eEmail" className="text-xs font-bold text-slate-700">
+                  E-mail
                 </Label>
                 <Input
                   id="eEmail"
