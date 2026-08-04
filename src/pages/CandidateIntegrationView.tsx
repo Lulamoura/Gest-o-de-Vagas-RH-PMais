@@ -22,10 +22,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
+import { getCandidateStatusBadgeClass, formatCurrency, formatDateBR } from '@/lib/status-utils'
 import { toast } from 'sonner'
 import { ArrowLeft, CheckCircle, Calendar, Clock, Mail, Check, DollarSign } from 'lucide-react'
-import { formatCurrency, formatDateBR } from '@/lib/status-utils'
 
 export default function CandidateIntegrationView() {
   const { id } = useParams<{ id: string }>()
