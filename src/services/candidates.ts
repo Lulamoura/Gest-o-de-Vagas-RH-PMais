@@ -4,13 +4,17 @@ import type { CandidateRecord } from '@/types'
 const EXPAND =
   'vacancy_id,vacancy_id.cliente,vacancy_id.cargo,vacancy_id.cidade,vacancy_id.tipo_vaga,vacancy_id.tipo_contrato,vacancy_id.responsavel_rh'
 
-export const getCandidates = async (): Promise<CandidateRecord[]> => {
-  return await pb.collection('candidates').getFullList({ expand: EXPAND, sort: '-created' })
+export const getCandidates = async (filter?: string): Promise<CandidateRecord[]> => {
+  return await pb.collection('candidates').getFullList({
+    filter: filter || '',
+    expand: EXPAND,
+    sort: '-created',
+  })
 }
 
 export const getIntegrationCandidates = async (): Promise<CandidateRecord[]> => {
   return await pb.collection('candidates').getFullList({
-    filter: 'integracao_ativa = true',
+    filter: 'integracao_ativa = true && status_candidato = "Cadastro DP"',
     expand: EXPAND,
     sort: '-data_integracao',
   })

@@ -24,7 +24,8 @@ import {
 } from '@/components/ui/alert-dialog'
 import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
 import { toast } from 'sonner'
-import { ArrowLeft, CheckCircle, Calendar, Clock, Mail, Check } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Calendar, Clock, Mail, Check, DollarSign } from 'lucide-react'
+import { formatCurrency, formatDateBR } from '@/lib/status-utils'
 
 export default function CandidateIntegrationView() {
   const { id } = useParams<{ id: string }>()
@@ -216,6 +217,26 @@ export default function CandidateIntegrationView() {
                   Vale-transporte (qtd/dia)
                 </Label>
                 <Input value={String(candidate.vale_transporte_qtd ?? 0)} disabled />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Data de Nascimento</Label>
+                <Input
+                  value={candidate.data_nascimento ? formatDateBR(candidate.data_nascimento) : '—'}
+                  disabled
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">
+                  Valor Unitário do Transporte
+                </Label>
+                <Input
+                  value={
+                    candidate.valor_unitario_transporte
+                      ? formatCurrency(candidate.valor_unitario_transporte)
+                      : '—'
+                  }
+                  disabled
+                />
               </div>
               <div className="space-y-1">
                 <Label className="text-xs font-bold text-slate-700">Nome do Pai</Label>
