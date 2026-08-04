@@ -93,11 +93,11 @@ export default function RequisitionIndicators() {
   const deptData = useMemo(() => {
     const counts: Record<string, number> = {}
     filtered.forEach((r) => {
-      const d = r.departamento || 'N/A'
+      const d = r.expand?.departamento?.nome || 'Sem departamento'
       counts[d] = (counts[d] || 0) + 1
     })
     return Object.entries(counts).map(([name, value]) => ({
-      name: name.charAt(0).toUpperCase() + name.slice(1),
+      name,
       value,
     }))
   }, [filtered])
