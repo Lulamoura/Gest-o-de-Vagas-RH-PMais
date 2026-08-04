@@ -1,29 +1,29 @@
 routerAdd('POST', '/backend/v1/candidate-public-data/{id}', (e) => {
   const id = e.request.pathValue('id')
+  if (!id) return e.badRequestError('ID é obrigatório')
+
   const body = e.requestInfo().body || {}
 
+  let candidate
   try {
-    const candidate = $app.findRecordById('candidates', id)
-
-    if (body.rg !== undefined) candidate.set('rg', body.rg)
-    if (body.tamanho_fardamento !== undefined)
-      candidate.set('tamanho_fardamento', body.tamanho_fardamento)
-    if (body.tamanho_sapato !== undefined) candidate.set('tamanho_sapato', body.tamanho_sapato)
-    if (body.vale_transporte_qtd !== undefined)
-      candidate.set('vale_transporte_qtd', body.vale_transporte_qtd)
-    if (body.nome_pai !== undefined) candidate.set('nome_pai', body.nome_pai)
-    if (body.nome_mae !== undefined) candidate.set('nome_mae', body.nome_mae)
-    if (body.telefone_emergencia !== undefined)
-      candidate.set('telefone_emergencia', body.telefone_emergencia)
-    if (body.data_nascimento !== undefined) candidate.set('data_nascimento', body.data_nascimento)
-    if (body.valor_unitario_transporte !== undefined)
-      candidate.set('valor_unitario_transporte', body.valor_unitario_transporte)
-
-    $app.save(candidate)
-    return e.json(200, { success: true })
-  } catch (err) {
-    return e.json(400, {
-      error: 'Erro ao atualizar dados: ' + (err.message || 'erro desconhecido'),
-    })
+    candidate = $app.findRecordById('candidates', id)
+  } catch (_) {
+    return e.notFoundError('Candidato não encontrado')
   }
+
+  candidate.set('rg', body.rg || '')
+  if (body.tamanho_fardamento) {
+    candidate.set('tamanho_fardamento', body.tamanho_fardamento)
+  }
+  candidate.set('tamanho_sapato', body.tamanho_sapato || '')
+  candidate.set('vale_transporte_qtd', Number(body.vale_transporte_qtd) || 0)
+  candidate.set('nome_pai', body.nome_pai || '')
+  candidate.set('nome_mae', body.nome_mae || '')
+  candidate.set('telefone_emergencia', body.telefone_emergencia || '')
+  candidate.set('data_nascimento', body.data_nascimento || '')
+  candidate.set('valor_unitario_transporte', Number(body.valor_unitario_transporte) || 0)
+
+  $app.save(candidate)
+
+  return e.json(200, { success: true })
 })

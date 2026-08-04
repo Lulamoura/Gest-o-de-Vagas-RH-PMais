@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getCandidate, updateCandidate } from '@/services/candidates'
-import { CandidateRecord } from '@/types'
+import { getCandidate, updateCandidate, sendAvisoIntegracaoCandidato } from '@/services/candidates'
+import { getBaseIntegracao } from '@/services/base_integracao'
+import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
+import { CandidateRecord, BaseIntegracaoRecord, CandidateEmailLogRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { IntegrationNoticeModal } from '@/components/IntegrationNoticeModal'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,24 +24,35 @@ import {
 } from '@/components/ui/alert-dialog'
 import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
 import { toast } from 'sonner'
-import { ArrowLeft, CheckCircle, Calendar } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Calendar, Clock, Mail, Check } from 'lucide-react'
 
 export default function CandidateIntegrationView() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { isOperator, isSuperAdmin } = useAuth()
+  const { isOperator, isSuperAdmin, isAdmin } = useAuth()
   const canMarkIntegrated = isOperator || isSuperAdmin
+  const canSendAviso = isAdmin || isOperator || isSuperAdmin
 
   const [candidate, setCandidate] = useState<CandidateRecord | null>(null)
   const [loading, setLoading] = useState(true)
   const [integrating, setIntegrating] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [avisoModalOpen, setAvisoModalOpen] = useState(false)
+  const [baseIntegracao, setBaseIntegracao] = useState<BaseIntegracaoRecord[]>([])
+  const [sendingAviso, setSendingAviso] = useState(false)
+  const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
 
   const loadData = async () => {
     if (!id) return
     try {
-      const data = await getCandidate(id)
+      const [data, logs, bases] = await Promise.all([
+        getCandidate(id),
+        getEmailLogsForCandidate(id),
+        getBaseIntegracao(),
+      ])
       setCandidate(data)
+      setEmailLogs(logs)
+      setBaseIntegracao(bases)
     } catch {
       toast.error('Erro ao carregar candidato')
     } finally {
@@ -51,6 +65,12 @@ export default function CandidateIntegrationView() {
   }, [id])
 
   useRealtime('candidates', () => loadData())
+  useRealtime('candidate_email_log', () => {
+    if (id)
+      getEmailLogsForCandidate(id)
+        .then(setEmailLogs)
+        .catch(() => {})
+  })
 
   const handleMarkIntegrated = async () => {
     if (!candidate) return
@@ -67,6 +87,46 @@ export default function CandidateIntegrationView() {
     }
   }
 
+  const handleSendAvisoClick = () => {
+    if (!candidate) return
+    if (candidate.tipo_integracao === 'Presencial') {
+      setAvisoModalOpen(true)
+    } else {
+      handleSendAvisoDirect()
+    }
+  }
+
+  const handleSendAvisoDirect = async () => {
+    if (!candidate) return
+    setSendingAviso(true)
+    try {
+      await sendAvisoIntegracaoCandidato(candidate.id)
+      toast.success('Aviso de integração enviado!')
+      const logs = await getEmailLogsForCandidate(candidate.id)
+      setEmailLogs(logs)
+    } catch {
+      toast.error('Erro ao enviar aviso de integração')
+    } finally {
+      setSendingAviso(false)
+    }
+  }
+
+  const handleSendAvisoPresencial = async (baseId: string) => {
+    if (!candidate) return
+    setSendingAviso(true)
+    try {
+      await sendAvisoIntegracaoCandidato(candidate.id, baseId)
+      toast.success('Aviso de integração enviado!')
+      setAvisoModalOpen(false)
+      const logs = await getEmailLogsForCandidate(candidate.id)
+      setEmailLogs(logs)
+    } catch {
+      toast.error('Erro ao enviar aviso de integração')
+    } finally {
+      setSendingAviso(false)
+    }
+  }
+
   if (loading || !candidate) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -76,6 +136,7 @@ export default function CandidateIntegrationView() {
   }
 
   const vacancy = candidate.expand?.vacancy_id
+  const avisoSent = hasEmailBeenSent(emailLogs, 'aviso_integracao_candidato')
 
   return (
     <div className="space-y-6">
@@ -172,18 +233,37 @@ export default function CandidateIntegrationView() {
           </div>
 
           <div className="pt-3 border-t border-slate-200 space-y-4">
-            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center">
-              <div className="flex items-center justify-center gap-2 mb-1">
-                <Calendar className="h-5 w-5 text-indigo-600" />
-                <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
-                  Data da Integração
+            <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 text-center space-y-2">
+              <div>
+                <div className="flex items-center justify-center gap-2 mb-1">
+                  <Calendar className="h-5 w-5 text-indigo-600" />
+                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider">
+                    Data da Integração
+                  </p>
+                </div>
+                <p className="text-xl font-bold text-indigo-900">
+                  {candidate.data_integracao
+                    ? formatDateBR(candidate.data_integracao)
+                    : 'Não definida'}
                 </p>
               </div>
-              <p className="text-xl font-bold text-indigo-900">
-                {candidate.data_integracao
-                  ? formatDateBR(candidate.data_integracao)
-                  : 'Não definida'}
-              </p>
+              {(candidate.hora_integracao || candidate.tipo_integracao) && (
+                <div className="flex items-center justify-center gap-3 pt-2 border-t border-indigo-200">
+                  {candidate.hora_integracao && (
+                    <div className="flex items-center gap-1">
+                      <Clock className="h-4 w-4 text-indigo-600" />
+                      <span className="text-sm font-bold text-indigo-900">
+                        {candidate.hora_integracao}
+                      </span>
+                    </div>
+                  )}
+                  {candidate.tipo_integracao && (
+                    <span className="text-xs font-semibold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded">
+                      {candidate.tipo_integracao}
+                    </span>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-center gap-3">
@@ -194,6 +274,21 @@ export default function CandidateIntegrationView() {
                 {candidate.status_candidato}
               </Badge>
             </div>
+
+            {canSendAviso &&
+              candidate.data_integracao &&
+              candidate.status_candidato !== 'Integrado' && (
+                <Button
+                  onClick={handleSendAvisoClick}
+                  disabled={sendingAviso || !candidate.email}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 text-white"
+                  title={!candidate.email ? 'Candidato não possui e-mail cadastrado' : ''}
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  {sendingAviso ? 'Enviando...' : 'Envia aviso de integração'}
+                  {avisoSent && <Check className="h-4 w-4 ml-2 text-emerald-300" />}
+                </Button>
+              )}
 
             {canMarkIntegrated && candidate.status_candidato === 'Cadastro DP' && (
               <Button
@@ -215,6 +310,14 @@ export default function CandidateIntegrationView() {
           </div>
         </CardContent>
       </Card>
+
+      <IntegrationNoticeModal
+        open={avisoModalOpen}
+        onOpenChange={setAvisoModalOpen}
+        baseIntegracao={baseIntegracao}
+        onSend={handleSendAvisoPresencial}
+        sending={sendingAviso}
+      />
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <AlertDialogContent>

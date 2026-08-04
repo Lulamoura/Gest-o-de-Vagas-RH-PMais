@@ -6,6 +6,7 @@ import {
   deleteCandidate,
   sendComplementDataRequest,
   sendDisqualificationNotice,
+  sendAvisoIntegracaoCandidato,
 } from '@/services/candidates'
 import { getVacancies } from '@/services/vacancies'
 import { getClinicas } from '@/services/clinicas'
@@ -131,6 +132,7 @@ export default function Candidates() {
   const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendingDisqual, setSendingDisqual] = useState(false)
+  const [sendingIntegration, setSendingIntegration] = useState(false)
   const [examModalOpen, setExamModalOpen] = useState(false)
 
   const [candidateToDelete, setCandidateToDelete] = useState<CandidateRecord | null>(null)
@@ -310,6 +312,21 @@ export default function Candidates() {
     }
   }
 
+  const handleSendIntegration = async () => {
+    if (!editingCandidate) return
+    setSendingIntegration(true)
+    try {
+      await sendAvisoIntegracaoCandidato(editingCandidate.id)
+      toast.success('Aviso de integração enviado!')
+      const logs = await getEmailLogsForCandidate(editingCandidate.id)
+      setEmailLogs(logs)
+    } catch {
+      toast.error('Erro ao enviar e-mail')
+    } finally {
+      setSendingIntegration(false)
+    }
+  }
+
   const filteredCandidates = candidates.filter((c) => {
     const matchesSearch =
       !search ||
@@ -333,6 +350,8 @@ export default function Candidates() {
     canEdit &&
     editingCandidate &&
     (currentStatus === 'Desclassificado' || currentStatus === 'Em banco')
+  const showIntegrationBtn =
+    canEdit && editingCandidate && currentStatus === 'Cadastro DP' && formData.integracao_ativa
 
   return (
     <div className="space-y-6">
@@ -668,6 +687,25 @@ export default function Candidates() {
                 </div>
 
                 <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Data de Nascimento</Label>
+                  <Input
+                    type="date"
+                    value={formData.data_nascimento}
+                    onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">
+                    Valor Unitário do Transporte
+                  </Label>
+                  <CurrencyInput
+                    value={formData.valor_unitario_transporte}
+                    onChange={(val) => setFormData({ ...formData, valor_unitario_transporte: val })}
+                  />
+                </div>
+
+                <div className="space-y-1">
                   <Label className="text-xs font-bold text-slate-700">Nome do Pai</Label>
                   <Input
                     value={formData.nome_pai}
@@ -715,6 +753,8 @@ export default function Candidates() {
                         ...formData,
                         integracao_ativa: isChecked,
                         data_integracao: isChecked ? formData.data_integracao : '',
+                        hora_integracao: isChecked ? formData.hora_integracao : '',
+                        tipo_integracao: isChecked ? formData.tipo_integracao : '',
                       })
                     }}
                   />
@@ -722,68 +762,50 @@ export default function Candidates() {
                     Ativar Integração
                   </Label>
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs font-bold text-slate-700">Data da Integração</Label>
-                  <Input
-                    type="date"
-                    value={formData.data_integracao}
-                    onChange={(e) => setFormData({ ...formData, data_integracao: e.target.value })}
-                    disabled={!formData.integracao_ativa}
-                  />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">Data de Nascimento</Label>
-                    <Input
-                      type="date"
-                      value={formData.data_nascimento}
-                      onChange={(e) =>
-                        setFormData({ ...formData, data_nascimento: e.target.value })
-                      }
-                    />
+                {formData.integracao_ativa && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-slate-700">Data da Integração</Label>
+                      <Input
+                        type="date"
+                        value={formData.data_integracao}
+                        onChange={(e) =>
+                          setFormData({ ...formData, data_integracao: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-slate-700">Hora da Integração</Label>
+                      <Input
+                        type="time"
+                        value={formData.hora_integracao}
+                        onChange={(e) =>
+                          setFormData({ ...formData, hora_integracao: e.target.value })
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs font-bold text-slate-700">Tipo de Integração</Label>
+                      <Select
+                        value={formData.tipo_integracao}
+                        onValueChange={(val) => setFormData({ ...formData, tipo_integracao: val })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Presencial">Presencial</SelectItem>
+                          <SelectItem value="On-line">On-line</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">Hora da Integração</Label>
-                    <Input
-                      type="time"
-                      value={formData.hora_integracao}
-                      onChange={(e) =>
-                        setFormData({ ...formData, hora_integracao: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">Tipo de Integração</Label>
-                    <Select
-                      value={formData.tipo_integracao}
-                      onValueChange={(val) => setFormData({ ...formData, tipo_integracao: val })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Presencial">Presencial</SelectItem>
-                        <SelectItem value="On-line">On-line</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-bold text-slate-700">
-                      Valor Unitário do Transporte
-                    </Label>
-                    <CurrencyInput
-                      value={formData.valor_unitario_transporte}
-                      onChange={(val) =>
-                        setFormData({ ...formData, valor_unitario_transporte: val })
-                      }
-                    />
-                  </div>
-                </div>
+                )}
               </div>
             )}
 
             {/* Status-Driven Communication Actions */}
-            {(showComplementBtn || showExamBtn || showDisqualBtn) && (
+            {(showComplementBtn || showExamBtn || showDisqualBtn || showIntegrationBtn) && (
               <div className="pt-3 border-t border-slate-200 space-y-2">
                 {showComplementBtn && (
                   <Button
@@ -828,6 +850,22 @@ export default function Candidates() {
                     <Mail className="h-4 w-4 mr-2" />
                     {sendingDisqual ? 'Enviando...' : 'Aviso de Desclassificação/Banco'}
                     {hasEmailBeenSent(emailLogs, 'disqualification') && (
+                      <Check className="h-4 w-4 ml-2 text-emerald-600" />
+                    )}
+                  </Button>
+                )}
+
+                {showIntegrationBtn && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSendIntegration}
+                    disabled={sendingIntegration || !formData.email}
+                    className="w-full border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    {sendingIntegration ? 'Enviando...' : 'Enviar Aviso de Integração'}
+                    {hasEmailBeenSent(emailLogs, 'aviso_integracao_candidato') && (
                       <Check className="h-4 w-4 ml-2 text-emerald-600" />
                     )}
                   </Button>

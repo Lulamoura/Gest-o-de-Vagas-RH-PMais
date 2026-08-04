@@ -1,73 +1,85 @@
 import pb from '@/lib/pocketbase/client'
-import { CandidateRecord } from '@/types'
+import type { CandidateRecord } from '@/types'
 
-export const getCandidates = (filter = '', sort = '-created') =>
-  pb.collection('candidates').getFullList<CandidateRecord>({
-    filter,
-    sort,
-    expand: 'vacancy_id,vacancy_id.cargo,vacancy_id.cliente',
+const EXPAND =
+  'vacancy_id,vacancy_id.cliente,vacancy_id.cargo,vacancy_id.cidade,vacancy_id.tipo_vaga,vacancy_id.tipo_contrato,vacancy_id.responsavel_rh'
+
+export const getCandidates = async (): Promise<CandidateRecord[]> => {
+  return await pb.collection('candidates').getFullList({ expand: EXPAND, sort: '-created' })
+}
+
+export const getIntegrationCandidates = async (): Promise<CandidateRecord[]> => {
+  return await pb.collection('candidates').getFullList({
+    filter: 'integracao_ativa = true',
+    expand: EXPAND,
+    sort: '-data_integracao',
   })
+}
 
-export const getCandidate = (id: string) =>
-  pb.collection('candidates').getOne<CandidateRecord>(id, {
-    expand: 'vacancy_id,vacancy_id.cargo,vacancy_id.cliente,vacancy_id.cidade',
-  })
+export const getCandidate = async (id: string): Promise<CandidateRecord> => {
+  return await pb.collection('candidates').getOne(id, { expand: EXPAND })
+}
 
-export const createCandidate = (data: Partial<CandidateRecord>) =>
-  pb.collection('candidates').create<CandidateRecord>(data)
+export const createCandidate = async (data: Partial<CandidateRecord>): Promise<CandidateRecord> => {
+  return await pb.collection('candidates').create(data)
+}
 
-export const updateCandidate = (id: string, data: Partial<CandidateRecord>) =>
-  pb.collection('candidates').update<CandidateRecord>(id, data)
+export const updateCandidate = async (
+  id: string,
+  data: Partial<CandidateRecord>,
+): Promise<CandidateRecord> => {
+  return await pb.collection('candidates').update(id, data)
+}
 
-export const deleteCandidate = (id: string) => pb.collection('candidates').delete(id)
+export const deleteCandidate = async (id: string): Promise<void> => {
+  await pb.collection('candidates').delete(id)
+}
 
-export const sendComplementDataRequest = (candidateId: string) =>
-  pb.send('/backend/v1/send-complement-data-request', {
+export const sendComplementDataRequest = async (candidateId: string): Promise<any> => {
+  return await pb.send('/backend/v1/send-complement-data-request', {
     method: 'POST',
-    body: JSON.stringify({ candidate_id: candidateId, candidateId }),
+    body: JSON.stringify({ candidate_id: candidateId }),
     headers: { 'Content-Type': 'application/json' },
   })
+}
 
-export const sendDisqualificationNotice = (candidateId: string) =>
-  pb.send('/backend/v1/send-disqualification-notice', {
+export const sendDisqualificationNotice = async (candidateId: string): Promise<any> => {
+  return await pb.send('/backend/v1/send-disqualification-notice', {
     method: 'POST',
-    body: JSON.stringify({ candidate_id: candidateId, candidateId }),
+    body: JSON.stringify({ candidate_id: candidateId }),
     headers: { 'Content-Type': 'application/json' },
   })
+}
 
-export const sendExamReferral = (
-  candidateId: string,
-  clinicaId: string,
-  comentario: string,
-  custoExames: number,
-) =>
-  pb.send('/backend/v1/send-encaminhamento-exames', {
+export const sendExamReferral = async (candidateId: string, clinicaId: string): Promise<any> => {
+  return await pb.send('/backend/v1/send-encaminhamento-exames', {
     method: 'POST',
-    body: JSON.stringify({
-      candidate_id: candidateId,
-      candidateId,
-      clinica_id: clinicaId,
-      clinicaId,
-      comentario,
-      custo_exames: custoExames,
-      custoExames,
-    }),
+    body: JSON.stringify({ candidate_id: candidateId, clinica_id: clinicaId }),
     headers: { 'Content-Type': 'application/json' },
   })
+}
 
-export const getCandidatePublicData = (candidateId: string) =>
-  pb.send(`/backend/v1/candidate-public-data/${candidateId}`, { method: 'GET' })
+export const getCandidatePublicData = async (id: string): Promise<any> => {
+  return await pb.send(`/backend/v1/candidate-public-data/${id}`, { method: 'GET' })
+}
 
-export const updateCandidatePublicData = (candidateId: string, data: any) =>
-  pb.send(`/backend/v1/candidate-public-data/${candidateId}`, {
+export const updateCandidatePublicData = async (id: string, data: any): Promise<any> => {
+  return await pb.send(`/backend/v1/candidate-public-data/${id}`, {
     method: 'POST',
     body: JSON.stringify(data),
     headers: { 'Content-Type': 'application/json' },
   })
+}
 
-export const sendAvisoIntegracaoCandidato = (candidateId: string, baseIntegracaoId?: string) =>
-  pb.send('/backend/v1/send-aviso-integracao-candidato', {
+export const sendAvisoIntegracaoCandidato = async (
+  candidateId: string,
+  baseId?: string,
+): Promise<any> => {
+  const payload: Record<string, string> = { candidate_id: candidateId }
+  if (baseId) payload.base_id = baseId
+  return await pb.send('/backend/v1/send-aviso-integracao-candidato', {
     method: 'POST',
-    body: JSON.stringify({ candidate_id: candidateId, base_integracao_id: baseIntegracaoId }),
+    body: JSON.stringify(payload),
     headers: { 'Content-Type': 'application/json' },
   })
+}

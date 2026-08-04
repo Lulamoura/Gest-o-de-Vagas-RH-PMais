@@ -253,6 +253,30 @@ export default function CandidatePublicForm() {
                     />
                   </div>
                   <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Data de Nascimento
+                    </Label>
+                    <Input
+                      type="date"
+                      value={dataNascimento}
+                      onChange={(e) => setDataNascimento(e.target.value)}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-slate-700">
+                      Valor Unitário do Transporte
+                    </Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={valorUnitarioTransporte}
+                      onChange={(e) => setValorUnitarioTransporte(Number(e.target.value))}
+                      className="h-9 text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1">
                     <Label className="text-xs font-semibold text-slate-700">Nome do Pai</Label>
                     <Input
                       value={nomePai}
@@ -287,32 +311,6 @@ export default function CandidatePublicForm() {
                   {fieldErrors.telefone_emergencia && (
                     <p className="text-[10px] text-rose-500">{fieldErrors.telefone_emergencia}</p>
                   )}
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-slate-700">
-                      Data de Nascimento
-                    </Label>
-                    <Input
-                      type="date"
-                      value={dataNascimento}
-                      onChange={(e) => setDataNascimento(e.target.value)}
-                      className="h-9 text-sm"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs font-semibold text-slate-700">
-                      Valor Unitário do Transporte
-                    </Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      step="0.01"
-                      value={valorUnitarioTransporte}
-                      onChange={(e) => setValorUnitarioTransporte(Number(e.target.value))}
-                      className="h-9 text-sm"
-                    />
-                  </div>
                 </div>
                 {error && <p className="text-xs text-rose-500 text-center">{error}</p>}
                 <Button

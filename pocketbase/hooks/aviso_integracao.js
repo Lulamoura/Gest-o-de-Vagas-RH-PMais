@@ -105,22 +105,13 @@ onRecordAfterUpdateSuccess((e) => {
     try {
       var vacancy = $app.findRecordById('vacancies', vacancyId)
       var cargoId = vacancy.getString('cargo')
-      var clienteId = vacancy.getString('cliente')
       var cargoNome = ''
-      var clienteNome = ''
       if (cargoId) {
         try {
           cargoNome = $app.findRecordById('cargos', cargoId).getString('nome')
         } catch (_) {}
       }
-      if (clienteId) {
-        try {
-          clienteNome = $app.findRecordById('clientes', clienteId).getString('nome')
-        } catch (_) {}
-      }
-      if (cargoNome && clienteNome) vacancyName = cargoNome + ' - ' + clienteNome
-      else if (cargoNome) vacancyName = cargoNome
-      else if (clienteNome) vacancyName = clienteNome
+      if (cargoNome) vacancyName = cargoNome
     } catch (_) {}
   }
 
