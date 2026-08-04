@@ -23,6 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { getCandidateStatusBadgeClass, formatCurrency } from '@/lib/status-utils'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatDateNoTimezone } from '@/lib/date-utils'
 import { toast } from 'sonner'
 import { ArrowLeft, CheckCircle, Calendar, Clock, Mail, Check, DollarSign } from 'lucide-react'
@@ -39,6 +40,7 @@ export default function CandidateIntegrationView() {
   const [integrating, setIntegrating] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [avisoModalOpen, setAvisoModalOpen] = useState(false)
+  const [confirmAvisoOpen, setConfirmAvisoOpen] = useState(false)
   const [baseIntegracao, setBaseIntegracao] = useState<BaseIntegracaoRecord[]>([])
   const [sendingAviso, setSendingAviso] = useState(false)
   const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
@@ -100,19 +102,21 @@ export default function CandidateIntegrationView() {
 
   const handleSendAvisoClick = () => {
     if (!candidate) return
-    if (candidate.tipo_integracao === 'Presencial') {
-      setAvisoModalOpen(true)
-    } else {
-      handleSendAvisoDirect()
-    }
+    setConfirmAvisoOpen(true)
   }
 
-  const handleSendAvisoDirect = async () => {
+  const handleConfirmAviso = async () => {
     if (!candidate) return
+    if (candidate.tipo_integracao === 'Presencial') {
+      setConfirmAvisoOpen(false)
+      setAvisoModalOpen(true)
+      return
+    }
     setSendingAviso(true)
     try {
       await sendAvisoIntegracaoCandidato(candidate.id)
       toast.success('Aviso de integração enviado!')
+      setConfirmAvisoOpen(false)
       const logs = await getEmailLogsForCandidate(candidate.id)
       setEmailLogs(logs)
     } catch {
@@ -352,6 +356,18 @@ export default function CandidateIntegrationView() {
         baseIntegracao={baseIntegracao}
         onSend={handleSendAvisoPresencial}
         sending={sendingAviso}
+      />
+
+      <ConfirmDialog
+        open={confirmAvisoOpen}
+        onOpenChange={setConfirmAvisoOpen}
+        title="Confirmar Envio"
+        description={`O aviso de integração será enviado para ${candidate?.nome || 'o candidato'}. Deseja continuar?`}
+        confirmText="Confirmar envio"
+        cancelText="Cancelar"
+        variant="primary"
+        loading={sendingAviso}
+        onConfirm={handleConfirmAviso}
       />
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>

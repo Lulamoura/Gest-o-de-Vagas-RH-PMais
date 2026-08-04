@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { IntegrationNoticeModal } from '@/components/IntegrationNoticeModal'
 import { getCandidateStatusBadgeClass } from '@/lib/status-utils'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatDateNoTimezone } from '@/lib/date-utils'
 import { toast } from 'sonner'
 import { Search, Mail, Check, Eye, Calendar, Clock } from 'lucide-react'
@@ -31,6 +32,7 @@ export default function GestaoIntegracao() {
   const [avisoModalOpen, setAvisoModalOpen] = useState(false)
   const [selectedCandidate, setSelectedCandidate] = useState<CandidateRecord | null>(null)
   const [sendingAviso, setSendingAviso] = useState(false)
+  const [confirmAvisoOpen, setConfirmAvisoOpen] = useState(false)
 
   const loadData = async () => {
     try {
@@ -85,21 +87,24 @@ export default function GestaoIntegracao() {
   }, [candidates, search])
 
   const handleSendAvisoClick = (candidate: CandidateRecord) => {
-    if (candidate.tipo_integracao === 'Presencial') {
-      setSelectedCandidate(candidate)
-      setAvisoModalOpen(true)
-    } else {
-      handleSendAvisoDirect(candidate)
-    }
+    setSelectedCandidate(candidate)
+    setConfirmAvisoOpen(true)
   }
 
-  const handleSendAvisoDirect = async (candidate: CandidateRecord) => {
+  const handleConfirmAviso = async () => {
+    if (!selectedCandidate) return
+    if (selectedCandidate.tipo_integracao === 'Presencial') {
+      setConfirmAvisoOpen(false)
+      setAvisoModalOpen(true)
+      return
+    }
     setSendingAviso(true)
     try {
-      await sendAvisoIntegracaoCandidato(candidate.id)
+      await sendAvisoIntegracaoCandidato(selectedCandidate.id)
       toast.success('Aviso de integração enviado!')
-      const logs = await getEmailLogsForCandidate(candidate.id)
-      setEmailLogsMap((prev) => ({ ...prev, [candidate.id]: logs }))
+      setConfirmAvisoOpen(false)
+      const logs = await getEmailLogsForCandidate(selectedCandidate.id)
+      setEmailLogsMap((prev) => ({ ...prev, [selectedCandidate.id]: logs }))
     } catch {
       toast.error('Erro ao enviar aviso de integração')
     } finally {
@@ -249,6 +254,18 @@ export default function GestaoIntegracao() {
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmAvisoOpen}
+        onOpenChange={setConfirmAvisoOpen}
+        title="Confirmar Envio"
+        description={`O aviso de integração será enviado para ${selectedCandidate?.nome || 'o candidato'}. Deseja continuar?`}
+        confirmText="Confirmar envio"
+        cancelText="Cancelar"
+        variant="primary"
+        loading={sendingAviso}
+        onConfirm={handleConfirmAviso}
+      />
 
       <IntegrationNoticeModal
         open={avisoModalOpen}
