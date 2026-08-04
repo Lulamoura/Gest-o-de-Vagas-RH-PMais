@@ -369,7 +369,7 @@ export default function VacancyDetail() {
     setEditFieldErrors({})
     setSavingEdit(true)
     try {
-      await updateCandidate(editingCandidate.id, {
+      const updated = await updateCandidate(editingCandidate.id, {
         nome: editNome.trim(),
         email: editEmail.trim() || undefined,
         telefone: editTelefone.trim() || undefined,
@@ -401,8 +401,10 @@ export default function VacancyDetail() {
           : undefined,
       })
       toast.success('Candidato atualizado com sucesso!')
-      setEditModalOpen(false)
-      setEditingCandidate(null)
+      setEditingCandidate({ ...editingCandidate, ...updated, expand: editingCandidate.expand })
+      getEmailLogsForCandidate(editingCandidate.id)
+        .then(setEmailLogs)
+        .catch(() => {})
       loadData()
     } catch (err) {
       setEditFieldErrors(extractFieldErrors(err))

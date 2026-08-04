@@ -96,7 +96,18 @@ export const formatCurrency = (val?: number) => {
 export const formatDateBR = (dateStr?: string) => {
   if (!dateStr) return '-'
   try {
-    return new Date(dateStr).toLocaleDateString('pt-BR')
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      const [year, month, day] = dateStr.split('-')
+      return `${day}/${month}/${year}`
+    }
+    const d = new Date(dateStr)
+    if (d.getUTCHours() === 0 && d.getUTCMinutes() === 0 && d.getUTCSeconds() === 0) {
+      const day = String(d.getUTCDate()).padStart(2, '0')
+      const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+      const year = d.getUTCFullYear()
+      return `${day}/${month}/${year}`
+    }
+    return d.toLocaleDateString('pt-BR')
   } catch (_) {
     return dateStr
   }
