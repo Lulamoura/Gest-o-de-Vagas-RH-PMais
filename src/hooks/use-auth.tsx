@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { getDepartamentos } from '@/services/departamentos'
 import { UserRecord } from '@/types'
@@ -33,6 +33,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(pb.authStore.isValid)
   const [loading, setLoading] = useState(true)
   const [dpDepartmentId, setDpDepartmentId] = useState<string | null>(null)
+  const isSigningInRef = useRef(false)
 
   useEffect(() => {
     const unsubscribe = pb.authStore.onChange((_token, record) => {
@@ -43,11 +44,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (pb.authStore.isValid) {
       pb.collection('users')
-        .authRefresh({ expand: 'departamento' })
+        .authRefresh()
         .then((res) => {
           setUser(res.record as unknown as UserRecord)
         })
-        .catch(() => pb.authStore.clear())
+        .catch(() => {
+          if (!isSigningInRef.current) {
+            pb.authStore.clear()
+          }
+        })
         .finally(() => setLoading(false))
     } else {
       if (pb.authStore.record) pb.authStore.clear()
@@ -69,6 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, [isAuthenticated])
 
   const signIn = async (email: string, password: string) => {
+    isSigningInRef.current = true
     try {
       const authData = await pb.collection('users').authWithPassword(email, password, {
         expand: 'departamento',
@@ -78,6 +84,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       return { error: null }
     } catch (error) {
       return { error }
+    } finally {
+      isSigningInRef.current = false
     }
   }
 

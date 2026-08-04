@@ -1,12 +1,13 @@
 import pb from '@/lib/pocketbase/client'
 import { VacancyRecord } from '@/types'
 
-const EXPAND = 'responsavel_rh,cliente,cargo,cidade,tipo_vaga,tipo_contrato'
+const EXPAND = 'cliente,cargo,cidade,tipo_vaga,tipo_contrato'
 
 export const getVacancies = async () => {
   return pb.collection<VacancyRecord>('vacancies').getFullList({
     sort: '-created',
     expand: EXPAND,
+    batch: 200,
   })
 }
 

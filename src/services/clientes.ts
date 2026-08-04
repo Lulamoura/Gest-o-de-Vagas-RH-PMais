@@ -2,7 +2,7 @@ import pb from '@/lib/pocketbase/client'
 import { ClienteRecord } from '@/types'
 
 export const getClientes = async () => {
-  return pb.collection<ClienteRecord>('clientes').getFullList({ sort: 'nome' })
+  return pb.collection<ClienteRecord>('clientes').getFullList({ sort: 'nome', batch: 200 })
 }
 
 export const createCliente = async (data: { nome: string }) => {

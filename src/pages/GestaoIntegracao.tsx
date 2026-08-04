@@ -1,8 +1,12 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { getIntegrationCandidates, sendAvisoIntegracaoCandidato } from '@/services/candidates'
 import { getBaseIntegracao } from '@/services/base_integracao'
-import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
+import {
+  getEmailLogsForCandidate,
+  getEmailLogsForCandidates,
+  hasEmailBeenSent,
+} from '@/services/candidate_email_logs'
 import { CandidateRecord, BaseIntegracaoRecord, CandidateEmailLogRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -32,15 +36,11 @@ export default function GestaoIntegracao() {
       const [data, bases] = await Promise.all([getIntegrationCandidates(), getBaseIntegracao()])
       setCandidates(data)
       setBaseIntegracao(bases)
-      const logsPromises = data.map((c) =>
-        getEmailLogsForCandidate(c.id)
-          .then((logs) => [c.id, logs] as const)
-          .catch(() => [c.id, []] as const),
-      )
-      const logsResults = await Promise.all(logsPromises)
+      const allLogs = await getEmailLogsForCandidates(data.map((c) => c.id))
       const logsMap: Record<string, CandidateEmailLogRecord[]> = {}
-      logsResults.forEach(([cid, logs]) => {
-        logsMap[cid] = logs
+      allLogs.forEach((log) => {
+        if (!logsMap[log.candidate_id]) logsMap[log.candidate_id] = []
+        logsMap[log.candidate_id].push(log)
       })
       setEmailLogsMap(logsMap)
     } catch {
@@ -50,11 +50,26 @@ export default function GestaoIntegracao() {
     }
   }
 
+  const loadDataRef = useRef(loadData)
+  loadDataRef.current = loadData
+
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const debouncedReload = useCallback(() => {
+    if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+    reloadTimerRef.current = setTimeout(() => loadDataRef.current(), 500)
+  }, [])
+
   useEffect(() => {
     loadData()
   }, [])
-  useRealtime<CandidateRecord>('candidates', () => loadData())
-  useRealtime('candidate_email_log', () => loadData())
+  useRealtime<CandidateRecord>('candidates', debouncedReload)
+  useRealtime('candidate_email_log', debouncedReload)
+
+  useEffect(() => {
+    return () => {
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+    }
+  }, [])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
