@@ -149,7 +149,7 @@ routerAdd(
       $app.saveNoValidate(record)
     } catch (saveErr) {}
 
-    if (statusConsulta === 'sucesso') {
+    if (statusConsulta === 'sucesso' || statusConsulta === 'sem_resultados') {
       try {
         const custoRecords = $app.findRecordsByFilter('custos_consultas', '', '', 1, 0)
         if (custoRecords.length > 0) {

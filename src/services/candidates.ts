@@ -64,10 +64,20 @@ export const sendDisqualificationNotice = async (candidateId: string): Promise<a
   })
 }
 
-export const sendExamReferral = async (candidateId: string, clinicaId: string): Promise<any> => {
+export const sendExamReferral = async (
+  candidateId: string,
+  clinicaId: string,
+  comentario?: string,
+  custoExames?: number,
+): Promise<any> => {
   return await pb.send('/backend/v1/send-encaminhamento-exames', {
     method: 'POST',
-    body: JSON.stringify({ candidate_id: candidateId, clinica_id: clinicaId }),
+    body: JSON.stringify({
+      candidate_id: candidateId,
+      clinica_id: clinicaId,
+      comentario: comentario || '',
+      custo_exames: custoExames || 0,
+    }),
     headers: { 'Content-Type': 'application/json' },
   })
 }
