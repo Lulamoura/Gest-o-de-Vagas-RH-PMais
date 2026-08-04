@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { getVacancy, updateVacancy, deleteVacancy } from '@/services/vacancies'
 import {
-  getCandidates,
+  getCandidatesByVacancy,
   createCandidate,
   updateCandidate,
   sendComplementDataRequest,
@@ -202,7 +202,7 @@ export default function VacancyDetail() {
       setLoadError(false)
       try {
         const [cData, hData, chData, clList] = await Promise.all([
-          getCandidates(`vacancy_id = "${id}"`).catch(() => []),
+          getCandidatesByVacancy(id).catch(() => []),
           getPipelineHistory(id).catch(() => []),
           getCandidateHistory(id).catch(() => []),
           getClinicas().catch(() => []),
@@ -226,10 +226,25 @@ export default function VacancyDetail() {
     loadData()
   }, [id])
 
-  useRealtime('vacancies', () => loadData())
-  useRealtime('candidates', () => loadData())
-  useRealtime('pipeline_history', () => loadData())
-  useRealtime('candidate_history', () => loadData())
+  const loadDataRef = useRef(loadData)
+  loadDataRef.current = loadData
+
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const debouncedReload = useCallback(() => {
+    if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+    reloadTimerRef.current = setTimeout(() => loadDataRef.current(), 500)
+  }, [])
+
+  useRealtime('vacancies', debouncedReload)
+  useRealtime('candidates', debouncedReload)
+  useRealtime('pipeline_history', debouncedReload)
+  useRealtime('candidate_history', debouncedReload)
+
+  useEffect(() => {
+    return () => {
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+    }
+  }, [])
 
   // Total vacancy cost calculation
   const totalVacancyCosts = useMemo(() => {
@@ -402,10 +417,14 @@ export default function VacancyDetail() {
       })
       toast.success('Candidato atualizado com sucesso!')
       setEditingCandidate({ ...editingCandidate, ...updated, expand: editingCandidate.expand })
+      setCandidates((prev) =>
+        prev.map((c) =>
+          c.id === editingCandidate.id ? { ...c, ...updated, expand: c.expand } : c,
+        ),
+      )
       getEmailLogsForCandidate(editingCandidate.id)
         .then(setEmailLogs)
         .catch(() => {})
-      loadData()
     } catch (err) {
       setEditFieldErrors(extractFieldErrors(err))
       toast.error('Erro ao atualizar candidato')

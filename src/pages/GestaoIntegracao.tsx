@@ -15,7 +15,8 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { IntegrationNoticeModal } from '@/components/IntegrationNoticeModal'
-import { getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
+import { getCandidateStatusBadgeClass } from '@/lib/status-utils'
+import { formatDateNoTimezone } from '@/lib/date-utils'
 import { toast } from 'sonner'
 import { Search, Mail, Check, Eye, Calendar, Clock } from 'lucide-react'
 
@@ -184,7 +185,9 @@ export default function GestaoIntegracao() {
                       <Calendar className="h-4 w-4 text-indigo-600" />
                       <span className="font-bold text-indigo-700">Data:</span>
                       <span className="text-indigo-900">
-                        {c.data_integracao ? formatDateBR(c.data_integracao) : 'Não definida'}
+                        {c.data_integracao
+                          ? formatDateNoTimezone(c.data_integracao)
+                          : 'Não definida'}
                       </span>
                     </div>
                     {(c.hora_integracao || c.tipo_integracao) && (

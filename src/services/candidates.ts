@@ -21,6 +21,14 @@ export const getIntegrationCandidates = async (): Promise<CandidateRecord[]> => 
   })
 }
 
+export const getCandidatesByVacancy = async (vacancyId: string): Promise<CandidateRecord[]> => {
+  return await pb.collection('candidates').getFullList({
+    filter: `vacancy_id = "${vacancyId}"`,
+    sort: '-created',
+    batch: 500,
+  })
+}
+
 export const getCandidate = async (id: string): Promise<CandidateRecord> => {
   return await pb.collection('candidates').getOne(id, { expand: EXPAND })
 }

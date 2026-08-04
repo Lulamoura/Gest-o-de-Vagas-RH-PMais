@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getCandidate, updateCandidate, sendAvisoIntegracaoCandidato } from '@/services/candidates'
 import { getBaseIntegracao } from '@/services/base_integracao'
@@ -22,7 +22,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { getCandidateStatusBadgeClass, formatCurrency, formatDateBR } from '@/lib/status-utils'
+import { getCandidateStatusBadgeClass, formatCurrency } from '@/lib/status-utils'
+import { formatDateNoTimezone } from '@/lib/date-utils'
 import { toast } from 'sonner'
 import { ArrowLeft, CheckCircle, Calendar, Clock, Mail, Check, DollarSign } from 'lucide-react'
 
@@ -64,13 +65,23 @@ export default function CandidateIntegrationView() {
     loadData()
   }, [id])
 
-  useRealtime('candidates', () => loadData())
-  useRealtime('candidate_email_log', () => {
-    if (id)
-      getEmailLogsForCandidate(id)
-        .then(setEmailLogs)
-        .catch(() => {})
-  })
+  const loadDataRef = useRef(loadData)
+  loadDataRef.current = loadData
+
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const debouncedReload = useCallback(() => {
+    if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+    reloadTimerRef.current = setTimeout(() => loadDataRef.current(), 500)
+  }, [])
+
+  useRealtime('candidates', debouncedReload)
+  useRealtime('candidate_email_log', debouncedReload)
+
+  useEffect(() => {
+    return () => {
+      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+    }
+  }, [])
 
   const handleMarkIntegrated = async () => {
     if (!candidate) return
@@ -220,7 +231,11 @@ export default function CandidateIntegrationView() {
               <div className="space-y-1">
                 <Label className="text-xs font-bold text-slate-700">Data de Nascimento</Label>
                 <Input
-                  value={candidate.data_nascimento ? formatDateBR(candidate.data_nascimento) : '—'}
+                  value={
+                    candidate.data_nascimento
+                      ? formatDateNoTimezone(candidate.data_nascimento)
+                      : '—'
+                  }
                   disabled
                 />
               </div>
@@ -263,7 +278,7 @@ export default function CandidateIntegrationView() {
                 </div>
                 <p className="text-xl font-bold text-indigo-900">
                   {candidate.data_integracao
-                    ? formatDateBR(candidate.data_integracao)
+                    ? formatDateNoTimezone(candidate.data_integracao)
                     : 'Não definida'}
                 </p>
               </div>
