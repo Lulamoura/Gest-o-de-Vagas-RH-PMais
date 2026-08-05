@@ -108,6 +108,7 @@ export default function Candidates() {
     tipo_integracao: string
     valor_unitario_transporte: number
     data_nascimento: string
+    informacoes_integracao: string
   }>({
     vacancy_id: '',
     nome: '',
@@ -188,6 +189,7 @@ export default function Candidates() {
       tipo_integracao: '',
       valor_unitario_transporte: 0,
       data_nascimento: '',
+      informacoes_integracao: '',
     })
     setEditOpen(true)
   }
@@ -217,6 +219,7 @@ export default function Candidates() {
       tipo_integracao: c.tipo_integracao || '',
       valor_unitario_transporte: c.valor_unitario_transporte || 0,
       data_nascimento: toDateInputValue(c.data_nascimento),
+      informacoes_integracao: c.informacoes_integracao || '',
     })
     setEditOpen(true)
 
@@ -799,6 +802,20 @@ export default function Candidates() {
                         </SelectContent>
                       </Select>
                     </div>
+                  </div>
+                )}
+                {formData.integracao_ativa && (
+                  <div className="space-y-1">
+                    <Label className="text-xs font-bold text-slate-700">
+                      Informações de Integração
+                    </Label>
+                    <Input
+                      value={formData.informacoes_integracao}
+                      onChange={(e) =>
+                        setFormData({ ...formData, informacoes_integracao: e.target.value })
+                      }
+                      placeholder="Informações adicionais sobre a integração"
+                    />
                   </div>
                 )}
               </div>

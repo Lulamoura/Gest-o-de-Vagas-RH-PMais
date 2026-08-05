@@ -116,6 +116,7 @@ export interface CandidateRecord extends RecordModel {
   telefone_emergencia?: string
   observacao?: string
   ordem_execucao?: string
+  informacoes_integracao?: string
   status_candidato: CandidateStatus
   integracao_ativa?: boolean
   data_integracao?: string

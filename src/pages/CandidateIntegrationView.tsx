@@ -292,6 +292,26 @@ export default function CandidateIntegrationView() {
                   )}
                 </div>
               )}
+              {candidate.ordem_execucao && (
+                <div className="pt-2 border-t border-indigo-200">
+                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-0.5">
+                    Número da OE
+                  </p>
+                  <p className="text-sm font-semibold text-indigo-900">
+                    {candidate.ordem_execucao}
+                  </p>
+                </div>
+              )}
+              {candidate.informacoes_integracao && (
+                <div className="pt-2 border-t border-indigo-200">
+                  <p className="text-xs font-bold text-indigo-700 uppercase tracking-wider mb-0.5">
+                    Informações de Integração
+                  </p>
+                  <p className="text-sm text-indigo-900 whitespace-pre-wrap">
+                    {candidate.informacoes_integracao}
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-center gap-3">
