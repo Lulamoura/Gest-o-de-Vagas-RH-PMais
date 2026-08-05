@@ -166,6 +166,7 @@ export default function VacancyDetail() {
   const [editDataIntegracao, setEditDataIntegracao] = useState('')
   const [editHoraIntegracao, setEditHoraIntegracao] = useState('')
   const [editTipoIntegracao, setEditTipoIntegracao] = useState('')
+  const [editInformacoesIntegracao, setEditInformacoesIntegracao] = useState('')
   const [clinicas, setClinicas] = useState<ClinicaRecord[]>([])
   const [examModalOpen, setExamModalOpen] = useState(false)
   const [sendingIntegrationEmail, setSendingIntegrationEmail] = useState(false)
@@ -366,6 +367,7 @@ export default function VacancyDetail() {
     setEditDataIntegracao(toDateInputValue(candidate.data_integracao))
     setEditHoraIntegracao(candidate.hora_integracao || '')
     setEditTipoIntegracao(candidate.tipo_integracao || '')
+    setEditInformacoesIntegracao(candidate.informacoes_integracao || '')
     setEditFieldErrors({})
     setEmailLogs([])
     getEmailLogsForCandidate(candidate.id)
@@ -413,6 +415,9 @@ export default function VacancyDetail() {
         hora_integracao: editIntegracaoAtiva ? editHoraIntegracao || undefined : undefined,
         tipo_integracao: editIntegracaoAtiva
           ? (editTipoIntegracao as 'Presencial' | 'On-line') || undefined
+          : undefined,
+        informacoes_integracao: editIntegracaoAtiva
+          ? editInformacoesIntegracao.trim() || undefined
           : undefined,
       })
       toast.success('Candidato atualizado com sucesso!')
@@ -1784,6 +1789,17 @@ export default function VacancyDetail() {
                           <SelectItem value="On-line">On-line</SelectItem>
                         </SelectContent>
                       </Select>
+                    </div>
+                    <div className="sm:col-span-3">
+                      <Label className="text-[10px] text-slate-500">
+                        Informações de Integração
+                      </Label>
+                      <Textarea
+                        value={editInformacoesIntegracao}
+                        onChange={(e) => setEditInformacoesIntegracao(e.target.value)}
+                        placeholder="Informações adicionais sobre a integração"
+                        rows={2}
+                      />
                     </div>
                   </div>
                 )}
