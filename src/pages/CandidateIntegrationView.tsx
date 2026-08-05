@@ -1,11 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { getCandidate, updateCandidate, sendAvisoIntegracaoCandidato } from '@/services/candidates'
 import { getBaseIntegracao } from '@/services/base_integracao'
 import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
 import { CandidateRecord, BaseIntegracaoRecord, CandidateEmailLogRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
-import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -42,20 +41,16 @@ export default function CandidateIntegrationView() {
   const [avisoModalOpen, setAvisoModalOpen] = useState(false)
   const [confirmAvisoOpen, setConfirmAvisoOpen] = useState(false)
   const [baseIntegracao, setBaseIntegracao] = useState<BaseIntegracaoRecord[]>([])
+  const [baseIntegracaoLoaded, setBaseIntegracaoLoaded] = useState(false)
   const [sendingAviso, setSendingAviso] = useState(false)
   const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
 
   const loadData = async () => {
     if (!id) return
     try {
-      const [data, logs, bases] = await Promise.all([
-        getCandidate(id),
-        getEmailLogsForCandidate(id),
-        getBaseIntegracao(),
-      ])
+      const [data, logs] = await Promise.all([getCandidate(id), getEmailLogsForCandidate(id)])
       setCandidate(data)
       setEmailLogs(logs)
-      setBaseIntegracao(bases)
     } catch {
       toast.error('Erro ao carregar candidato')
     } finally {
@@ -67,23 +62,16 @@ export default function CandidateIntegrationView() {
     loadData()
   }, [id])
 
-  const loadDataRef = useRef(loadData)
-  loadDataRef.current = loadData
-
-  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const debouncedReload = useCallback(() => {
-    if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
-    reloadTimerRef.current = setTimeout(() => loadDataRef.current(), 500)
-  }, [])
-
-  useRealtime('candidates', debouncedReload)
-  useRealtime('candidate_email_log', debouncedReload)
-
-  useEffect(() => {
-    return () => {
-      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+  const loadBaseIntegracao = async () => {
+    if (baseIntegracaoLoaded) return
+    try {
+      const bases = await getBaseIntegracao()
+      setBaseIntegracao(bases)
+      setBaseIntegracaoLoaded(true)
+    } catch {
+      toast.error('Erro ao carregar bases de integração')
     }
-  }, [])
+  }
 
   const handleMarkIntegrated = async () => {
     if (!candidate) return
@@ -108,6 +96,7 @@ export default function CandidateIntegrationView() {
   const handleConfirmAviso = async () => {
     if (!candidate) return
     if (candidate.tipo_integracao === 'Presencial') {
+      await loadBaseIntegracao()
       setConfirmAvisoOpen(false)
       setAvisoModalOpen(true)
       return

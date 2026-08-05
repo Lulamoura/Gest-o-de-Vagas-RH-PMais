@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { getIntegrationCandidates, sendAvisoIntegracaoCandidato } from '@/services/candidates'
 import { getBaseIntegracao } from '@/services/base_integracao'
@@ -9,7 +9,6 @@ import {
 } from '@/services/candidate_email_logs'
 import { CandidateRecord, BaseIntegracaoRecord, CandidateEmailLogRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
-import { useRealtime } from '@/hooks/use-realtime'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,6 +25,7 @@ export default function GestaoIntegracao() {
   const canSendAviso = isAdmin || isOperator || isSuperAdmin
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
   const [baseIntegracao, setBaseIntegracao] = useState<BaseIntegracaoRecord[]>([])
+  const [baseIntegracaoLoaded, setBaseIntegracaoLoaded] = useState(false)
   const [emailLogsMap, setEmailLogsMap] = useState<Record<string, CandidateEmailLogRecord[]>>({})
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -36,10 +36,12 @@ export default function GestaoIntegracao() {
 
   const loadData = async () => {
     try {
-      const [data, bases] = await Promise.all([getIntegrationCandidates(), getBaseIntegracao()])
+      const data = await getIntegrationCandidates()
       setCandidates(data)
-      setBaseIntegracao(bases)
-      const allLogs = await getEmailLogsForCandidates(data.map((c) => c.id))
+      const allLogs = await getEmailLogsForCandidates(
+        data.map((c) => c.id),
+        'aviso_integracao_candidato',
+      )
       const logsMap: Record<string, CandidateEmailLogRecord[]> = {}
       allLogs.forEach((log) => {
         if (!logsMap[log.candidate_id]) logsMap[log.candidate_id] = []
@@ -53,26 +55,20 @@ export default function GestaoIntegracao() {
     }
   }
 
-  const loadDataRef = useRef(loadData)
-  loadDataRef.current = loadData
-
-  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const debouncedReload = useCallback(() => {
-    if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
-    reloadTimerRef.current = setTimeout(() => loadDataRef.current(), 500)
-  }, [])
-
   useEffect(() => {
     loadData()
   }, [])
-  useRealtime<CandidateRecord>('candidates', debouncedReload)
-  useRealtime('candidate_email_log', debouncedReload)
 
-  useEffect(() => {
-    return () => {
-      if (reloadTimerRef.current) clearTimeout(reloadTimerRef.current)
+  const loadBaseIntegracao = async () => {
+    if (baseIntegracaoLoaded) return
+    try {
+      const bases = await getBaseIntegracao()
+      setBaseIntegracao(bases)
+      setBaseIntegracaoLoaded(true)
+    } catch {
+      toast.error('Erro ao carregar bases de integração')
     }
-  }, [])
+  }
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -94,6 +90,7 @@ export default function GestaoIntegracao() {
   const handleConfirmAviso = async () => {
     if (!selectedCandidate) return
     if (selectedCandidate.tipo_integracao === 'Presencial') {
+      await loadBaseIntegracao()
       setConfirmAvisoOpen(false)
       setAvisoModalOpen(true)
       return

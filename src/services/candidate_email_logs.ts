@@ -12,9 +12,10 @@ export const hasEmailBeenSent = (logs: CandidateEmailLogRecord[], type: EmailTyp
   return logs.some((log) => log.email_type === type)
 }
 
-export const getEmailLogsForCandidates = async (candidateIds: string[]) => {
+export const getEmailLogsForCandidates = async (candidateIds: string[], emailType?: EmailType) => {
   if (candidateIds.length === 0) return []
-  const filter = candidateIds.map((id) => `candidate_id = "${id}"`).join(' || ')
+  const parts = candidateIds.map((id) => `candidate_id = "${id}"`).join(' || ')
+  const filter = emailType ? `(${parts}) && email_type = "${emailType}"` : parts
   return pb.collection<CandidateEmailLogRecord>('candidate_email_log').getFullList({
     filter,
     sort: '-created',
