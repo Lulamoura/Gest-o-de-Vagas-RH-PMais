@@ -97,6 +97,10 @@ routerAdd(
       return e.forbiddenError('Você não tem permissão para esta ação')
     }
 
+    if (newStatus === 'Aguardando aprovação' && req.getBool('edicao_liberada')) {
+      req.set('edicao_liberada', false)
+    }
+
     req.set('status', newStatus)
     $app.save(req)
 

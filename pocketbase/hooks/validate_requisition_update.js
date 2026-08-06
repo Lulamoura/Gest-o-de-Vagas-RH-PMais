@@ -16,5 +16,10 @@ onRecordUpdateRequest((e) => {
     }
   }
 
+  // Reset edicao_liberada when the requisition is submitted back into the approval flow
+  if (body.status === 'Aguardando aprovação' && e.record.getBool('edicao_liberada')) {
+    e.record.set('edicao_liberada', false)
+  }
+
   e.next()
 }, 'requisitions')
