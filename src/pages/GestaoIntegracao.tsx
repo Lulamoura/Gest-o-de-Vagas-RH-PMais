@@ -21,8 +21,8 @@ import { toast } from 'sonner'
 import { Search, Mail, Check, Eye, Calendar, Clock } from 'lucide-react'
 
 export default function GestaoIntegracao() {
-  const { isAdmin, isOperator, isSuperAdmin } = useAuth()
-  const canSendAviso = isAdmin || isOperator || isSuperAdmin
+  const { canIntegrateCandidate } = useAuth()
+  const canSendAviso = canIntegrateCandidate
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
   const [baseIntegracao, setBaseIntegracao] = useState<BaseIntegracaoRecord[]>([])
   const [baseIntegracaoLoaded, setBaseIntegracaoLoaded] = useState(false)

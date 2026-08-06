@@ -30,9 +30,9 @@ import { ArrowLeft, CheckCircle, Calendar, Clock, Mail, Check, DollarSign } from
 export default function CandidateIntegrationView() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { isOperator, isSuperAdmin, isAdmin } = useAuth()
-  const canMarkIntegrated = isOperator || isSuperAdmin
-  const canSendAviso = isAdmin || isOperator || isSuperAdmin
+  const { canIntegrateCandidate } = useAuth()
+  const canMarkIntegrated = canIntegrateCandidate
+  const canSendAviso = canIntegrateCandidate
 
   const [candidate, setCandidate] = useState<CandidateRecord | null>(null)
   const [loading, setLoading] = useState(true)
