@@ -17,12 +17,12 @@ const STATUS_BADGE: Record<string, string> = {
 }
 
 export function RequisitionChangeRequests({ requisitionId }: { requisitionId: string }) {
-  const { user } = useAuth()
+  const { user, isRH } = useAuth()
   const [requests, setRequests] = useState<RequisitionChangeRequestRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [decisionTarget, setDecisionTarget] = useState<string | null>(null)
 
-  const isAdmin = user?.profile === 'admin' || user?.profile === 'superadmin'
+  const canDecide = user?.profile === 'admin' || user?.profile === 'superadmin' || isRH
 
   const loadData = async () => {
     try {
@@ -65,7 +65,7 @@ export function RequisitionChangeRequests({ requisitionId }: { requisitionId: st
                   {r.expand?.solicitante?.name || '—'} — {r.created ? formatDateBR(r.created) : ''}
                 </span>
               </div>
-              {isAdmin && r.status === 'Pendente' && r.solicitante !== user?.id && (
+              {canDecide && r.status === 'Pendente' && r.solicitante !== user?.id && (
                 <Button size="sm" variant="outline" onClick={() => setDecisionTarget(r.id)}>
                   <MessageSquare className="h-3.5 w-3.5 mr-1" /> Decidir
                 </Button>

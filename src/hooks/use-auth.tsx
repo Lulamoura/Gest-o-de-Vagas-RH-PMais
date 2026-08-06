@@ -44,7 +44,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (pb.authStore.isValid) {
       pb.collection('users')
-        .authRefresh()
+        .authRefresh({}, { expand: 'departamento' })
         .then((res) => {
           setUser(res.record as unknown as UserRecord)
         })
