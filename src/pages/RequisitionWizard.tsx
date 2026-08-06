@@ -113,7 +113,7 @@ export default function RequisitionWizard() {
         const sourceId = isEdit ? id : duplicateId
         if (sourceId) {
           const req = await getRequisition(sourceId)
-          if (isEdit && req.status !== 'Rascunho') {
+          if (isEdit && req.status !== 'Rascunho' && !req.edicao_liberada) {
             toast.error('Apenas requisições em rascunho podem ser editadas')
             navigate('/requisicoes')
             return
