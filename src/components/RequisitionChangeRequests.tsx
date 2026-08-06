@@ -65,7 +65,7 @@ export function RequisitionChangeRequests({ requisitionId }: { requisitionId: st
                   {r.expand?.solicitante?.name || '—'} — {r.created ? formatDateBR(r.created) : ''}
                 </span>
               </div>
-              {isAdmin && r.status === 'Pendente' && (
+              {isAdmin && r.status === 'Pendente' && r.solicitante !== user?.id && (
                 <Button size="sm" variant="outline" onClick={() => setDecisionTarget(r.id)}>
                   <MessageSquare className="h-3.5 w-3.5 mr-1" /> Decidir
                 </Button>
