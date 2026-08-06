@@ -35,6 +35,26 @@ onRecordAfterCreateSuccess((e) => {
       notif.set('read', false)
       $app.save(notif)
     }
+
+    // Also notify the original solicitante of the requisition
+    try {
+      var req = $app.findRecordById('requisitions', requisitionId)
+      var reqSolicitanteId = req.getString('solicitante')
+      if (reqSolicitanteId && reqSolicitanteId !== solicitanteId) {
+        var notifSolicitante = new Record(notifCol)
+        notifSolicitante.set('user', reqSolicitanteId)
+        notifSolicitante.set('requisition', requisitionId)
+        notifSolicitante.set('type', 'change_request_submitted')
+        notifSolicitante.set(
+          'message',
+          'Há uma solicitação de alteração pendente em sua requisição',
+        )
+        notifSolicitante.set('read', false)
+        $app.save(notifSolicitante)
+      }
+    } catch (reqErr) {
+      // Don't fail if solicitante notification fails
+    }
   } catch (notifErr) {
     // Don't fail if notification creation fails
   }

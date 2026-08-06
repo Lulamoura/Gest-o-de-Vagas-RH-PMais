@@ -42,7 +42,9 @@ import {
   changeRequisitionStatus,
   deleteRequisition,
   createWordpressDraft,
+  updateRequisition,
 } from '@/services/requisitions'
+import { getChangeRequests } from '@/services/requisition_change_requests'
 import { RequisitionHistory } from '@/components/RequisitionHistory'
 import { RequisitionComments } from '@/components/RequisitionComments'
 import { RequisitionAttachments } from '@/components/RequisitionAttachments'
@@ -70,6 +72,7 @@ export default function RequisitionDetail() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [wpLoading, setWpLoading] = useState(false)
   const [wpError, setWpError] = useState<string | null>(null)
+  const [hasPendingChangeRequest, setHasPendingChangeRequest] = useState(false)
 
   const loadReq = useCallback(async () => {
     if (!id) return
@@ -95,6 +98,23 @@ export default function RequisitionDetail() {
     loadReq()
   })
 
+  const loadChangeRequests = useCallback(async () => {
+    if (!id) return
+    try {
+      const requests = await getChangeRequests(id)
+      setHasPendingChangeRequest(requests.some((r) => r.status === 'Pendente'))
+    } catch {
+      /* ignore */
+    }
+  }, [id])
+
+  useEffect(() => {
+    loadChangeRequests()
+  }, [loadChangeRequests])
+  useRealtime('requisition_change_requests', () => {
+    loadChangeRequests()
+  })
+
   if (loading)
     return (
       <div className="flex items-center justify-center p-8">
@@ -109,7 +129,9 @@ export default function RequisitionDetail() {
   const canManage = isAdmin || isRH
   const missingApprovalFields = getMissingApprovalFields(req)
   const canSubmitForApproval = missingApprovalFields.length === 0
-  const canEdit = req.status === 'Rascunho' && (isSolicitante || isAdmin)
+  const canEdit =
+    (req.status === 'Rascunho' && (isSolicitante || isAdmin)) ||
+    (req.edicao_liberada && isSolicitante)
   const canCreate = ['operator', 'admin', 'superadmin'].includes(user?.profile || '')
   const canDeleteReq = user?.profile === 'superadmin'
 
@@ -154,6 +176,17 @@ export default function RequisitionDetail() {
       loadReq()
     } finally {
       setWpLoading(false)
+    }
+  }
+
+  const handleFinishEditing = async () => {
+    if (!id) return
+    try {
+      await updateRequisition(id, { edicao_liberada: false })
+      toast.success('Edição finalizada!')
+      loadReq()
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao finalizar edição')
     }
   }
 
@@ -214,6 +247,15 @@ export default function RequisitionDetail() {
               <Pencil className="h-4 w-4 mr-2" /> Editar
             </Button>
           )}
+          {req.edicao_liberada && isSolicitante && (
+            <Button
+              variant="outline"
+              onClick={handleFinishEditing}
+              className="text-green-600 border-green-300 hover:bg-green-50"
+            >
+              <CheckCircle2 className="h-4 w-4 mr-2" /> Finalizar Edição
+            </Button>
+          )}
           {canCreate && (
             <Button
               variant="outline"
@@ -239,11 +281,14 @@ export default function RequisitionDetail() {
               </Button>
             </a>
           )}
-          {req.status === 'Aprovada' && (isSolicitante || canManage) && (
-            <Button variant="outline" onClick={() => setShowChangeRequest(true)}>
-              <Edit3 className="h-4 w-4 mr-2" /> Solicitar Alteração
-            </Button>
-          )}
+          {req.status === 'Aprovada' &&
+            (isSolicitante || canManage) &&
+            !hasPendingChangeRequest &&
+            !req.edicao_liberada && (
+              <Button variant="outline" onClick={() => setShowChangeRequest(true)}>
+                <Edit3 className="h-4 w-4 mr-2" /> Solicitar Alteração
+              </Button>
+            )}
           {canDeleteReq && (
             <Button
               variant="outline"
@@ -325,6 +370,18 @@ export default function RequisitionDetail() {
             {req.wordpress_sync_date && ` • ${formatDateBR(req.wordpress_sync_date)}`}
           </Badge>
         </div>
+      )}
+
+      {req.edicao_liberada && isSolicitante && (
+        <Alert className="border-green-300 bg-green-50">
+          <AlertCircle className="h-4 w-4 text-green-600" />
+          <AlertTitle className="text-green-800">Edição liberada</AlertTitle>
+          <AlertDescription className="text-green-700">
+            A edição desta requisição foi liberada pelo RH. Clique em &quot;Editar&quot; para
+            ajustar os campos necessários. Ao concluir, clique em &quot;Finalizar Edição&quot; para
+            encerrar o período de edição.
+          </AlertDescription>
+        </Alert>
       )}
 
       <Card>

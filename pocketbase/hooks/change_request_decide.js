@@ -22,7 +22,7 @@ routerAdd(
     }
 
     var requisitionId = cr.getString('requisition')
-    var solicitanteId = cr.getString('solicitante')
+    var crSolicitanteId = cr.getString('solicitante')
     var userId = e.auth ? e.auth.id : ''
 
     cr.set('status', newStatus)
@@ -32,6 +32,20 @@ routerAdd(
       cr.set('decisao_comentario', decisaoComentario)
     }
     $app.save(cr)
+
+    // Get the requisition to find the original solicitante and unlock editing if approved
+    var reqSolicitanteId = crSolicitanteId
+    try {
+      var req = $app.findRecordById('requisitions', requisitionId)
+      reqSolicitanteId = req.getString('solicitante')
+
+      if (newStatus === 'Aprovada') {
+        req.set('edicao_liberada', true)
+        $app.save(req)
+      }
+    } catch (reqErr) {
+      // Don't fail if requisition update fails
+    }
 
     try {
       var historyCol = $app.findCollectionByNameOrId('requisition_history')
@@ -52,7 +66,7 @@ routerAdd(
     try {
       var notifCol = $app.findCollectionByNameOrId('notifications')
       var notif = new Record(notifCol)
-      notif.set('user', solicitanteId)
+      notif.set('user', reqSolicitanteId)
       notif.set('requisition', requisitionId)
       notif.set(
         'type',
@@ -61,7 +75,7 @@ routerAdd(
       notif.set(
         'message',
         newStatus === 'Aprovada'
-          ? 'Sua solicitação de alteração foi aprovada'
+          ? 'Sua solicitação de alteração foi aprovada. A edição da requisição foi liberada para você ajustar os campos.'
           : 'Sua solicitação de alteração foi reprovada',
       )
       notif.set('read', false)

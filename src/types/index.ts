@@ -332,6 +332,7 @@ export interface RequisitionRecord extends RecordModel {
   wordpress_sync_status?: 'pendente' | 'sucesso' | 'erro'
   wordpress_sync_date?: string
   wordpress_error_message?: string
+  edicao_liberada?: boolean
   status: RequisitionStatus
   expand?: {
     solicitante?: UserRecord
