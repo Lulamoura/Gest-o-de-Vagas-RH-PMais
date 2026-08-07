@@ -64,7 +64,7 @@ export default function RequisitionIndicators() {
       const [reqs, hist] = await Promise.all([
         getRequisitions(),
         pb.collection('requisition_history').getFullList({
-          filter: "status_novo = 'Aprovada'",
+          sort: 'data_mudanca',
         }),
       ])
       setRequisitions(reqs)
@@ -156,9 +156,10 @@ export default function RequisitionIndicators() {
     let total = 0
     let count = 0
     for (const r of approved) {
-      const hist = history.find((h) => h.requisition_id === r.id)
-      if (hist?.data_mudanca && r.created) {
-        const diff = new Date(hist.data_mudanca).getTime() - new Date(r.created).getTime()
+      const hist = history.find((h) => h.requisition_id === r.id && h.status_novo === 'Aprovada')
+      const transitionDate = hist?.data_mudanca || hist?.created
+      if (transitionDate && r.created) {
+        const diff = new Date(transitionDate).getTime() - new Date(r.created).getTime()
         total += Math.max(0, Math.floor(diff / 86400000))
         count++
       }
@@ -189,7 +190,7 @@ export default function RequisitionIndicators() {
     },
     {
       label: 'Aprovadas',
-      value: filtered.filter((r) => r.status === 'Aprovada').length,
+      value: filtered.filter((r) => APPROVED_STATUSES.includes(r.status)).length,
       icon: CheckCircle2,
       color: 'text-emerald-600 bg-emerald-50',
     },
@@ -288,7 +289,7 @@ export default function RequisitionIndicators() {
                   cy="50%"
                   outerRadius={90}
                   dataKey="value"
-                  label={({ name, value }) => `${name}: ${value}`}
+                  label={({ name }) => `${name}`}
                 >
                   {statusData.map((_entry, i) => (
                     <Cell key={`cell-${i}`} fill={PIE_COLORS[i % PIE_COLORS.length]} />
