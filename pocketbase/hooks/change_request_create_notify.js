@@ -13,7 +13,7 @@ onRecordAfterCreateSuccess((e) => {
     historyRecord.set('observacao', cr.getString('campos_alterados'))
     $app.save(historyRecord)
   } catch (histErr) {
-    // Don't fail if history creation fails
+    $app.logger().error('change_request_create_notify: history failed', 'error', String(histErr))
   }
 
   try {
@@ -27,16 +27,25 @@ onRecordAfterCreateSuccess((e) => {
     var notifCol = $app.findCollectionByNameOrId('notifications')
 
     for (var i = 0; i < rhUsers.length; i++) {
-      var notif = new Record(notifCol)
-      notif.set('user', rhUsers[i].id)
-      notif.set('requisition', requisitionId)
-      notif.set('type', 'change_request_submitted')
-      notif.set('message', 'Nova solicitação de alteração em uma requisição aprovada')
-      notif.set('read', false)
-      $app.save(notif)
+      try {
+        var notif = new Record(notifCol)
+        notif.set('user', rhUsers[i].id)
+        notif.set('requisition', requisitionId)
+        notif.set('type', 'change_request_submitted')
+        notif.set('message', 'Nova solicitação de alteração em uma requisição aprovada')
+        notif.set('read', false)
+        $app.save(notif)
+      } catch (notifItemErr) {
+        $app
+          .logger()
+          .error(
+            'change_request_create_notify: notify rh user failed',
+            'error',
+            String(notifItemErr),
+          )
+      }
     }
 
-    // Also notify the original solicitante of the requisition
     try {
       var req = $app.findRecordById('requisitions', requisitionId)
       var reqSolicitanteId = req.getString('solicitante')
@@ -56,10 +65,14 @@ onRecordAfterCreateSuccess((e) => {
         $app.save(notifSolicitante)
       }
     } catch (reqErr) {
-      // Don't fail if solicitante notification fails
+      $app
+        .logger()
+        .error('change_request_create_notify: requisition update failed', 'error', String(reqErr))
     }
   } catch (notifErr) {
-    // Don't fail if notification creation fails
+    $app
+      .logger()
+      .error('change_request_create_notify: notification block failed', 'error', String(notifErr))
   }
 
   return e.next()
