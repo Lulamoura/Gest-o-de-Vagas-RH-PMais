@@ -29,7 +29,16 @@ import {
 } from 'recharts'
 import type { RequisitionRecord, RequisitionHistoryRecord } from '@/types'
 
-const PIE_COLORS = ['#3b82f6', '#a855f7', '#f59e0b', '#10b981', '#ef4444', '#94a3b8']
+const PIE_COLORS = [
+  '#3b82f6',
+  '#a855f7',
+  '#f59e0b',
+  '#10b981',
+  '#ef4444',
+  '#94a3b8',
+  '#06b6d4',
+  '#ec4899',
+]
 const STATUS_LABELS: Record<string, string> = {
   Rascunho: 'Rascunho',
   'Aguardando aprovação': 'Aguardando',
@@ -37,6 +46,8 @@ const STATUS_LABELS: Record<string, string> = {
   Aprovada: 'Aprovada',
   Reprovada: 'Reprovada',
   Cancelada: 'Cancelada',
+  'Rascunho criado no WordPress': 'Rascunho WP',
+  Publicada: 'Publicada',
 }
 
 export default function RequisitionIndicators() {
@@ -72,7 +83,8 @@ export default function RequisitionIndicators() {
 
   const filtered = useMemo(() => {
     return requisitions.filter((r) => {
-      if (fDept !== 'all' && r.departamento !== fDept) return false
+      if (fDept !== 'all' && (r.expand?.departamento?.nome || '').toLowerCase() !== fDept)
+        return false
       if (dateFrom && new Date(r.created) < new Date(dateFrom + 'T00:00:00')) return false
       if (dateTo && new Date(r.created) > new Date(dateTo + 'T23:59:59')) return false
       return true

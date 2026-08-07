@@ -14,6 +14,7 @@ export const REQUISITION_STATUS_BADGE: Record<RequisitionStatus, string> = {
   Reprovada: 'bg-rose-100 text-rose-800 border-rose-200',
   Cancelada: 'bg-slate-200 text-slate-700 border-slate-300',
   'Rascunho criado no WordPress': 'bg-cyan-100 text-cyan-800 border-cyan-200',
+  Publicada: 'bg-teal-100 text-teal-800 border-teal-200',
 }
 
 export const REQUISITION_STATUS_LABELS: Record<RequisitionStatus, string> = {
@@ -24,6 +25,7 @@ export const REQUISITION_STATUS_LABELS: Record<RequisitionStatus, string> = {
   Reprovada: 'Reprovada',
   Cancelada: 'Cancelada',
   'Rascunho criado no WordPress': 'Rascunho no WordPress',
+  Publicada: 'Publicada',
 }
 
 export const DEPARTAMENTO_OPTIONS = [
