@@ -13,7 +13,16 @@ onRecordCreateRequest((e) => {
   var isSolicitante = userId === reqSolicitante
   var isAdmin = userProfile === 'admin' || userProfile === 'superadmin'
 
-  if (!isSolicitante && !isAdmin) {
+  var departamentoId = e.auth.getString('departamento')
+  var isRH = false
+  if (departamentoId) {
+    try {
+      var dept = $app.findRecordById('departamentos', departamentoId)
+      isRH = dept.getString('nome') === 'rh'
+    } catch (_) {}
+  }
+
+  if (!isSolicitante && !isAdmin && !isRH) {
     return e.forbiddenError('Apenas o solicitante ou RH pode criar solicitações de alteração')
   }
 

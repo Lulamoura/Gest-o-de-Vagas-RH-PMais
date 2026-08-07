@@ -41,6 +41,9 @@ onRecordAfterCreateSuccess((e) => {
       var req = $app.findRecordById('requisitions', requisitionId)
       var reqSolicitanteId = req.getString('solicitante')
       if (reqSolicitanteId && reqSolicitanteId !== solicitanteId) {
+        req.set('edicao_liberada', true)
+        $app.save(req)
+
         var notifSolicitante = new Record(notifCol)
         notifSolicitante.set('user', reqSolicitanteId)
         notifSolicitante.set('requisition', requisitionId)
