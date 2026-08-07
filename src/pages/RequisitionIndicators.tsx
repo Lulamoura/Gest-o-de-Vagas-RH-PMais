@@ -49,6 +49,7 @@ const STATUS_LABELS: Record<string, string> = {
   'Rascunho criado no WordPress': 'Rascunho WP',
   Publicada: 'Publicada',
 }
+const APPROVED_STATUSES = ['Aprovada', 'Rascunho criado no WordPress', 'Publicada']
 
 export default function RequisitionIndicators() {
   const [requisitions, setRequisitions] = useState<RequisitionRecord[]>([])
@@ -149,7 +150,6 @@ export default function RequisitionIndicators() {
       .map(([name, value]) => ({ name, value }))
   }, [filtered])
 
-  const APPROVED_STATUSES = ['Aprovada', 'Rascunho criado no WordPress', 'Publicada']
   const avgApprovalDays = useMemo(() => {
     const approved = filtered.filter((r) => APPROVED_STATUSES.includes(r.status))
     if (approved.length === 0) return 0
