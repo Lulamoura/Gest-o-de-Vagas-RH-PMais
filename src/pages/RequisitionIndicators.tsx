@@ -151,8 +151,9 @@ export default function RequisitionIndicators() {
 
   const APPROVED_STATUSES = ['Aprovada', 'Rascunho criado no WordPress', 'Publicada']
   const avgApprovalDays = useMemo(() => {
-  const approved = filtered.filter((r) => APPROVED_STATUSES.includes(r.status))
-  if (approved.length === 0) return 0    let total = 0
+    const approved = filtered.filter((r) => APPROVED_STATUSES.includes(r.status))
+    if (approved.length === 0) return 0
+    let total = 0
     let count = 0
     for (const r of approved) {
       const hist = history.find((h) => h.requisition_id === r.id)
