@@ -244,6 +244,122 @@ routerAdd('POST', '/backend/v1/vagas/wordpress', (e) => {
     }
   }
 
+  var syncRequisitionPublication = function (wpJobId, linkPublico) {
+    var reqId = body.requisition_id || ''
+    if (!reqId) return
+
+    var req = null
+    try {
+      req = $app.findRecordById('requisitions', reqId)
+    } catch (_) {
+      try {
+        $app.logger().warn('wordpress_import: requisition not found', 'requisition_id', reqId)
+      } catch (__) {}
+      return
+    }
+
+    var reqWpJobId = req.getString('wordpress_job_id')
+    if (reqWpJobId && reqWpJobId !== wpJobId) {
+      try {
+        $app
+          .logger()
+          .warn(
+            'wordpress_import: requisition wordpress_job_id mismatch',
+            'requisition_id',
+            reqId,
+            'expected',
+            reqWpJobId,
+            'received',
+            wpJobId,
+          )
+      } catch (__) {}
+      return
+    }
+
+    var currentStatus = req.getString('status')
+
+    if (currentStatus === 'Publicada') {
+      var needsUpdate = false
+      if (linkPublico && !req.getString('link_publico')) {
+        req.set('link_publico', linkPublico)
+        needsUpdate = true
+      }
+      if (!req.getString('data_publicacao')) {
+        req.set('data_publicacao', new Date().toISOString().split('T')[0])
+        needsUpdate = true
+      }
+      if (needsUpdate) {
+        try {
+          $app.save(req)
+        } catch (__) {}
+      }
+      return
+    }
+
+    if (currentStatus !== 'Rascunho criado no WordPress') {
+      try {
+        $app
+          .logger()
+          .warn(
+            'wordpress_import: requisition not in draft status, skipping publication sync',
+            'requisition_id',
+            reqId,
+            'current_status',
+            currentStatus,
+          )
+      } catch (__) {}
+      return
+    }
+
+    var today = new Date().toISOString().split('T')[0]
+    req.set('status', 'Publicada')
+    req.set('wordpress_job_id', wpJobId)
+    if (linkPublico) req.set('link_publico', linkPublico)
+    req.set('data_publicacao', today)
+    req.set('wordpress_sync_status', 'sucesso')
+    req.set('wordpress_sync_date', today)
+
+    try {
+      $app.save(req)
+    } catch (saveErr) {
+      try {
+        $app
+          .logger()
+          .error(
+            'wordpress_import: failed to update requisition to Publicada',
+            'requisition_id',
+            reqId,
+            'error',
+            String(saveErr),
+          )
+      } catch (__) {}
+      return
+    }
+
+    try {
+      var historyCol = $app.findCollectionByNameOrId('requisition_history')
+      var historyRecord = new Record(historyCol)
+      historyRecord.set('requisition_id', reqId)
+      historyRecord.set('status_anterior', 'Rascunho criado no WordPress')
+      historyRecord.set('status_novo', 'Publicada')
+      historyRecord.set('acao', 'wordpress')
+      historyRecord.set('observacao', 'Vaga publicada no WordPress e sincronizada com o GV')
+      $app.save(historyRecord)
+    } catch (histErr) {
+      try {
+        $app
+          .logger()
+          .error(
+            'wordpress_import: failed to create requisition history for Publicada',
+            'requisition_id',
+            reqId,
+            'error',
+            String(histErr),
+          )
+      } catch (__) {}
+    }
+  }
+
   var existing = null
   try {
     existing = $app.findFirstRecordByData('vacancies', 'wordpress_job_id', jobId)
@@ -254,6 +370,7 @@ routerAdd('POST', '/backend/v1/vagas/wordpress', (e) => {
       setVacancyFields(existing, true)
       $app.save(existing)
       writeLog(jobId, 'sucesso', 'Vaga atualizada via importação WordPress (idempotente)')
+      syncRequisitionPublication(jobId, body.link_publico || '')
       return e.json(200, { ok: true, duplicate: true, vaga_id: existing.id })
     } catch (err) {
       writeLog(jobId, 'erro', 'Erro ao atualizar vaga existente: ' + (err.message || ''))
@@ -267,6 +384,7 @@ routerAdd('POST', '/backend/v1/vagas/wordpress', (e) => {
     setVacancyFields(vac, false)
     $app.save(vac)
     writeLog(jobId, 'sucesso', 'Vaga importada com sucesso')
+    syncRequisitionPublication(jobId, body.link_publico || '')
     return e.json(200, { ok: true, status: 'sucesso', vaga_id: vac.id, vacancy: vac.id })
   } catch (err) {
     writeLog(jobId, 'erro', err.message || 'Erro ao importar vaga')
