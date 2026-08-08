@@ -64,7 +64,6 @@ const App = () => (
                 <Route path="/wordpress" element={<WordPressLogs />} />
                 <Route path="/relatorios" element={<Reports />} />
                 <Route path="/profile/senha" element={<ChangePassword />} />
-                <Route path="/reconciliacao" element={<Reconciliation />} />
               </Route>
             </Route>
             <Route path="*" element={<NotFound />} />
