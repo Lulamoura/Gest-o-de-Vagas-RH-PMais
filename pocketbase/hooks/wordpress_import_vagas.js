@@ -212,6 +212,12 @@ routerAdd('POST', '/backend/v1/vagas/wordpress', (e) => {
       return ''
     }
   }
+  var normalizeDateField = function (val) {
+    var s = String(val || '').trim()
+    if (!s) return ''
+    if (s.length >= 10 && /^\d{4}-\d{2}-\d{2}/.test(s)) return s.substring(0, 10)
+    return s
+  }
   var writeLog = function (wpJobId, status, msg) {
     try {
       var lc = $app.findCollectionByNameOrId('wordpress_import_logs')
@@ -251,6 +257,10 @@ routerAdd('POST', '/backend/v1/vagas/wordpress', (e) => {
       var strVal = String(value || '')
       if (isUpd) {
         var curVal = String(v.getString(field) || '')
+        if (field === 'data_abertura' || field === 'prazo_desejado') {
+          strVal = normalizeDateField(strVal)
+          curVal = normalizeDateField(curVal)
+        }
         if (curVal === strVal) return
         v.set(field, value || '')
         changesDetected = true
