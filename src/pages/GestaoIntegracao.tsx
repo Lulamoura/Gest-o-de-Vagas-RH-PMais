@@ -172,6 +172,12 @@ export default function GestaoIntegracao() {
                         {c.nome}
                       </CardTitle>
                       <p className="text-xs text-slate-500 mt-0.5">{vacancyName}</p>
+                      {vacancy?.expand?.cliente?.nome &&
+                        vacancy.expand.cliente.nome !== vacancyName && (
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {vacancy.expand.cliente.nome}
+                          </p>
+                        )}
                     </div>
                     <Badge
                       variant="outline"
