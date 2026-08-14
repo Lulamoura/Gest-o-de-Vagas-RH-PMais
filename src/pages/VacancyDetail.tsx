@@ -104,6 +104,7 @@ import { OverdueVacancyIcon } from '@/components/OverdueVacancyIcon'
 import { getClinicas } from '@/services/clinicas'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ExamReferralModal } from '@/components/ExamReferralModal'
+import { SortableHeader, type SortDirection } from '@/components/SortableTableHead'
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
@@ -265,6 +266,58 @@ export default function VacancyDetail() {
   const preApprovedCount = useMemo(() => {
     return candidates.filter((c) => c.status_candidato === 'Cadastro DP').length
   }, [candidates])
+
+  // Sorting for the linked candidates table (asc -> desc -> default on each click)
+  const [candSortColumn, setCandSortColumn] = useState<string>('')
+  const [candSortDirection, setCandSortDirection] = useState<SortDirection | null>(null)
+
+  const handleCandidateSort = (column: string) => {
+    if (candSortColumn !== column) {
+      setCandSortColumn(column)
+      setCandSortDirection('asc')
+    } else if (candSortDirection === 'asc') {
+      setCandSortDirection('desc')
+    } else {
+      // back to default (unsorted) order
+      setCandSortColumn('')
+      setCandSortDirection(null)
+    }
+  }
+
+  const getCandidateSortValue = (cand: CandidateRecord): string | number => {
+    switch (candSortColumn) {
+      case 'nome':
+        return (cand.nome || '').toLowerCase()
+      case 'ranking':
+        return cand.rank ?? -1
+      case 'contato':
+        return (cand.email || cand.telefone || '').toLowerCase()
+      case 'status':
+        return cand.status_candidato || ''
+      case 'custo_total':
+        return (
+          (cand.custo_consultas || 0) +
+          (cand.custo_exames || 0) +
+          (cand.custo_testes || 0) +
+          (cand.custo_extras || 0)
+        )
+      default:
+        return ''
+    }
+  }
+
+  const sortedCandidates = useMemo(() => {
+    if (!candSortColumn || !candSortDirection) return candidates
+    const sorted = [...candidates]
+    sorted.sort((a, b) => {
+      const valA = getCandidateSortValue(a)
+      const valB = getCandidateSortValue(b)
+      if (valA < valB) return candSortDirection === 'asc' ? -1 : 1
+      if (valA > valB) return candSortDirection === 'asc' ? 1 : -1
+      return 0
+    })
+    return sorted
+  }, [candidates, candSortColumn, candSortDirection])
 
   const handleAddCandidate = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -930,13 +983,42 @@ export default function VacancyDetail() {
             <Table>
               <TableHeader className="bg-slate-50">
                 <TableRow>
-                  <TableHead className="text-xs font-semibold text-slate-600">Nome</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600">Ranking</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600">Contato</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600">Status</TableHead>
-                  <TableHead className="text-xs font-semibold text-slate-600 text-right">
-                    Custo Total
-                  </TableHead>
+                  <SortableHeader
+                    label="Nome"
+                    column="nome"
+                    sortColumn={candSortColumn}
+                    sortDirection={candSortDirection ?? 'asc'}
+                    onSort={handleCandidateSort}
+                  />
+                  <SortableHeader
+                    label="Ranking"
+                    column="ranking"
+                    sortColumn={candSortColumn}
+                    sortDirection={candSortDirection ?? 'asc'}
+                    onSort={handleCandidateSort}
+                  />
+                  <SortableHeader
+                    label="Contato"
+                    column="contato"
+                    sortColumn={candSortColumn}
+                    sortDirection={candSortDirection ?? 'asc'}
+                    onSort={handleCandidateSort}
+                  />
+                  <SortableHeader
+                    label="Status"
+                    column="status"
+                    sortColumn={candSortColumn}
+                    sortDirection={candSortDirection ?? 'asc'}
+                    onSort={handleCandidateSort}
+                  />
+                  <SortableHeader
+                    label="Custo Total"
+                    column="custo_total"
+                    sortColumn={candSortColumn}
+                    sortDirection={candSortDirection ?? 'asc'}
+                    onSort={handleCandidateSort}
+                    align="right"
+                  />
                   {canEditCandidate && (
                     <TableHead className="text-xs font-semibold text-slate-600 text-center">
                       Ações
@@ -955,7 +1037,7 @@ export default function VacancyDetail() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  candidates.map((cand) => {
+                  sortedCandidates.map((cand) => {
                     const candidateTotal =
                       (cand.custo_consultas || 0) +
                       (cand.custo_exames || 0) +
