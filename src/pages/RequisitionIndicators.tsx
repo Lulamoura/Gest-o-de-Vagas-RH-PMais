@@ -49,7 +49,7 @@ const STATUS_LABELS: Record<string, string> = {
   'Rascunho criado no WordPress': 'Rascunho WP',
   Publicada: 'Publicada',
 }
-const APPROVED_STATUSES = ['Aprovada', 'Rascunho criado no WordPress', 'Publicada']
+const APPROVED_STATUSES = ['Aprovada', 'Rascunho criado no WordPress']
 
 export default function RequisitionIndicators() {
   const [requisitions, setRequisitions] = useState<RequisitionRecord[]>([])
@@ -167,6 +167,23 @@ export default function RequisitionIndicators() {
     return count > 0 ? Math.round(total / count) : 0
   }, [filtered, history])
 
+  const avgPublicationDays = useMemo(() => {
+    const published = filtered.filter((r) => r.status === 'Publicada')
+    if (published.length === 0) return 0
+    let total = 0
+    let count = 0
+    for (const r of published) {
+      const hist = history.find((h) => h.requisition_id === r.id && h.status_novo === 'Publicada')
+      const transitionDate = hist?.data_mudanca || hist?.created
+      if (transitionDate && r.created) {
+        const diff = new Date(transitionDate).getTime() - new Date(r.created).getTime()
+        total += Math.max(0, Math.floor(diff / 86400000))
+        count++
+      }
+    }
+    return count > 0 ? Math.round(total / count) : 0
+  }, [filtered, history])
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -195,16 +212,22 @@ export default function RequisitionIndicators() {
       color: 'text-emerald-600 bg-emerald-50',
     },
     {
+      label: 'Publicadas',
+      value: filtered.filter((r) => r.status === 'Publicada').length,
+      icon: CheckCircle2,
+      color: 'text-cyan-600 bg-cyan-50',
+    },
+    {
       label: 'Reprovadas',
       value: filtered.filter((r) => r.status === 'Reprovada').length,
       icon: XCircle,
       color: 'text-rose-600 bg-rose-50',
     },
     {
-      label: 'Tempo Médio Aprovação',
-      value: `${avgApprovalDays} dias`,
+      label: 'Tempo Médio Publicação',
+      value: `${avgPublicationDays} dias`,
       icon: TrendingUp,
-      color: 'text-purple-600 bg-purple-50',
+      color: 'text-indigo-600 bg-indigo-50',
     },
   ]
 
@@ -258,7 +281,7 @@ export default function RequisitionIndicators() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-6 gap-4">
         {kpis.map((k) => {
           const Icon = k.icon
           return (
