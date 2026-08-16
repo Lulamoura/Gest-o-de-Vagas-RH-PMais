@@ -73,6 +73,8 @@ const EMPTY_SUMMARY: IndicatorsSummary = {
   statusChart: [],
   candidatesPerPhase: [],
   vacanciesByType: [],
+  candidatesByTypeVaga: [],
+  candidatesByTypeContrato: [],
   rankingPerVacancy: [],
   stalledVacancies: [],
   totalAccumulatedCost: 0,
@@ -469,6 +471,113 @@ export default function Dashboard() {
                   />
                   <Bar dataKey="total" fill="#6366f1" radius={[6, 6, 0, 0]} />
                 </BarChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Candidates by Type (Vaga / Contrato) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <Card className="border-slate-200 shadow-2xs">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-bold text-slate-900">
+              Candidatos por Tipo de Vaga - Integrados
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Distribuição dos candidatos por tipo de vaga atribuído
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="h-[280px]">
+            {s.candidatesByTypeVaga.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <Users className="h-10 w-10 text-slate-300 mb-3" />
+                <p className="text-sm font-medium text-slate-500">
+                  Nenhum candidato com tipo de vaga definido no período
+                </p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={s.candidatesByTypeVaga}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={95}
+                    paddingAngle={3}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {s.candidatesByTypeVaga.map((_entry, index) => (
+                      <Cell
+                        key={`cell-ctypev-${index}`}
+                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val: number) => [`${val} candidato(s)`, 'Quantidade']}
+                    contentStyle={{
+                      backgroundColor: '#1e293b',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '12px',
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="border-slate-200 shadow-2xs">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-bold text-slate-900">
+              Candidatos por Tipo de Contrato - Integrados
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Distribuição dos candidatos por tipo de contrato atribuído
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="h-[280px]">
+            {s.candidatesByTypeContrato.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full text-center">
+                <Users className="h-10 w-10 text-slate-300 mb-3" />
+                <p className="text-sm font-medium text-slate-500">
+                  Nenhum candidato com tipo de contrato definido no período
+                </p>
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={s.candidatesByTypeContrato}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={95}
+                    paddingAngle={3}
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {s.candidatesByTypeContrato.map((_entry, index) => (
+                      <Cell
+                        key={`cell-ctypec-${index}`}
+                        fill={PIE_COLORS[index % PIE_COLORS.length]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    formatter={(val: number) => [`${val} candidato(s)`, 'Quantidade']}
+                    contentStyle={{
+                      backgroundColor: '#1e293b',
+                      borderRadius: '8px',
+                      color: '#fff',
+                      fontSize: '12px',
+                    }}
+                  />
+                </PieChart>
               </ResponsiveContainer>
             )}
           </CardContent>

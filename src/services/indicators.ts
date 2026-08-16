@@ -16,6 +16,8 @@ export interface IndicatorsSummary {
   statusChart: { name: string; value: number }[]
   candidatesPerPhase: { fase: string; total: number }[]
   vacanciesByType: { name: string; value: number }[]
+  candidatesByTypeVaga: { name: string; value: number }[]
+  candidatesByTypeContrato: { name: string; value: number }[]
   rankingPerVacancy: Array<{
     vId: string
     cargo: string

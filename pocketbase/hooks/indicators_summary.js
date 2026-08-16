@@ -274,6 +274,28 @@ routerAdd(
     for (var cl = 0; cl < clientes.length; cl++)
       clientesList.push({ id: clientes[cl].id, nome: clientes[cl].getString('nome') })
 
+    var candidatesTypeVagaCounts = {}
+    for (var ctv = 0; ctv < filteredCandidates.length; ctv++) {
+      if (filteredCandidates[ctv].getString('status_candidato') !== 'Integrado') continue
+      var tvId = filteredCandidates[ctv].getString('tipo_vaga')
+      var tvNome = tvId ? tipoVagaMap[tvId] || 'Sem tipo' : 'Sem tipo'
+      candidatesTypeVagaCounts[tvNome] = (candidatesTypeVagaCounts[tvNome] || 0) + 1
+    }
+    var candidatesByTypeVaga = []
+    for (var ctvKey in candidatesTypeVagaCounts)
+      candidatesByTypeVaga.push({ name: ctvKey, value: candidatesTypeVagaCounts[ctvKey] })
+
+    var candidatesTypeContratoCounts = {}
+    for (var ctc = 0; ctc < filteredCandidates.length; ctc++) {
+      if (filteredCandidates[ctc].getString('status_candidato') !== 'Integrado') continue
+      var tcId = filteredCandidates[ctc].getString('tipo_contrato')
+      var tcNome = tcId ? tipoContratoMap[tcId] || 'Sem tipo' : 'Sem tipo'
+      candidatesTypeContratoCounts[tcNome] = (candidatesTypeContratoCounts[tcNome] || 0) + 1
+    }
+    var candidatesByTypeContrato = []
+    for (var ctcKey in candidatesTypeContratoCounts)
+      candidatesByTypeContrato.push({ name: ctcKey, value: candidatesTypeContratoCounts[ctcKey] })
+
     return e.json(200, {
       openVacancies: openVacancies.length,
       closedVacancies: closedVacancies.length,
@@ -293,6 +315,8 @@ routerAdd(
       statusChart: statusChart,
       candidatesPerPhase: candidatesPerPhase,
       vacanciesByType: vacanciesByType,
+      candidatesByTypeVaga: candidatesByTypeVaga,
+      candidatesByTypeContrato: candidatesByTypeContrato,
       rankingPerVacancy: rankingPerVacancy,
       stalledVacancies: stalled,
       totalAccumulatedCost: totalCost,
