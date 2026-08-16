@@ -190,6 +190,14 @@ export default function CandidateDetail() {
               </span>
             </div>
             <div className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-slate-400" />
+              <span className="text-slate-700">{candidate.expand?.tipo_vaga?.nome || '—'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-slate-400" />
+              <span className="text-slate-700">{candidate.expand?.tipo_contrato?.nome || '—'}</span>
+            </div>
+            <div className="flex items-center gap-2">
               <span className="text-slate-400 font-semibold">Custo exames:</span>
               <span className="text-slate-700 font-bold">
                 {formatCurrency(candidate.custo_exames || 0)}

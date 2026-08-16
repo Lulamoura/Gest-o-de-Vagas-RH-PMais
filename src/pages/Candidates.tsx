@@ -10,6 +10,8 @@ import {
 } from '@/services/candidates'
 import { getVacancies } from '@/services/vacancies'
 import { getClinicas } from '@/services/clinicas'
+import { getTiposVaga } from '@/services/tipos_vaga'
+import { getTiposContrato } from '@/services/tipos_contrato'
 import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
 import {
   CandidateRecord,
@@ -18,6 +20,8 @@ import {
   VacancyStatus,
   ClinicaRecord,
   CandidateEmailLogRecord,
+  TipoVagaRecord,
+  TipoContratoRecord,
 } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { useRealtime } from '@/hooks/use-realtime'
@@ -74,6 +78,8 @@ export default function Candidates() {
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
   const [vacancies, setVacancies] = useState<VacancyRecord[]>([])
   const [clinicas, setClinicas] = useState<ClinicaRecord[]>([])
+  const [tiposVaga, setTiposVaga] = useState<TipoVagaRecord[]>([])
+  const [tiposContrato, setTiposContrato] = useState<TipoContratoRecord[]>([])
   const [loading, setLoading] = useState(true)
 
   const [search, setSearch] = useState('')
@@ -109,6 +115,8 @@ export default function Candidates() {
     valor_unitario_transporte: number
     data_nascimento: string
     informacoes_integracao: string
+    tipo_vaga: string
+    tipo_contrato: string
   }>({
     vacancy_id: '',
     nome: '',
@@ -128,6 +136,8 @@ export default function Candidates() {
     telefone_emergencia: '',
     integracao_ativa: false,
     data_integracao: '',
+    tipo_vaga: '',
+    tipo_contrato: '',
   })
 
   const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
@@ -142,14 +152,18 @@ export default function Candidates() {
 
   const loadData = async () => {
     try {
-      const [cList, vList, clList] = await Promise.all([
+      const [cList, vList, clList, tvList, tcList] = await Promise.all([
         getCandidates(),
         getVacancies(),
         getClinicas(),
+        getTiposVaga().catch(() => []),
+        getTiposContrato().catch(() => []),
       ])
       setCandidates(cList)
       setVacancies(vList)
       setClinicas(clList)
+      setTiposVaga(tvList)
+      setTiposContrato(tcList)
     } catch {
       toast.error('Erro ao carregar candidatos')
     } finally {
@@ -190,6 +204,8 @@ export default function Candidates() {
       valor_unitario_transporte: 0,
       data_nascimento: '',
       informacoes_integracao: '',
+      tipo_vaga: '',
+      tipo_contrato: '',
     })
     setEditOpen(true)
   }
@@ -220,6 +236,8 @@ export default function Candidates() {
       valor_unitario_transporte: c.valor_unitario_transporte || 0,
       data_nascimento: toDateInputValue(c.data_nascimento),
       informacoes_integracao: c.informacoes_integracao || '',
+      tipo_vaga: c.tipo_vaga || '',
+      tipo_contrato: c.tipo_contrato || '',
     })
     setEditOpen(true)
 
@@ -556,6 +574,44 @@ export default function Candidates() {
                     {vacancies.map((v) => (
                       <SelectItem key={v.id} value={v.id}>
                         {v.expand?.cargo?.nome || v.expand?.cliente?.nome || v.id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Tipo de Vaga</Label>
+                <Select
+                  value={formData.tipo_vaga}
+                  onValueChange={(val) => setFormData({ ...formData, tipo_vaga: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um tipo de vaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiposVaga.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Tipo de Contrato</Label>
+                <Select
+                  value={formData.tipo_contrato}
+                  onValueChange={(val) => setFormData({ ...formData, tipo_contrato: val })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um tipo de contrato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiposContrato.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.nome}
                       </SelectItem>
                     ))}
                   </SelectContent>

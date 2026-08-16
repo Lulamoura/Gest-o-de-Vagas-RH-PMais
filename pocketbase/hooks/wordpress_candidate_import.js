@@ -153,6 +153,8 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
     } catch (_) {}
 
     var vacancyOrdemExecucao = ''
+    var vacancyTipoVaga = ''
+    var vacancyTipoContrato = ''
     if (vacancyRecord) {
       try {
         var oe = vacancyRecord.getString('ordem_execucao')
@@ -168,6 +170,32 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
             vacancyId,
             'error',
             oeErr.message || String(oeErr),
+          )
+      }
+      try {
+        vacancyTipoVaga = vacancyRecord.getString('tipo_vaga')
+      } catch (tvErr) {
+        $app
+          .logger()
+          .error(
+            'wordpress_candidate_import: failed to read tipo_vaga from vacancy',
+            'vacancyId',
+            vacancyId,
+            'error',
+            tvErr.message || String(tvErr),
+          )
+      }
+      try {
+        vacancyTipoContrato = vacancyRecord.getString('tipo_contrato')
+      } catch (tcErr) {
+        $app
+          .logger()
+          .error(
+            'wordpress_candidate_import: failed to read tipo_contrato from vacancy',
+            'vacancyId',
+            vacancyId,
+            'error',
+            tcErr.message || String(tcErr),
           )
       }
     }
@@ -189,6 +217,8 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
     if (vacancyOrdemExecucao) {
       candidate.set('ordem_execucao', vacancyOrdemExecucao)
     }
+    if (vacancyTipoVaga) candidate.set('tipo_vaga', vacancyTipoVaga)
+    if (vacancyTipoContrato) candidate.set('tipo_contrato', vacancyTipoContrato)
 
     try {
       $app.save(candidate)

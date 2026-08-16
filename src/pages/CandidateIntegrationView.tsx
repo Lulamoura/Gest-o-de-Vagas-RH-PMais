@@ -177,6 +177,14 @@ export default function CandidateIntegrationView() {
               <Input value={vacancy?.expand?.cliente?.nome || '—'} disabled />
             </div>
             <div className="space-y-1">
+              <Label className="text-xs font-bold text-slate-700">Tipo de Vaga</Label>
+              <Input value={candidate.expand?.tipo_vaga?.nome || '—'} disabled />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-bold text-slate-700">Tipo de Contrato</Label>
+              <Input value={candidate.expand?.tipo_contrato?.nome || '—'} disabled />
+            </div>
+            <div className="space-y-1">
               <Label className="text-xs font-bold text-slate-700">E-mail</Label>
               <Input value={candidate.email || '—'} disabled />
             </div>

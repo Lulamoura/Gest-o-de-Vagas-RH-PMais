@@ -102,9 +102,12 @@ import { isCandidateStatusEnabled } from '@/lib/candidate-validation'
 import { isVacancyOverdue } from '@/lib/vacancy-overdue'
 import { OverdueVacancyIcon } from '@/components/OverdueVacancyIcon'
 import { getClinicas } from '@/services/clinicas'
+import { getTiposVaga } from '@/services/tipos_vaga'
+import { getTiposContrato } from '@/services/tipos_contrato'
 import { Checkbox } from '@/components/ui/checkbox'
 import { ExamReferralModal } from '@/components/ExamReferralModal'
 import { SortableHeader, type SortDirection } from '@/components/SortableTableHead'
+import type { TipoVagaRecord, TipoContratoRecord } from '@/types'
 
 export default function VacancyDetail() {
   const { id } = useParams<{ id: string }>()
@@ -168,7 +171,11 @@ export default function VacancyDetail() {
   const [editHoraIntegracao, setEditHoraIntegracao] = useState('')
   const [editTipoIntegracao, setEditTipoIntegracao] = useState('')
   const [editInformacoesIntegracao, setEditInformacoesIntegracao] = useState('')
+  const [editTipoVaga, setEditTipoVaga] = useState('')
+  const [editTipoContrato, setEditTipoContrato] = useState('')
   const [clinicas, setClinicas] = useState<ClinicaRecord[]>([])
+  const [tiposVagaList, setTiposVagaList] = useState<TipoVagaRecord[]>([])
+  const [tiposContratoList, setTiposContratoList] = useState<TipoContratoRecord[]>([])
   const [examModalOpen, setExamModalOpen] = useState(false)
   const [sendingIntegrationEmail, setSendingIntegrationEmail] = useState(false)
 
@@ -203,16 +210,20 @@ export default function VacancyDetail() {
       setVaga(vData)
       setLoadError(false)
       try {
-        const [cData, hData, chData, clList] = await Promise.all([
+        const [cData, hData, chData, clList, tvList, tcList] = await Promise.all([
           getCandidatesByVacancy(id).catch(() => []),
           getPipelineHistory(id).catch(() => []),
           getCandidateHistory(id).catch(() => []),
           getClinicas().catch(() => []),
+          getTiposVaga().catch(() => []),
+          getTiposContrato().catch(() => []),
         ])
         setCandidates(cData)
         setHistory(hData)
         setCandidateHistory(chData)
         setClinicas(clList)
+        setTiposVagaList(tvList)
+        setTiposContratoList(tcList)
       } catch (_) {
         // Non-critical: vacancy loaded but related data failed
       }
@@ -421,6 +432,8 @@ export default function VacancyDetail() {
     setEditHoraIntegracao(candidate.hora_integracao || '')
     setEditTipoIntegracao(candidate.tipo_integracao || '')
     setEditInformacoesIntegracao(candidate.informacoes_integracao || '')
+    setEditTipoVaga(candidate.tipo_vaga || '')
+    setEditTipoContrato(candidate.tipo_contrato || '')
     setEditFieldErrors({})
     setEmailLogs([])
     getEmailLogsForCandidate(candidate.id)
@@ -472,6 +485,8 @@ export default function VacancyDetail() {
         informacoes_integracao: editIntegracaoAtiva
           ? editInformacoesIntegracao.trim() || undefined
           : undefined,
+        tipo_vaga: editTipoVaga || undefined,
+        tipo_contrato: editTipoContrato || undefined,
       })
       toast.success('Candidato atualizado com sucesso!')
       setEditingCandidate({ ...editingCandidate, ...updated, expand: editingCandidate.expand })
@@ -1556,6 +1571,39 @@ export default function VacancyDetail() {
                   value={vaga?.expand?.cargo?.nome || vaga?.expand?.cliente?.nome || '—'}
                   disabled
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">Tipo de Vaga</Label>
+                <Select value={editTipoVaga} onValueChange={setEditTipoVaga}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um tipo de vaga" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiposVagaList.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-slate-700">Tipo de Contrato</Label>
+                <Select value={editTipoContrato} onValueChange={setEditTipoContrato}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um tipo de contrato" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {tiposContratoList.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.nome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 

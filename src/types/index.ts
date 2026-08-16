@@ -102,6 +102,8 @@ export interface CandidateRecord extends RecordModel {
   cidade?: string
   bairro?: string
   cpf?: string
+  tipo_vaga?: string
+  tipo_contrato?: string
   custo_consultas?: number
   custo_exames?: number
   custo_testes?: number
@@ -126,6 +128,8 @@ export interface CandidateRecord extends RecordModel {
   data_nascimento?: string
   expand?: {
     vacancy_id?: VacancyRecord
+    tipo_vaga?: TipoVagaRecord
+    tipo_contrato?: TipoContratoRecord
   }
 }
 

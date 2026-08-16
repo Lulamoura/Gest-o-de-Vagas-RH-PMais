@@ -44,6 +44,7 @@ interface ReportRow {
   ranking: string
   custoTotal: string
   tipoContrato: string
+  tipoVaga: string
   rankValue: number | null
 }
 
@@ -119,6 +120,7 @@ export default function Reports() {
           ranking: '—',
           custoTotal: formatCurrency(v.despesas_vaga || 0),
           tipoContrato: v.expand?.tipo_contrato?.nome || '—',
+          tipoVaga: v.expand?.tipo_vaga?.nome || '—',
           rankValue: null,
         })
       } else {
@@ -137,7 +139,8 @@ export default function Reports() {
             statusCandidato: c.status_candidato,
             ranking: c.rank != null ? `${c.rank}/5` : '—',
             custoTotal: formatCurrency(total),
-            tipoContrato: v.expand?.tipo_contrato?.nome || '—',
+            tipoContrato: c.expand?.tipo_contrato?.nome || '—',
+            tipoVaga: c.expand?.tipo_vaga?.nome || '—',
             rankValue: c.rank ?? null,
           })
         })
@@ -160,6 +163,8 @@ export default function Reports() {
       'Status do Candidato',
       'Ranking',
       'Custo Total',
+      'Tipo de Vaga',
+      'Tipo de Contrato',
     ]
     const rows = reportRows.map((r) => [
       r.cliente,
@@ -170,6 +175,8 @@ export default function Reports() {
       r.statusCandidato,
       r.ranking,
       r.custoTotal,
+      r.tipoVaga,
+      r.tipoContrato,
     ])
     exportToCsv(`relatorio-rh-${new Date().toISOString().slice(0, 10)}.csv`, headers, rows)
     toast.success('Relatório exportado com sucesso!')
@@ -378,6 +385,7 @@ export default function Reports() {
               <th className="text-left py-1.5 px-2 font-semibold">Vaga</th>
               <th className="text-left py-1.5 px-2 font-semibold">Cliente</th>
               <th className="text-left py-1.5 px-2 font-semibold">Cargo</th>
+              <th className="text-left py-1.5 px-2 font-semibold">Tipo de Vaga</th>
               <th className="text-left py-1.5 px-2 font-semibold">Tipo de Contrato</th>
               <th className="text-center py-1.5 px-2 font-semibold">Ranking</th>
               <th className="text-left py-1.5 px-2 font-semibold">Status</th>
@@ -390,6 +398,7 @@ export default function Reports() {
                 <td className="py-1 px-2">{row.statusVaga}</td>
                 <td className="py-1 px-2">{row.cliente}</td>
                 <td className="py-1 px-2">{row.cargo}</td>
+                <td className="py-1 px-2">{row.tipoVaga}</td>
                 <td className="py-1 px-2">{row.tipoContrato}</td>
                 <td className="py-1 px-2 text-center">{renderStarsAsText(row.rankValue)}</td>
                 <td className="py-1 px-2">{row.statusCandidato}</td>

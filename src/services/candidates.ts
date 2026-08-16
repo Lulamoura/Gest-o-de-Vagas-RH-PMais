@@ -1,7 +1,7 @@
 import pb from '@/lib/pocketbase/client'
 import type { CandidateRecord } from '@/types'
 
-const EXPAND = 'vacancy_id,vacancy_id.cliente,vacancy_id.cargo'
+const EXPAND = 'vacancy_id,vacancy_id.cliente,vacancy_id.cargo,tipo_vaga,tipo_contrato'
 
 export const getCandidates = async (filter?: string): Promise<CandidateRecord[]> => {
   return await pb.collection('candidates').getFullList({
