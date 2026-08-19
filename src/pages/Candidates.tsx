@@ -86,6 +86,8 @@ export default function Candidates() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [vacancyFilter, setVacancyFilter] = useState<string>('all')
   const [vacancyStatusFilter, setVacancyStatusFilter] = useState<VacancyStatus | 'all'>('Aberta')
+  const [tipoVagaFilter, setTipoVagaFilter] = useState<string>('all')
+  const [tipoContratoFilter, setTipoContratoFilter] = useState<string>('all')
 
   const [editOpen, setEditOpen] = useState(false)
   const [editingCandidate, setEditingCandidate] = useState<CandidateRecord | null>(null)
@@ -360,8 +362,18 @@ export default function Candidates() {
     const matchesVacancyStatus =
       vacancyStatusFilter === 'all' ||
       (c.vacancy_id != null && c.expand?.vacancy_id?.status_vaga === vacancyStatusFilter)
+    const matchesTipoVaga = tipoVagaFilter === 'all' || c.tipo_vaga === tipoVagaFilter
+    const matchesTipoContrato =
+      tipoContratoFilter === 'all' || c.tipo_contrato === tipoContratoFilter
 
-    return matchesSearch && matchesStatus && matchesVacancy && matchesVacancyStatus
+    return (
+      matchesSearch &&
+      matchesStatus &&
+      matchesVacancy &&
+      matchesVacancyStatus &&
+      matchesTipoVaga &&
+      matchesTipoContrato
+    )
   })
 
   const currentStatus = formData.status_candidato
@@ -396,7 +408,7 @@ export default function Candidates() {
 
       <Card className="border-slate-200">
         <CardContent className="p-4 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-slate-400" />
               <Input
@@ -444,6 +456,32 @@ export default function Candidates() {
                 <SelectItem value="Aberta">Aberta</SelectItem>
                 <SelectItem value="Concluída">Concluída</SelectItem>
                 <SelectItem value="Cancelada">Cancelada</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={tipoVagaFilter} onValueChange={setTipoVagaFilter}>
+              <SelectTrigger className="text-xs">
+                <SelectValue placeholder="Tipo de Vaga" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {tiposVaga.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={tipoContratoFilter} onValueChange={setTipoContratoFilter}>
+              <SelectTrigger className="text-xs">
+                <SelectValue placeholder="Tipo de Contrato" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                {tiposContrato.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.nome}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
