@@ -113,7 +113,7 @@ export default function Candidates() {
     integracao_ativa: boolean
     data_integracao: string
     hora_integracao: string
-    tipo_integracao: string
+    tipo_integracao: 'Presencial' | 'On-line' | ''
     valor_unitario_transporte: number
     data_nascimento: string
     informacoes_integracao: string
@@ -138,6 +138,11 @@ export default function Candidates() {
     telefone_emergencia: '',
     integracao_ativa: false,
     data_integracao: '',
+    hora_integracao: '',
+    tipo_integracao: '',
+    valor_unitario_transporte: 0,
+    data_nascimento: '',
+    informacoes_integracao: '',
     tipo_vaga: '',
     tipo_contrato: '',
   })
@@ -267,12 +272,16 @@ export default function Candidates() {
 
     setSaving(true)
     try {
+      const payload = {
+        ...formData,
+        tipo_integracao: formData.tipo_integracao || undefined,
+      }
       if (editingCandidate) {
-        const updated = await updateCandidate(editingCandidate.id, formData)
+        const updated = await updateCandidate(editingCandidate.id, payload)
         setEditingCandidate(updated)
         toast.success('Candidato salvo com sucesso!')
       } else {
-        const created = await createCandidate(formData)
+        const created = await createCandidate(payload)
         setEditingCandidate(created)
         toast.success('Candidato criado e salvo com sucesso!')
       }
@@ -667,14 +676,25 @@ export default function Candidates() {
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-bold text-slate-700">Telefone</Label>
-                <Input
-                  value={formData.telefone}
-                  onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
-                  placeholder="(00) 00000-0000"
-                />
+                <Label className="text-xs font-bold text-slate-700">Tipo de Integração</Label>
+                <Select
+                  value={formData.tipo_integracao}
+                  onValueChange={(val) =>
+                    setFormData({
+                      ...formData,
+                      tipo_integracao: val as 'Presencial' | 'On-line' | '',
+                    })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Presencial">Presencial</SelectItem>
+                    <SelectItem value="On-line">On-line</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-
               <div className="space-y-1">
                 <Label className="text-xs font-bold text-slate-700">CPF</Label>
                 <Input
@@ -885,7 +905,12 @@ export default function Candidates() {
                       <Label className="text-xs font-bold text-slate-700">Tipo de Integração</Label>
                       <Select
                         value={formData.tipo_integracao}
-                        onValueChange={(val) => setFormData({ ...formData, tipo_integracao: val })}
+                        onValueChange={(val) =>
+                          setFormData({
+                            ...formData,
+                            tipo_integracao: val as 'Presencial' | 'On-line' | '',
+                          })
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Selecione" />

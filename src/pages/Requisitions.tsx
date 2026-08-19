@@ -33,7 +33,11 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { getPriorityBadgeClass, getVacancyStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
+import {
+  getPriorityBadgeClass,
+  getRequisitionStatusBadgeClass,
+  formatDateBR,
+} from '@/lib/status-utils'
 import { getRequisitions, deleteRequisition } from '@/services/requisitions'
 import { getClientes } from '@/services/clientes'
 import { getCargos } from '@/services/cargos'
@@ -171,7 +175,7 @@ export default function Requisitions() {
     <TableRow key={r.id}>
       <TableCell className="font-medium">{r.numero_oe || '-'}</TableCell>
       <TableCell>
-        <Badge className={getVacancyStatusBadgeClass(r.status)}>
+        <Badge className={getRequisitionStatusBadgeClass(r.status)}>
           {statusLabels[r.status] || r.status}
         </Badge>
       </TableCell>

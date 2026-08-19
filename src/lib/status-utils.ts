@@ -31,6 +31,25 @@ export const CANDIDATE_STATUS_TO_PHASE: Record<CandidateStatus, PipelinePhase | 
   'Em banco': null,
 }
 
+export const getRequisitionStatusBadgeClass = (status: string) => {
+  switch (status) {
+    case 'Rascunho':
+      return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-800 dark:text-gray-300'
+    case 'Aguardando aprovação':
+      return 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-900/30 dark:text-amber-300'
+    case 'Em análise':
+      return 'bg-blue-100 text-blue-800 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300'
+    case 'Aprovada':
+      return 'bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300'
+    case 'Reprovada':
+      return 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300'
+    case 'Cancelada':
+      return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300'
+    default:
+      return 'bg-gray-100 text-gray-800'
+  }
+}
+
 export const getVacancyStatusBadgeClass = (status: VacancyStatus) => {
   switch (status) {
     case 'Aberta':
@@ -44,7 +63,7 @@ export const getVacancyStatusBadgeClass = (status: VacancyStatus) => {
   }
 }
 
-export const getPriorityBadgeClass = (priority: VacancyPriority) => {
+export const getPriorityBadgeClass = (priority: string) => {
   switch (priority) {
     case 'Alta':
       return 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300 font-semibold'

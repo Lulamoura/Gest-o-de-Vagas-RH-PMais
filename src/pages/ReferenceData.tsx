@@ -67,7 +67,7 @@ const CONFIG: Record<
     list: () => Promise<RecordModel[]>
     create: (d: { nome: string }) => Promise<RecordModel>
     update: (id: string, d: { nome: string }) => Promise<RecordModel>
-    del: (id: string) => Promise<void>
+    del: (id: string) => Promise<unknown>
   }
 > = {
   clientes: {

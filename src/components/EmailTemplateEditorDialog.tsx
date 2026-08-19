@@ -44,6 +44,22 @@ const VARIABLES_BY_TYPE: Record<EmailType, { key: string; label: string }[]> = {
     { key: 'comentario', label: '{{comentario}}' },
     { key: 'company_name', label: '{{company_name}}' },
   ],
+  aviso_integracao: [
+    { key: 'nome', label: '{{nome}}' },
+    { key: 'vaga', label: '{{vaga}}' },
+    { key: 'data_integracao', label: '{{data_integracao}}' },
+    { key: 'hora_integracao', label: '{{hora_integracao}}' },
+    { key: 'tipo_integracao', label: '{{tipo_integracao}}' },
+    { key: 'company_name', label: '{{company_name}}' },
+  ],
+  aviso_integracao_candidato: [
+    { key: 'nome', label: '{{nome}}' },
+    { key: 'vaga', label: '{{vaga}}' },
+    { key: 'data_integracao', label: '{{data_integracao}}' },
+    { key: 'hora_integracao', label: '{{hora_integracao}}' },
+    { key: 'tipo_integracao', label: '{{tipo_integracao}}' },
+    { key: 'company_name', label: '{{company_name}}' },
+  ],
 }
 
 export function EmailTemplateEditorDialog({

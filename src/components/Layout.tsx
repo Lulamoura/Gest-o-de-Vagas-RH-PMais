@@ -213,11 +213,11 @@ export function Layout() {
           collapsible="icon"
           className="bg-slate-900 text-slate-100 border-r border-slate-800 print:hidden"
         >
-          <SidebarHeader className="p-0 border-b border-slate-800">
+          <SidebarHeader className="p-0 border-b border-slate-800 bg-slate-900">
             <SidebarHeaderLogo />
           </SidebarHeader>
 
-          <SidebarContent className="p-2">
+          <SidebarContent className="p-2 bg-slate-900">
             <SidebarMenu>
               {navItems.map((item) => {
                 const Icon = item.icon
@@ -232,7 +232,7 @@ export function Layout() {
                       isActive={isActive}
                       tooltip={item.label}
                       className={cn(
-                        'flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-300 hover:bg-slate-800 hover:text-white',
+                        'flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-300 hover:bg-slate-800 hover:text-white data-[active=true]:bg-indigo-600 data-[active=true]:text-white data-[active=true]:font-semibold data-[active=true]:shadow-sm data-[active=true]:hover:bg-indigo-600 data-[active=true]:hover:text-white',
                         isActive &&
                           'bg-indigo-600 text-white font-semibold shadow-sm hover:bg-indigo-600 hover:text-white',
                       )}
@@ -260,7 +260,7 @@ export function Layout() {
             </SidebarMenu>
           </SidebarContent>
 
-          <SidebarFooter className="p-0">
+          <SidebarFooter className="p-0 bg-slate-900">
             <SidebarUserFooter />
           </SidebarFooter>
         </Sidebar>
