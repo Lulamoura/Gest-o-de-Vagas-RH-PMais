@@ -45,36 +45,51 @@ onRecordAfterUpdateSuccess((e) => {
     }
   } catch (_) {}
 
-  var dpEmails = emailDpLista
-    ? emailDpLista
-        .split(',')
-        .map(function (s) {
-          return s.trim()
-        })
-        .filter(function (s) {
-          return s.length > 0
-        })
-    : []
-  var opEmails = emailOperacionalLista
-    ? emailOperacionalLista
-        .split(',')
-        .map(function (s) {
-          return s.trim()
-        })
-        .filter(function (s) {
-          return s.length > 0
-        })
-    : []
-  var comEmails = emailComercial
-    ? emailComercial
-        .split(',')
-        .map(function (s) {
-          return s.trim()
-        })
-        .filter(function (s) {
-          return s.length > 0
-        })
-    : []
+  var isTestOrTypoEmail = function (emailStr) {
+    var lower = emailStr.toLowerCase()
+    if (
+      lower.indexOf('@test.') !== -1 ||
+      lower.indexOf('@example.') !== -1 ||
+      lower.indexOf('@pmaiservicos.com.br') !== -1 ||
+      lower.indexOf('@pmaissservicos.com.br') !== -1
+    ) {
+      return true
+    }
+    return false
+  }
+
+  var parseAndFilterEmails = function (rawStr, listName) {
+    if (!rawStr) return []
+    var parsed = rawStr
+      .split(',')
+      .map(function (s) {
+        return s.trim()
+      })
+      .filter(function (s) {
+        return s.length > 0
+      })
+
+    var valid = []
+    for (var idx = 0; idx < parsed.length; idx++) {
+      var emailItem = parsed[idx]
+      if (isTestOrTypoEmail(emailItem)) {
+        $app
+          .logger()
+          .warn(
+            'Endereço de teste ou inválido ignorado no aviso_integracao (' + listName + ')',
+            'email',
+            emailItem,
+          )
+      } else {
+        valid.push(emailItem)
+      }
+    }
+    return valid
+  }
+
+  var dpEmails = parseAndFilterEmails(emailDpLista, 'email_dp_lista')
+  var opEmails = parseAndFilterEmails(emailOperacionalLista, 'email_operacional_lista')
+  var comEmails = parseAndFilterEmails(emailComercial, 'email_comercial')
 
   if (dpEmails.length === 0 && opEmails.length === 0 && comEmails.length === 0) {
     e.next()
@@ -99,7 +114,9 @@ onRecordAfterUpdateSuccess((e) => {
 
   var candidateNome = record.getString('nome') || 'Candidato'
   var vacancyName = 'Vaga PMais'
+  var clientName = ''
   var vacancyId = record.getString('vacancy_id')
+
   if (vacancyId) {
     try {
       var vacancy = $app.findRecordById('vacancies', vacancyId)
@@ -111,6 +128,17 @@ onRecordAfterUpdateSuccess((e) => {
         } catch (_) {}
       }
       if (cargoNome) vacancyName = cargoNome
+
+      var clienteId = vacancy.getString('cliente')
+      if (clienteId) {
+        try {
+          var clienteRec = $app.findRecordById('clientes', clienteId)
+          clientName = clienteRec.getString('nome') || ''
+        } catch (_) {
+          // If cliente is not an ID but plain text or lookup fails
+          clientName = clienteId
+        }
+      }
     } catch (_) {}
   }
 
@@ -118,14 +146,51 @@ onRecordAfterUpdateSuccess((e) => {
   var bodyHtml =
     '<p>Olá,</p>' +
     '<p>Um novo candidato entrou na página de integração para ser devidamente integrado e se tornar o mais novo membro da equipe PMais Terceirização.</p>' +
-    '<p><strong>Candidato:</strong> ' +
-    candidateNome +
-    '</p>' +
-    '<p><strong>Vaga:</strong> ' +
-    vacancyName +
-    '</p>' +
+    '<p><strong>Candidato:</strong> {candidate_name}</p>' +
+    '<p><strong>Vaga:</strong> {vacancy_name}</p>' +
+    '<p><strong>Cliente:</strong> {client_name}</p>' +
     '<p>Por favor, providenciem as devidas orientações para a integração.</p>' +
     '<p>Atenciosamente,<br>Equipe RH PMais</p>'
+
+  try {
+    var templates = $app.findRecordsByFilter(
+      'email_templates',
+      'type = "aviso_integracao"',
+      '',
+      1,
+      0,
+    )
+    if (templates.length > 0) {
+      var tpl = templates[0]
+      if (tpl.getString('subject')) subject = tpl.getString('subject')
+      if (tpl.getString('body')) bodyHtml = tpl.getString('body')
+    }
+  } catch (_) {}
+
+  var displayClientName = clientName || '—'
+
+  var replacements = {
+    candidate_name: candidateNome,
+    nome_candidato: candidateNome,
+    nome: candidateNome,
+    vacancy_name: vacancyName,
+    vaga: vacancyName,
+    client_name: displayClientName,
+    cliente_nome: displayClientName,
+    nome_cliente: displayClientName,
+    cliente: displayClientName,
+    company_name: 'PMais Terceirização',
+  }
+
+  for (var key in replacements) {
+    var val = replacements[key]
+    subject = subject
+      .replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val)
+      .replace(new RegExp('\\{' + key + '\\}', 'g'), val)
+    bodyHtml = bodyHtml
+      .replace(new RegExp('\\{\\{' + key + '\\}\\}', 'g'), val)
+      .replace(new RegExp('\\{' + key + '\\}', 'g'), val)
+  }
 
   if (sloganPmais) {
     bodyHtml +=

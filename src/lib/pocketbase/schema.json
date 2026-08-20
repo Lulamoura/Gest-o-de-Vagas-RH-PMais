@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-19T17:59:48.098Z",
+  "generatedAt": "2026-08-20T12:30:49.594Z",
   "collections": [
     {
       "name": "users",
@@ -1062,7 +1062,8 @@
             "complement_data",
             "disqualification",
             "encaminhamento_exames",
-            "aviso_integracao_candidato"
+            "aviso_integracao_candidato",
+            "aviso_integracao"
           ]
         }
       ],
