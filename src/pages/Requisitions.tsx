@@ -73,7 +73,11 @@ export default function Requisitions() {
   const [fCliente, setFCliente] = useState('all')
   const [fCargo, setFCargo] = useState('all')
   const [fNumeroOe, setFNumeroOe] = useState('')
-  const [fDateFrom, setFDateFrom] = useState('')
+  const [fDateFrom, setFDateFrom] = useState(() => {
+    const thirtyDaysAgo = new Date()
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+    return thirtyDaysAgo.toISOString().split('T')[0]
+  })
   const [fDateTo, setFDateTo] = useState('')
   const [groupByOe, setGroupByOe] = useState(false)
 
