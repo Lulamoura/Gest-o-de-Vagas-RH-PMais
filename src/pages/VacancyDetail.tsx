@@ -11,7 +11,7 @@ import {
 } from '@/services/candidates'
 import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
 import { getPipelineHistory, createPipelineHistory } from '@/services/pipeline_history'
-import { getCandidateHistory } from '@/services/candidate_history'
+import { getCandidateHistory, getLatestCandidateHistory } from '@/services/candidate_history'
 import {
   VacancyRecord,
   CandidateRecord,
@@ -178,6 +178,10 @@ export default function VacancyDetail() {
   const [tiposContratoList, setTiposContratoList] = useState<TipoContratoRecord[]>([])
   const [examModalOpen, setExamModalOpen] = useState(false)
   const [sendingIntegrationEmail, setSendingIntegrationEmail] = useState(false)
+  const [latestStatusHistory, setLatestStatusHistory] = useState<CandidateHistoryRecord | null>(
+    null,
+  )
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   const [rgCandidato, setRgCandidato] = useState('')
   const [tamanhoFardamentoCandidato, setTamanhoFardamentoCandidato] = useState('')
@@ -436,6 +440,12 @@ export default function VacancyDetail() {
     setEditTipoContrato(candidate.tipo_contrato || '')
     setEditFieldErrors({})
     setEmailLogs([])
+    setLatestStatusHistory(null)
+    setLoadingHistory(true)
+    getLatestCandidateHistory(candidate.id)
+      .then((rec) => setLatestStatusHistory(rec))
+      .catch(() => setLatestStatusHistory(null))
+      .finally(() => setLoadingHistory(false))
     getEmailLogsForCandidate(candidate.id)
       .then(setEmailLogs)
       .catch(() => {})
@@ -497,6 +507,9 @@ export default function VacancyDetail() {
       )
       getEmailLogsForCandidate(editingCandidate.id)
         .then(setEmailLogs)
+        .catch(() => {})
+      getLatestCandidateHistory(editingCandidate.id)
+        .then((rec) => setLatestStatusHistory(rec))
         .catch(() => {})
     } catch (err) {
       setEditFieldErrors(extractFieldErrors(err))
@@ -2004,6 +2017,33 @@ export default function VacancyDetail() {
                 )}
               </div>
             )}
+
+            {/* Último status registrado */}
+            <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs">
+              <span className="font-semibold text-slate-700 block mb-1">
+                Último status registrado
+              </span>
+              {loadingHistory ? (
+                <span className="text-slate-400">Carregando histórico...</span>
+              ) : latestStatusHistory ? (
+                <div className="flex flex-wrap items-center gap-2 text-slate-600">
+                  <Badge
+                    variant="outline"
+                    className={getCandidateStatusBadgeClass(
+                      latestStatusHistory.status_novo as CandidateStatus,
+                    )}
+                  >
+                    {latestStatusHistory.status_novo}
+                  </Badge>
+                  <span className="text-slate-400">•</span>
+                  <span>
+                    {formatDateBR(latestStatusHistory.data_mudanca || latestStatusHistory.created)}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-slate-500">Nenhuma alteração de status registrada</span>
+              )}
+            </div>
 
             <DialogFooter className="pt-3">
               <Button type="button" variant="outline" onClick={() => setEditModalOpen(false)}>

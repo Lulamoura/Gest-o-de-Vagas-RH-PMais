@@ -13,8 +13,10 @@ import { getClinicas } from '@/services/clinicas'
 import { getTiposVaga } from '@/services/tipos_vaga'
 import { getTiposContrato } from '@/services/tipos_contrato'
 import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
+import { getLatestCandidateHistory } from '@/services/candidate_history'
 import {
   CandidateRecord,
+  CandidateHistoryRecord,
   VacancyRecord,
   CandidateStatus,
   VacancyStatus,
@@ -48,7 +50,7 @@ import { Badge } from '@/components/ui/badge'
 import { StarRating } from '@/components/StarRating'
 import { ExamReferralModal } from '@/components/ExamReferralModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import { getCandidateStatusBadgeClass, toDateInputValue } from '@/lib/status-utils'
+import { getCandidateStatusBadgeClass, toDateInputValue, formatDateBR } from '@/lib/status-utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { toast } from 'sonner'
@@ -152,6 +154,10 @@ export default function Candidates() {
   const [sendingDisqual, setSendingDisqual] = useState(false)
   const [sendingIntegration, setSendingIntegration] = useState(false)
   const [examModalOpen, setExamModalOpen] = useState(false)
+  const [latestStatusHistory, setLatestStatusHistory] = useState<CandidateHistoryRecord | null>(
+    null,
+  )
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   const [candidateToDelete, setCandidateToDelete] = useState<CandidateRecord | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
@@ -187,6 +193,8 @@ export default function Candidates() {
   const openNewModal = () => {
     setEditingCandidate(null)
     setEmailLogs([])
+    setLatestStatusHistory(null)
+    setLoadingHistory(false)
     setFormData({
       vacancy_id: vacancies[0]?.id || '',
       nome: '',
@@ -219,6 +227,12 @@ export default function Candidates() {
 
   const openEditModal = async (c: CandidateRecord) => {
     setEditingCandidate(c)
+    setLatestStatusHistory(null)
+    setLoadingHistory(true)
+    getLatestCandidateHistory(c.id)
+      .then((rec) => setLatestStatusHistory(rec))
+      .catch(() => setLatestStatusHistory(null))
+      .finally(() => setLoadingHistory(false))
     setFormData({
       vacancy_id: c.vacancy_id || '',
       nome: c.nome || '',
@@ -279,6 +293,9 @@ export default function Candidates() {
       if (editingCandidate) {
         const updated = await updateCandidate(editingCandidate.id, payload)
         setEditingCandidate(updated)
+        getLatestCandidateHistory(editingCandidate.id)
+          .then((rec) => setLatestStatusHistory(rec))
+          .catch(() => {})
         toast.success('Candidato salvo com sucesso!')
       } else {
         const created = await createCandidate(payload)
@@ -1005,6 +1022,37 @@ export default function Candidates() {
                       <Check className="h-4 w-4 ml-2 text-emerald-600" />
                     )}
                   </Button>
+                )}
+              </div>
+            )}
+
+            {/* Último status registrado */}
+            {editingCandidate && (
+              <div className="rounded-lg bg-slate-50 border border-slate-200 p-3 text-xs">
+                <span className="font-semibold text-slate-700 block mb-1">
+                  Último status registrado
+                </span>
+                {loadingHistory ? (
+                  <span className="text-slate-400">Carregando histórico...</span>
+                ) : latestStatusHistory ? (
+                  <div className="flex flex-wrap items-center gap-2 text-slate-600">
+                    <Badge
+                      variant="outline"
+                      className={getCandidateStatusBadgeClass(
+                        latestStatusHistory.status_novo as CandidateStatus,
+                      )}
+                    >
+                      {latestStatusHistory.status_novo}
+                    </Badge>
+                    <span className="text-slate-400">•</span>
+                    <span>
+                      {formatDateBR(
+                        latestStatusHistory.data_mudanca || latestStatusHistory.created,
+                      )}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-slate-500">Nenhuma alteração de status registrada</span>
                 )}
               </div>
             )}
