@@ -6,6 +6,10 @@ import {
   sendComplementDataRequest,
   sendDisqualificationNotice,
 } from '@/services/candidates'
+import {
+  getCandidateReturningProcesses,
+  type ReturningCandidateItem,
+} from '@/services/candidate_returning'
 import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
 import { getClinicas } from '@/services/clinicas'
 import { CandidateRecord, CandidateEmailLogRecord, ClinicaRecord } from '@/types'
@@ -16,7 +20,7 @@ import { ExamReferralModal } from '@/components/ExamReferralModal'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { formatCurrency, getCandidateStatusBadgeClass } from '@/lib/status-utils'
+import { formatCurrency, getCandidateStatusBadgeClass, formatDateBR } from '@/lib/status-utils'
 import {
   ArrowLeft,
   Mail,
@@ -26,6 +30,9 @@ import {
   Briefcase,
   Check,
   Stethoscope,
+  History,
+  Building2,
+  Calendar,
 } from 'lucide-react'
 import { StarRating } from '@/components/StarRating'
 import { Textarea } from '@/components/ui/textarea'
@@ -43,6 +50,7 @@ export default function CandidateDetail() {
   const [candidate, setCandidate] = useState<CandidateRecord | null>(null)
   const [emailLogs, setEmailLogs] = useState<CandidateEmailLogRecord[]>([])
   const [clinicas, setClinicas] = useState<ClinicaRecord[]>([])
+  const [returningProcesses, setReturningProcesses] = useState<ReturningCandidateItem[]>([])
   const [loading, setLoading] = useState(true)
   const [sendingEmail, setSendingEmail] = useState(false)
   const [sendingDisqual, setSendingDisqual] = useState(false)
@@ -62,6 +70,18 @@ export default function CandidateDetail() {
       setObservacao(data.observacao || '')
       setEmailLogs(logs)
       setClinicas(clinics)
+
+      if (data.cpf || data.email) {
+        getCandidateReturningProcesses({
+          candidateId: data.id,
+          cpf: data.cpf,
+          email: data.email,
+        })
+          .then(setReturningProcesses)
+          .catch(() => setReturningProcesses([]))
+      } else {
+        setReturningProcesses([])
+      }
     } catch {
       toast.error('Erro ao carregar candidato')
     } finally {
@@ -273,6 +293,68 @@ export default function CandidateDetail() {
           )}
         </CardContent>
       </Card>
+
+      {returningProcesses.length > 0 && (
+        <Card className="border-slate-200 shadow-2xs">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <History className="h-4 w-4 text-amber-600" />
+              <span>Histórico de Processos Anteriores</span>
+              <Badge
+                variant="outline"
+                className="ml-1 bg-amber-50 text-amber-800 border-amber-300 text-xs font-semibold"
+              >
+                {returningProcesses.length}{' '}
+                {returningProcesses.length === 1 ? 'processo anterior' : 'processos anteriores'}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {returningProcesses.map((proc) => (
+                <div
+                  key={proc.id}
+                  className="rounded-lg border border-slate-200 bg-slate-50/70 p-3.5 space-y-2 text-xs"
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="font-semibold text-slate-900 text-sm">
+                        {proc.cargo || proc.vacancy || 'Vaga não especificada'}
+                      </div>
+                      {proc.cliente && (
+                        <div className="flex items-center gap-1 text-slate-500 mt-0.5">
+                          <Building2 className="h-3 w-3 text-slate-400" />
+                          <span>{proc.cliente}</span>
+                        </div>
+                      )}
+                    </div>
+                    <Badge
+                      variant="outline"
+                      className={getCandidateStatusBadgeClass(proc.status_candidato as any)}
+                    >
+                      {proc.status_candidato}
+                    </Badge>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-slate-500 border-t border-slate-200/60 text-[11px]">
+                    <span className="flex items-center gap-1">
+                      <Calendar className="h-3 w-3 text-slate-400" />
+                      Data de inscrição: {formatDateBR(proc.created)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/candidatos/${proc.id}`)}
+                      className="text-indigo-600 hover:text-indigo-800 hover:underline font-medium"
+                    >
+                      Ver cadastro
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {canEdit && (
         <Card className="border-slate-200 shadow-2xs">

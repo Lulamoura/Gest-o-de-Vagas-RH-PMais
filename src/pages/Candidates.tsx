@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   getCandidates,
   createCandidate,
@@ -8,6 +8,7 @@ import {
   sendDisqualificationNotice,
   sendAvisoIntegracaoCandidato,
 } from '@/services/candidates'
+import { computeReturningCounts } from '@/services/candidate_returning'
 import { getVacancies } from '@/services/vacancies'
 import { getClinicas } from '@/services/clinicas'
 import { getTiposVaga } from '@/services/tipos_vaga'
@@ -50,11 +51,23 @@ import { Badge } from '@/components/ui/badge'
 import { StarRating } from '@/components/StarRating'
 import { ExamReferralModal } from '@/components/ExamReferralModal'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { getCandidateStatusBadgeClass, toDateInputValue, formatDateBR } from '@/lib/status-utils'
 import { Checkbox } from '@/components/ui/checkbox'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { toast } from 'sonner'
-import { Plus, Search, Pencil, Trash2, Mail, Stethoscope, Check, Eye, User } from 'lucide-react'
+import {
+  Plus,
+  Search,
+  Pencil,
+  Trash2,
+  Mail,
+  Stethoscope,
+  Check,
+  Eye,
+  User,
+  RotateCcw,
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { OverdueVacancyIcon } from '@/components/OverdueVacancyIcon'
 import { isVacancyOverdue } from '@/lib/vacancy-overdue'
@@ -376,6 +389,10 @@ export default function Candidates() {
     }
   }
 
+  const returningCounts = useMemo(() => {
+    return computeReturningCounts(candidates)
+  }, [candidates])
+
   const filteredCandidates = candidates.filter((c) => {
     const matchesSearch =
       !search ||
@@ -533,9 +550,30 @@ export default function Candidates() {
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-base font-bold text-slate-900 line-clamp-1">
-                        {c.nome}
-                      </CardTitle>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <CardTitle className="text-base font-bold text-slate-900 line-clamp-1">
+                          {c.nome}
+                        </CardTitle>
+                        {(returningCounts[c.id] || 0) > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-800 border-amber-300 text-[10px] font-medium px-1.5 py-0 inline-flex items-center gap-1 cursor-help shrink-0"
+                              >
+                                <RotateCcw className="h-2.5 w-2.5" />
+                                Retornante
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Já participou de {returningCounts[c.id]}{' '}
+                              {returningCounts[c.id] === 1
+                                ? 'processo anterior'
+                                : 'processos anteriores'}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
                         {vacancy && isVacancyOverdue(vacancy, alertThreshold) && (
                           <OverdueVacancyIcon iconClassName="h-3.5 w-3.5" />

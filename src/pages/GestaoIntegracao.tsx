@@ -1,7 +1,12 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { getIntegrationCandidates, sendAvisoIntegracaoCandidato } from '@/services/candidates'
+import {
+  getCandidates,
+  getIntegrationCandidates,
+  sendAvisoIntegracaoCandidato,
+} from '@/services/candidates'
 import { getBaseIntegracao } from '@/services/base_integracao'
+import { computeReturningCounts } from '@/services/candidate_returning'
 import {
   getEmailLogsForCandidate,
   getEmailLogsForCandidates,
@@ -13,17 +18,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { IntegrationNoticeModal } from '@/components/IntegrationNoticeModal'
 import { getCandidateStatusBadgeClass } from '@/lib/status-utils'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatDateNoTimezone } from '@/lib/date-utils'
 import { toast } from 'sonner'
-import { Search, Mail, Check, Eye, Calendar, Clock } from 'lucide-react'
+import { Search, Mail, Check, Eye, Calendar, Clock, RotateCcw } from 'lucide-react'
 
 export default function GestaoIntegracao() {
   const { canIntegrateCandidate } = useAuth()
   const canSendAviso = canIntegrateCandidate
   const [candidates, setCandidates] = useState<CandidateRecord[]>([])
+  const [allCandidates, setAllCandidates] = useState<CandidateRecord[]>([])
   const [baseIntegracao, setBaseIntegracao] = useState<BaseIntegracaoRecord[]>([])
   const [baseIntegracaoLoaded, setBaseIntegracaoLoaded] = useState(false)
   const [emailLogsMap, setEmailLogsMap] = useState<Record<string, CandidateEmailLogRecord[]>>({})
@@ -36,8 +43,12 @@ export default function GestaoIntegracao() {
 
   const loadData = async () => {
     try {
-      const data = await getIntegrationCandidates()
+      const [data, fullList] = await Promise.all([
+        getIntegrationCandidates(),
+        getCandidates().catch(() => []),
+      ])
       setCandidates(data)
+      setAllCandidates(fullList)
       const allLogs = await getEmailLogsForCandidates(
         data.map((c) => c.id),
         'aviso_integracao_candidato',
@@ -69,6 +80,11 @@ export default function GestaoIntegracao() {
       toast.error('Erro ao carregar bases de integração')
     }
   }
+
+  const returningCounts = useMemo(() => {
+    const listToCompare = allCandidates.length > 0 ? allCandidates : candidates
+    return computeReturningCounts(listToCompare)
+  }, [allCandidates, candidates])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
@@ -168,9 +184,30 @@ export default function GestaoIntegracao() {
                 <CardHeader className="pb-2">
                   <div className="flex items-start justify-between">
                     <div>
-                      <CardTitle className="text-base font-bold text-slate-900 line-clamp-1">
-                        {c.nome}
-                      </CardTitle>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <CardTitle className="text-base font-bold text-slate-900 line-clamp-1">
+                          {c.nome}
+                        </CardTitle>
+                        {(returningCounts[c.id] || 0) > 0 && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge
+                                variant="outline"
+                                className="bg-amber-50 text-amber-800 border-amber-300 text-[10px] font-medium px-1.5 py-0 inline-flex items-center gap-1 cursor-help shrink-0"
+                              >
+                                <RotateCcw className="h-2.5 w-2.5" />
+                                Retornante
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              Já participou de {returningCounts[c.id]}{' '}
+                              {returningCounts[c.id] === 1
+                                ? 'processo anterior'
+                                : 'processos anteriores'}
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                      </div>
                       <p className="text-xs text-slate-500 mt-0.5">{vacancyName}</p>
                       {vacancy?.expand?.cliente?.nome &&
                         vacancy.expand.cliente.nome !== vacancyName && (
