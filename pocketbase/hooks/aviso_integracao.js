@@ -107,10 +107,7 @@ onRecordAfterUpdateSuccess((e) => {
     toRecipients.push(opEmails[0])
     for (var j = 1; j < opEmails.length; j++) ccRecipients.push(opEmails[j])
   }
-  if (comEmails.length > 0) {
-    toRecipients.push(comEmails[0])
-    for (var k = 1; k < comEmails.length; k++) ccRecipients.push(comEmails[k])
-  }
+  // E-mail do Comercial não participa do alerta de integração
 
   var candidateNome = record.getString('nome') || 'Candidato'
   var vacancyName = 'Vaga PMais'
