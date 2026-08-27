@@ -30,9 +30,12 @@ import {
   ClipboardCheck,
   ClipboardList,
   TrendingUp,
+  MessageCircle,
 } from 'lucide-react'
+import { useState } from 'react'
 import { cn } from '@/lib/utils'
 import { NotificationCenter } from '@/components/NotificationCenter'
+import { AssistantChatDrawer } from '@/components/AssistantChatDrawer'
 import logoImage from '@/assets/logo-fundo-branco-c5f7d.png'
 
 function SidebarUserFooter() {
@@ -162,6 +165,7 @@ function SidebarHeaderLogo() {
 export function Layout() {
   const { user, isAdmin, isSuperAdmin } = useAuth()
   const location = useLocation()
+  const [isAssistantOpen, setIsAssistantOpen] = useState(false)
 
   const navItems = [
     { label: 'Painel', path: '/dashboard', icon: LayoutDashboard },
@@ -171,6 +175,12 @@ export function Layout() {
     { label: 'Indicadores', path: '/requisicoes/indicadores', icon: TrendingUp },
     { label: 'Integração', path: '/integracao', icon: ClipboardCheck },
     ...(isAdmin || isSuperAdmin ? [{ label: 'Usuários', path: '/usuarios', icon: UserCheck }] : []),
+    {
+      label: 'Assistente',
+      icon: MessageCircle,
+      isAction: true,
+      onClick: () => setIsAssistantOpen(true),
+    },
     ...(isAdmin || isSuperAdmin
       ? [{ label: 'Referências', path: '/referencias', icon: Database }]
       : []),
@@ -221,12 +231,36 @@ export function Layout() {
             <SidebarMenu>
               {navItems.map((item) => {
                 const Icon = item.icon
+
+                if ('isAction' in item && item.isAction) {
+                  return (
+                    <SidebarMenuItem key={item.label}>
+                      <SidebarMenuButton
+                        onClick={item.onClick}
+                        tooltip={item.label}
+                        className={cn(
+                          'flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer group',
+                        )}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Icon className="h-4 w-4 shrink-0 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+                          <span className="truncate">{item.label}</span>
+                        </div>
+                        <span className="text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded bg-indigo-950/80 text-indigo-400 border border-indigo-800/60 group-data-[collapsible=icon]:hidden">
+                          IA
+                        </span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                }
+
+                const path = item.path as string
                 const isActive =
-                  location.pathname === item.path ||
-                  (item.path !== '/dashboard' && location.pathname.startsWith(item.path))
+                  location.pathname === path ||
+                  (path !== '/dashboard' && location.pathname.startsWith(path))
 
                 return (
-                  <SidebarMenuItem key={item.path}>
+                  <SidebarMenuItem key={path}>
                     <SidebarMenuButton
                       asChild
                       isActive={isActive}
@@ -237,7 +271,7 @@ export function Layout() {
                           'bg-indigo-600 text-white font-semibold shadow-sm hover:bg-indigo-600 hover:text-white',
                       )}
                     >
-                      <Link to={item.path}>
+                      <Link to={path}>
                         <div className="flex items-center space-x-3">
                           <Icon
                             className={cn(
@@ -301,6 +335,9 @@ export function Layout() {
           <main className="flex-1 p-4 lg:p-8 max-w-7xl w-full mx-auto animate-fade-in print:max-w-none print:p-0">
             <Outlet />
           </main>
+
+          {/* Assistant Chat Drawer Overlay */}
+          <AssistantChatDrawer open={isAssistantOpen} onOpenChange={setIsAssistantOpen} />
 
           {/* Footer */}
           <footer className="border-t border-slate-200 bg-white py-4 px-6 text-center text-xs text-slate-500 flex flex-col sm:flex-row items-center justify-between gap-2 print:hidden">
