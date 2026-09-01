@@ -597,9 +597,14 @@ export default function Vacancies() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <span className="text-xs font-semibold text-slate-800">
-                          {candCount} / {vaga.quantidade_vagas || 0}
-                        </span>
+                        <div className="text-xs">
+                          <span className="font-semibold text-slate-800">
+                            {candCount} / {vaga.quantidade_vagas || 0}
+                          </span>
+                          <span className="block text-[10px] text-slate-400">
+                            {vaga.wordpress_curriculos_count ?? 0} atraído(s) no site
+                          </span>
+                        </div>
                       </TableCell>
                       <TableCell className="text-xs text-slate-600">
                         {formatDateBR(vaga.data_abertura)}
@@ -726,6 +731,9 @@ export default function Vacancies() {
                     </span>
                     <span className="font-semibold text-slate-800 text-[10px]">
                       {candCount} / {vaga.quantidade_vagas || 0}
+                    </span>
+                    <span className="block text-slate-400 text-[10px]">
+                      {vaga.wordpress_curriculos_count ?? 0} no site
                     </span>
                   </div>
                   <div>
