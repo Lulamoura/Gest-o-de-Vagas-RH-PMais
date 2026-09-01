@@ -55,6 +55,8 @@ export interface BaseIntegracaoRecord extends RecordModel {
 
 export interface VacancyRecord extends RecordModel {
   wordpress_job_id?: string
+  wordpress_curriculos_count?: number
+  wordpress_curriculos_synced_at?: string
   cliente: string
   cargo: string
   cidade?: string
