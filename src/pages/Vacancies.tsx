@@ -602,7 +602,9 @@ export default function Vacancies() {
                             {candCount} / {vaga.quantidade_vagas || 0}
                           </span>
                           <span className="block text-[10px] text-slate-400">
-                            {vaga.wordpress_curriculos_count ?? 0} atraído(s) no site
+                            {vaga.wordpress_curriculos_synced_at
+                              ? `${vaga.wordpress_curriculos_count ?? 0} atraído(s) no site`
+                              : 'Sincronização pendente'}
                           </span>
                         </div>
                       </TableCell>
@@ -733,7 +735,9 @@ export default function Vacancies() {
                       {candCount} / {vaga.quantidade_vagas || 0}
                     </span>
                     <span className="block text-slate-400 text-[10px]">
-                      {vaga.wordpress_curriculos_count ?? 0} no site
+                      {vaga.wordpress_curriculos_synced_at
+                        ? `${vaga.wordpress_curriculos_count ?? 0} no site`
+                        : 'Pendente'}
                     </span>
                   </div>
                   <div>

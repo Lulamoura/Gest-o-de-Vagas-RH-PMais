@@ -884,7 +884,9 @@ export default function VacancyDetail() {
                 <div className="bg-slate-50 p-2.5 rounded-lg">
                   <span className="text-slate-400 block">Currículos atraídos no site</span>
                   <span className="font-semibold text-slate-800">
-                    {vaga.wordpress_curriculos_count ?? 0}
+                    {vaga.wordpress_curriculos_synced_at
+                      ? (vaga.wordpress_curriculos_count ?? 0)
+                      : '—'}
                   </span>
                   <span className="block text-[10px] text-slate-400 mt-0.5">
                     Sincronizado em {formatDateBR(vaga.wordpress_curriculos_synced_at)}
