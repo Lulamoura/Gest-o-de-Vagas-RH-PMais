@@ -8,7 +8,7 @@ import {
   sendDisqualificationNotice,
   sendAvisoIntegracaoCandidato,
 } from '@/services/candidates'
-import { computeReturningCounts } from '@/services/candidate_returning'
+import { computeReturningCounts, findDuplicateCandidate } from '@/services/candidate_returning'
 import { getVacancies } from '@/services/vacancies'
 import { getClinicas } from '@/services/clinicas'
 import { getTiposVaga } from '@/services/tipos_vaga'
@@ -311,6 +311,27 @@ export default function Candidates() {
           .catch(() => {})
         toast.success('Candidato salvo com sucesso!')
       } else {
+        // Validação anti-duplicidade para novo cadastro
+        if (formData.cpf?.trim() || formData.email?.trim()) {
+          const duplicate = await findDuplicateCandidate({
+            cpf: formData.cpf,
+            email: formData.email,
+          })
+          if (duplicate) {
+            const vagaInfo =
+              duplicate.cargo || duplicate.cliente || duplicate.vacancy || 'Vaga não especificada'
+            const statusInfo = duplicate.status_candidato
+              ? ` (Status: ${duplicate.status_candidato})`
+              : ''
+            toast.error(
+              `Já existe um candidato cadastrado com este CPF/e-mail: ${duplicate.nome} — vaga ${vagaInfo}${statusInfo}. Cadastro não realizado.`,
+              { duration: 6000 },
+            )
+            setSaving(false)
+            return
+          }
+        }
+
         const created = await createCandidate(payload)
         setEditingCandidate(created)
         toast.success('Candidato criado e salvo com sucesso!')

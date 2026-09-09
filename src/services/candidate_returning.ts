@@ -18,7 +18,7 @@ export interface ReturningCandidateItem {
 /**
  * Escapes characters for PocketBase filter string.
  */
-function escapeFilterString(val: string): string {
+export function escapeFilterString(val: string): string {
   return val.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
 }
 
@@ -26,7 +26,7 @@ function escapeFilterString(val: string): string {
  * Builds candidate duplicate lookup filter for a specific candidate.
  * Matches by CPF (raw or unformatted) or email, excluding the given candidate ID.
  */
-function buildDuplicateFilter(params: {
+export function buildDuplicateFilter(params: {
   candidateId?: string
   cpf?: string | null
   email?: string | null
@@ -101,6 +101,20 @@ export const getCandidateReturningProcesses = async (params: {
     console.error('Erro ao consultar candidatos retornantes:', error)
     return []
   }
+}
+
+/**
+ * Checks if a candidate with the given CPF or email already exists.
+ * Returns the first duplicate candidate found with expanded vacancy info, or null if none.
+ * If candidateId is provided, that record is excluded (useful for updates).
+ */
+export const findDuplicateCandidate = async (params: {
+  candidateId?: string
+  cpf?: string | null
+  email?: string | null
+}): Promise<ReturningCandidateItem | null> => {
+  const list = await getCandidateReturningProcesses(params)
+  return list.length > 0 ? list[0] : null
 }
 
 /**

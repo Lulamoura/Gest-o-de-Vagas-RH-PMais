@@ -10,6 +10,7 @@ import {
   sendAvisoIntegracaoCandidato,
 } from '@/services/candidates'
 import { getEmailLogsForCandidate, hasEmailBeenSent } from '@/services/candidate_email_logs'
+import { findDuplicateCandidate } from '@/services/candidate_returning'
 import { getPipelineHistory, createPipelineHistory } from '@/services/pipeline_history'
 import { getCandidateHistory, getLatestCandidateHistory } from '@/services/candidate_history'
 import {
@@ -352,6 +353,27 @@ export default function VacancyDetail() {
 
     setSavingCandidate(true)
     try {
+      // Validação anti-duplicidade para novo candidato
+      if (cpfCandidato.trim() || emailCandidato.trim()) {
+        const duplicate = await findDuplicateCandidate({
+          cpf: cpfCandidato,
+          email: emailCandidato,
+        })
+        if (duplicate) {
+          const vagaInfo =
+            duplicate.cargo || duplicate.cliente || duplicate.vacancy || 'Vaga não especificada'
+          const statusInfo = duplicate.status_candidato
+            ? ` (Status: ${duplicate.status_candidato})`
+            : ''
+          toast.error(
+            `Já existe um candidato cadastrado com este CPF/e-mail: ${duplicate.nome} — vaga ${vagaInfo}${statusInfo}. Cadastro não realizado.`,
+            { duration: 6000 },
+          )
+          setSavingCandidate(false)
+          return
+        }
+      }
+
       await createCandidate({
         vacancy_id: id,
         nome: nomeCandidato,
