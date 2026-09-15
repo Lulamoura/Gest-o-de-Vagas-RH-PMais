@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
-import { getUsers, createUser, updateUser, deleteUser } from '@/services/users'
+import {
+  getUsers,
+  createUser,
+  updateUser,
+  deleteUser,
+  requestPasswordReset,
+} from '@/services/users'
 import { getDepartamentos } from '@/services/departamentos'
 import { UserRecord, UserProfile, DepartamentoRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
@@ -35,7 +41,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { toast } from 'sonner'
-import { UserCheck, PlusCircle, Pencil, Trash2, Shield, X } from 'lucide-react'
+import { UserCheck, PlusCircle, Pencil, Trash2, Shield, X, KeyRound } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useRealtime } from '@/hooks/use-realtime'
 
@@ -61,6 +67,10 @@ export default function Users() {
   const [userToDelete, setUserToDelete] = useState<UserRecord | null>(null)
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  const [userToReset, setUserToReset] = useState<UserRecord | null>(null)
+  const [resetDialogOpen, setResetDialogOpen] = useState(false)
+  const [resetting, setResetting] = useState(false)
 
   const loadData = async () => {
     try {
@@ -179,6 +189,26 @@ export default function Users() {
     setDeleteDialogOpen(true)
   }
 
+  const promptResetPassword = (u: UserRecord) => {
+    setUserToReset(u)
+    setResetDialogOpen(true)
+  }
+
+  const handleConfirmResetPassword = async () => {
+    if (!userToReset || !userToReset.email) return
+    setResetting(true)
+    try {
+      await requestPasswordReset(userToReset.email)
+      toast.success(`E-mail de redefinição enviado para ${userToReset.email}`)
+      setResetDialogOpen(false)
+      setUserToReset(null)
+    } catch (err) {
+      toast.error(getErrorMessage(err) || 'Erro ao enviar e-mail de redefinição de senha.')
+    } finally {
+      setResetting(false)
+    }
+  }
+
   const handleConfirmDelete = async () => {
     if (!userToDelete) return
     setDeleting(true)
@@ -275,7 +305,17 @@ export default function Users() {
                         <Button
                           variant="ghost"
                           size="icon"
+                          onClick={() => promptResetPassword(u)}
+                          title="Resetar Senha"
+                          className="h-8 w-8 text-slate-600 hover:text-indigo-600"
+                        >
+                          <KeyRound className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
                           onClick={() => openEditModal(u)}
+                          title="Editar Usuário"
                           className="h-8 w-8 text-slate-600 hover:text-amber-600"
                         >
                           <Pencil className="h-4 w-4" />
@@ -284,6 +324,7 @@ export default function Users() {
                           variant="ghost"
                           size="icon"
                           onClick={() => promptDelete(u)}
+                          title="Excluir Usuário"
                           className="h-8 w-8 text-slate-600 hover:text-rose-600"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -436,6 +477,18 @@ export default function Users() {
         variant="destructive"
         loading={deleting}
         onConfirm={handleConfirmDelete}
+      />
+
+      <ConfirmDialog
+        open={resetDialogOpen}
+        onOpenChange={setResetDialogOpen}
+        title="Resetar Senha de Usuário"
+        description={`Deseja enviar as instruções de redefinição de senha para o e-mail de ${userToReset?.name || 'usuário'} (${userToReset?.email})?`}
+        confirmText="Enviar E-mail de Reset"
+        cancelText="Cancelar"
+        variant="primary"
+        loading={resetting}
+        onConfirm={handleConfirmResetPassword}
       />
     </div>
   )

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
+import { requestPasswordReset } from '@/services/users'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,8 +13,17 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Lock, Mail, Eye, EyeOff, AlertTriangle, ArrowRight } from 'lucide-react'
+import { toast } from 'sonner'
+import { Lock, Mail, Eye, EyeOff, AlertTriangle, ArrowRight, KeyRound } from 'lucide-react'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -21,6 +31,11 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // Forgot password modal state
+  const [forgotModalOpen, setForgotModalOpen] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState('')
+  const [forgotLoading, setForgotLoading] = useState(false)
 
   const { signIn } = useAuth()
   const navigate = useNavigate()
@@ -37,6 +52,33 @@ export default function Login() {
       setError('Email ou senha inválidos. Verifique suas credenciais.')
     } else {
       navigate('/dashboard')
+    }
+  }
+
+  const handleOpenForgotPassword = () => {
+    setForgotEmail(email || '')
+    setForgotModalOpen(true)
+  }
+
+  const handleForgotPasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!forgotEmail.trim()) {
+      toast.error('Informe seu e-mail corporativo.')
+      return
+    }
+
+    setForgotLoading(true)
+    try {
+      await requestPasswordReset(forgotEmail.trim())
+      toast.success(`E-mail de redefinição enviado para ${forgotEmail.trim()}`)
+      setForgotModalOpen(false)
+    } catch (err: any) {
+      // Por segurança e padrão PB, se o email não existir ou falhar
+      toast.error(
+        'Não foi possível enviar o e-mail de recuperação. Verifique o endereço e tente novamente.',
+      )
+    } finally {
+      setForgotLoading(false)
     }
   }
 
@@ -112,7 +154,7 @@ export default function Login() {
             </div>
           </CardContent>
 
-          <CardFooter className="pt-2 pb-6">
+          <CardFooter className="pt-2 pb-6 flex flex-col space-y-3">
             <Button
               type="submit"
               disabled={loading}
@@ -121,9 +163,72 @@ export default function Login() {
               <span>{loading ? 'Entrando...' : 'Entrar no Módulo'}</span>
               {!loading && <ArrowRight className="h-4 w-4" />}
             </Button>
+
+            <button
+              type="button"
+              onClick={handleOpenForgotPassword}
+              className="text-xs text-slate-400 hover:text-indigo-400 hover:underline transition-colors focus:outline-none"
+            >
+              Esqueci minha senha
+            </button>
           </CardFooter>
         </form>
       </Card>
+
+      <Dialog open={forgotModalOpen} onOpenChange={setForgotModalOpen}>
+        <DialogContent className="sm:max-w-md bg-slate-950 border-slate-800 text-slate-100">
+          <DialogHeader>
+            <div className="flex items-center space-x-2 text-indigo-400 mb-1">
+              <KeyRound className="h-5 w-5" />
+              <DialogTitle className="text-lg font-bold text-white">
+                Recuperação de Senha
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-slate-400 text-xs">
+              Informe seu e-mail cadastrado para receber as instruções e o link seguro de
+              redefinição de senha.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={handleForgotPasswordSubmit} className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="forgot-email" className="text-xs font-semibold text-slate-200">
+                Email Corporativo
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                <Input
+                  id="forgot-email"
+                  type="email"
+                  placeholder="usuario@pmaisservicos.com.br"
+                  value={forgotEmail}
+                  onChange={(e) => setForgotEmail(e.target.value)}
+                  className="pl-9 bg-slate-900 border-slate-800 text-slate-100 placeholder:text-slate-500 focus-visible:ring-indigo-500"
+                  required
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="pt-2 flex sm:justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setForgotModalOpen(false)}
+                className="border-slate-800 text-slate-300 hover:bg-slate-900 hover:text-white"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={forgotLoading}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white"
+              >
+                {forgotLoading ? 'Enviando...' : 'Enviar Link de Redefinição'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

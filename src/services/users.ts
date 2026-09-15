@@ -33,3 +33,22 @@ export const updateUser = async (
 export const deleteUser = async (id: string) => {
   return pb.collection<UserRecord>('users').delete(id)
 }
+
+/**
+ * Solicita redefinição de senha para o e-mail informado.
+ * Usa o método nativo do PocketBase (POST /api/collections/users/request-password-reset).
+ */
+export const requestPasswordReset = async (email: string) => {
+  return pb.collection('users').requestPasswordReset(email.trim())
+}
+
+/**
+ * Confirma a redefinição de senha usando o token recebido por e-mail.
+ */
+export const confirmPasswordReset = async (
+  token: string,
+  password: string,
+  passwordConfirm: string,
+) => {
+  return pb.collection('users').confirmPasswordReset(token, password, passwordConfirm)
+}
