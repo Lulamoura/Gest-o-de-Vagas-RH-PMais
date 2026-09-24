@@ -45,6 +45,10 @@ export const getRequisitionStatusBadgeClass = (status: string) => {
       return 'bg-rose-100 text-rose-800 border-rose-200 dark:bg-rose-900/30 dark:text-rose-300'
     case 'Cancelada':
       return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300'
+    case 'Rascunho criado no WordPress':
+      return 'bg-cyan-100 text-cyan-800 border-cyan-200 dark:bg-cyan-900/30 dark:text-cyan-300'
+    case 'Publicada':
+      return 'bg-teal-100 text-teal-800 border-teal-200 dark:bg-teal-900/30 dark:text-teal-300'
     default:
       return 'bg-gray-100 text-gray-800'
   }

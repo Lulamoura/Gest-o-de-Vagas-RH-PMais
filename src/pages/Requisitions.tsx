@@ -54,6 +54,8 @@ const statusLabels: Record<string, string> = {
   Aprovada: 'Aprovada',
   Reprovada: 'Reprovada',
   Cancelada: 'Cancelada',
+  'Rascunho criado no WordPress': 'Rascunho criado no WordPress',
+  Publicada: 'Publicada',
 }
 
 export default function Requisitions() {
@@ -289,6 +291,10 @@ export default function Requisitions() {
                 <SelectItem value="Aprovada">Aprovada</SelectItem>
                 <SelectItem value="Reprovada">Reprovada</SelectItem>
                 <SelectItem value="Cancelada">Cancelada</SelectItem>
+                <SelectItem value="Rascunho criado no WordPress">
+                  Rascunho criado no WordPress
+                </SelectItem>
+                <SelectItem value="Publicada">Publicada</SelectItem>
               </SelectContent>
             </Select>
             <Select value={fDepartamento} onValueChange={setFDepartamento}>
