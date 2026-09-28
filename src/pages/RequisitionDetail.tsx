@@ -15,6 +15,7 @@ import {
   Trash2,
   ExternalLink,
   AlertCircle,
+  Sparkles,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '@/hooks/use-auth'
@@ -43,6 +44,8 @@ import {
   deleteRequisition,
   createWordpressDraft,
   updateRequisition,
+  suggestRequisitionJobDescription,
+  type IrisJobDescriptionSuggestion,
 } from '@/services/requisitions'
 import { getChangeRequests } from '@/services/requisition_change_requests'
 import { RequisitionHistory } from '@/components/RequisitionHistory'
@@ -72,6 +75,9 @@ export default function RequisitionDetail() {
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [wpLoading, setWpLoading] = useState(false)
   const [wpError, setWpError] = useState<string | null>(null)
+  const [irisLoading, setIrisLoading] = useState(false)
+  const [irisSuggestion, setIrisSuggestion] = useState<IrisJobDescriptionSuggestion | null>(null)
+  const [showIrisSuggestion, setShowIrisSuggestion] = useState(false)
   const [hasPendingChangeRequest, setHasPendingChangeRequest] = useState(false)
 
   const loadReq = useCallback(async () => {
@@ -179,6 +185,31 @@ export default function RequisitionDetail() {
     }
   }
 
+  const handleSuggestJobDescription = async () => {
+    if (!id) return
+    setIrisLoading(true)
+    try {
+      const suggestion = await suggestRequisitionJobDescription(id)
+      setIrisSuggestion(suggestion)
+      setShowIrisSuggestion(true)
+      toast.success('Sugestão da Íris gerada para revisão do RH')
+    } catch (err: any) {
+      toast.error(err?.message || 'Erro ao gerar sugestão da Íris')
+    } finally {
+      setIrisLoading(false)
+    }
+  }
+
+  const copyIrisSuggestion = async () => {
+    if (!irisSuggestion?.texto_wordpress) return
+    try {
+      await navigator.clipboard.writeText(irisSuggestion.texto_wordpress)
+      toast.success('Texto copiado')
+    } catch {
+      toast.error('Não foi possível copiar o texto')
+    }
+  }
+
   const handleFinishEditing = async () => {
     if (!id) return
     try {
@@ -272,6 +303,16 @@ export default function RequisitionDetail() {
                 <Globe className="h-4 w-4 mr-2" />
               )}
               Criar Vaga no WordPress
+            </Button>
+          )}
+          {canManage && (
+            <Button variant="outline" disabled={irisLoading} onClick={handleSuggestJobDescription}>
+              {irisLoading ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4 mr-2" />
+              )}
+              Sugerir descrição com Íris
             </Button>
           )}
           {req.status === 'Rascunho criado no WordPress' && req.wordpress_admin_url && (
@@ -535,6 +576,72 @@ export default function RequisitionDetail() {
         requisitionId={req.id}
         solicitanteId={user?.id || ''}
       />
+
+      <Dialog open={showIrisSuggestion} onOpenChange={setShowIrisSuggestion}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Sugestão da Íris para publicação da vaga</DialogTitle>
+            <DialogDescription>
+              Rascunho editorial para revisão do RH. A Íris não publica, não aprova e não altera a
+              requisição.
+            </DialogDescription>
+          </DialogHeader>
+          {irisSuggestion && (
+            <div className="space-y-4">
+              {irisSuggestion.fallback && (
+                <Alert className="border-amber-300 bg-amber-50">
+                  <AlertCircle className="h-4 w-4 text-amber-600" />
+                  <AlertTitle className="text-amber-800">Sugestão sem geração avançada</AlertTitle>
+                  <AlertDescription className="text-amber-700">
+                    A Íris usou um modelo seguro de rascunho porque a geração avançada não
+                    respondeu.
+                  </AlertDescription>
+                </Alert>
+              )}
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Título público sugerido</p>
+                <p className="font-semibold">{irisSuggestion.titulo_publico || '-'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">
+                  Texto para revisão e publicação
+                </p>
+                <Textarea
+                  readOnly
+                  value={irisSuggestion.texto_wordpress || ''}
+                  rows={16}
+                  className="font-mono text-xs whitespace-pre-wrap"
+                />
+              </div>
+              {irisSuggestion.alerta_publicacao && irisSuggestion.alerta_publicacao.length > 0 && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Cuidados antes de publicar</AlertTitle>
+                  <AlertDescription>
+                    <ul className="list-disc pl-5 mt-2 space-y-1">
+                      {irisSuggestion.alerta_publicacao.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </AlertDescription>
+                </Alert>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Este rascunho usa dados da requisição e referências editoriais aprovadas. Revise
+                antes de levar ao WordPress.
+              </p>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowIrisSuggestion(false)}>
+              Fechar
+            </Button>
+            <Button onClick={copyIrisSuggestion} disabled={!irisSuggestion?.texto_wordpress}>
+              <Copy className="h-4 w-4 mr-2" /> Copiar texto
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <ConfirmDialog
         open={showDelete}

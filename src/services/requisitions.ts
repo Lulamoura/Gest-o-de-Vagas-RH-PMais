@@ -30,3 +30,26 @@ export const changeRequisitionStatus = async (id: string, status: string, observ
 
 export const createWordpressDraft = async (id: string) =>
   pb.send(`/backend/v1/requisitions/${id}/wordpress-draft`, { method: 'POST' })
+
+export interface IrisJobDescriptionSuggestion {
+  ok: boolean
+  fallback?: boolean
+  titulo_publico?: string
+  descricao?: string
+  atividades?: string[]
+  requisitos?: string[]
+  diferenciais?: string[]
+  alerta_publicacao?: string[]
+  texto_wordpress?: string
+  audit?: {
+    origem: string
+    provider?: string
+    modelo?: string
+    exemplos_wordpress?: number
+  }
+}
+
+export const suggestRequisitionJobDescription = async (id: string) =>
+  pb.send<IrisJobDescriptionSuggestion>(`/backend/v1/iris/requisitions/${id}/job-description`, {
+    method: 'POST',
+  })

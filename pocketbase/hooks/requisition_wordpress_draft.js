@@ -434,3 +434,241 @@ routerAdd(
   },
   $apis.requireAuth(),
 )
+
+routerAdd(
+  'POST',
+  '/backend/v1/iris/requisitions/{id}/job-description',
+  (e) => {
+    var id = e.request.pathValue('id')
+    if (!id) return e.badRequestError('ID da requisição é obrigatório')
+
+    var userProfile = e.auth ? e.auth.getString('profile') : ''
+    var isAdmin = userProfile === 'admin' || userProfile === 'superadmin'
+    var isRH = false
+    try {
+      var deptoId = e.auth ? e.auth.getString('departamento') : ''
+      if (deptoId) {
+        var depto = $app.findRecordById('departamentos', deptoId)
+        isRH = depto.getString('nome') === 'rh'
+      }
+    } catch (_) {}
+
+    if (!isAdmin && !isRH) {
+      return e.forbiddenError('Apenas RH ou administradores podem acionar a Íris nesta fase')
+    }
+
+    var req = null
+    try {
+      req = $app.findRecordById('requisitions', id)
+    } catch (err) {
+      return e.notFoundError('Requisição não encontrada')
+    }
+
+    var safeStr = function (val) {
+      if (!val) return ''
+      return String(val)
+    }
+
+    var resolveRelationNome = function (collectionName, relId) {
+      if (!relId) return ''
+      try {
+        var rec = $app.findRecordById(collectionName, relId)
+        return rec ? rec.getString('nome') : ''
+      } catch (_) {
+        return ''
+      }
+    }
+
+    var pickLines = function (text) {
+      if (!text) return []
+      return String(text)
+        .split(/\n|;|\u2022|-/)
+        .map(function (s) {
+          return s.trim()
+        })
+        .filter(function (s) {
+          return s.length > 0
+        })
+        .slice(0, 8)
+    }
+
+    var cargoNome = resolveRelationNome('cargos', safeStr(req.getString('cargo')))
+    var clienteNome = resolveRelationNome('clientes', safeStr(req.getString('cliente')))
+    var cidadeNome = resolveRelationNome('cidades', safeStr(req.getString('cidade')))
+    var tipoVagaNome = resolveRelationNome('tipos_vaga', safeStr(req.getString('tipo_vaga')))
+    var tipoContratoNome = resolveRelationNome(
+      'tipos_contrato',
+      safeStr(req.getString('tipo_contrato')),
+    )
+    var deptoNome = resolveRelationNome('departamentos', safeStr(req.getString('departamento')))
+
+    var dados = {
+      cargo: cargoNome,
+      cliente: clienteNome,
+      cidade: cidadeNome,
+      tipo_vaga: tipoVagaNome,
+      tipo_contrato: tipoContratoNome,
+      departamento: deptoNome,
+      quantidade_vagas: req.getInt('quantidade_vagas'),
+      prioridade: safeStr(req.getString('prioridade')),
+      prazo_desejado: safeStr(req.getString('prazo_desejado')),
+      faixa_salarial: safeStr(req.getString('faixa_salarial')),
+      jornada: safeStr(req.getString('jornada')),
+      horario: safeStr(req.getString('horario')),
+      escala: safeStr(req.getString('escala')),
+      remuneracao: safeStr(req.getString('remuneracao')),
+      beneficios: safeStr(req.getString('beneficios')),
+      requisitos: safeStr(req.getString('requisitos')),
+      escolaridade: safeStr(req.getString('escolaridade')),
+      experiencia: safeStr(req.getString('experiencia')),
+      especificacoes: safeStr(req.getString('especificacoes')),
+      justificativa: safeStr(req.getString('justificativa')),
+      observacoes_internas: safeStr(req.getString('observacoes_internas')),
+    }
+
+    var exemplos = []
+    try {
+      var records = $app.findRecordsByFilter(
+        'vacancies',
+        'wordpress_job_id != ""',
+        '-created',
+        5,
+        0,
+      )
+      for (var i = 0; i < records.length; i++) {
+        var v = records[i]
+        var vcargo = resolveRelationNome('cargos', safeStr(v.getString('cargo')))
+        var vcidade = resolveRelationNome('cidades', safeStr(v.getString('cidade')))
+        exemplos.push({
+          cargo: vcargo,
+          cidade: vcidade,
+          especificacoes: safeStr(v.getString('especificacoes')).substring(0, 500),
+          requisitos: safeStr(v.getString('requisitos')).substring(0, 500),
+        })
+      }
+    } catch (_) {}
+
+    var makeFallback = function () {
+      var titulo = dados.cargo || 'Oportunidade PMais'
+      if (dados.cidade) titulo = titulo + ' - ' + dados.cidade
+      var atividades = pickLines(dados.especificacoes || dados.justificativa)
+      if (atividades.length === 0)
+        atividades = ['Atuar nas rotinas da função conforme orientação da equipe PMais.']
+      var requisitos = pickLines(dados.requisitos)
+      if (requisitos.length === 0)
+        requisitos = [
+          'Experiência ou interesse compatível com a função.',
+          'Comprometimento, responsabilidade e assiduidade.',
+        ]
+      var diferenciais = []
+      if (dados.tipo_contrato) diferenciais.push('Contrato: ' + dados.tipo_contrato)
+      if (dados.escala || dados.jornada || dados.horario)
+        diferenciais.push(
+          'Jornada/escala: ' +
+            [dados.jornada, dados.escala, dados.horario].filter(Boolean).join(' | '),
+        )
+      if (dados.beneficios) diferenciais.push('Benefícios: ' + dados.beneficios)
+      if (dados.faixa_salarial || dados.remuneracao)
+        diferenciais.push('Remuneração: ' + (dados.remuneracao || dados.faixa_salarial))
+      var texto =
+        titulo +
+        '\n\n' +
+        'A PMais está selecionando profissional para a vaga de ' +
+        (dados.cargo || 'colaborador') +
+        (dados.cidade ? ' em ' + dados.cidade : '') +
+        '.\n\n' +
+        'Principais atividades:\n- ' +
+        atividades.join('\n- ') +
+        '\n\n' +
+        'Requisitos:\n- ' +
+        requisitos.join('\n- ')
+      if (diferenciais.length) texto += '\n\nInformações da vaga:\n- ' + diferenciais.join('\n- ')
+      texto +=
+        '\n\nSe você tem interesse e se identifica com esta oportunidade, envie sua candidatura pelo site da PMais.'
+      return {
+        ok: true,
+        fallback: true,
+        titulo_publico: titulo,
+        descricao: 'Rascunho inicial para revisão do RH.',
+        atividades: atividades,
+        requisitos: requisitos,
+        diferenciais: diferenciais,
+        alerta_publicacao: [
+          'Revisar informações sensíveis antes de publicar.',
+          'Confirmar salário, benefícios, local e jornada antes de levar ao WordPress.',
+        ],
+        texto_wordpress: texto,
+        audit: {
+          origem: 'iris_gv_requisicao',
+          provider: 'fallback_local',
+          modelo: 'template_seguro',
+          exemplos_wordpress: exemplos.length,
+        },
+      }
+    }
+
+    var systemPrompt =
+      'Você é Íris, agente PMais de RH/GV. Sua tarefa é sugerir uma descrição pública de vaga para publicação no WordPress da PMais. Use linguagem brasileira, clara e atrativa. Não invente salário, benefício, jornada, local, requisito ou informação ausente. Não publique, não aprove e não altere a requisição. Retorne apenas JSON válido com as chaves: titulo_publico, descricao, atividades, requisitos, diferenciais, alerta_publicacao, texto_wordpress.'
+    var userPrompt = JSON.stringify({
+      regra:
+        'Transforme os dados da requisição em um rascunho público de vaga. Use exemplos apenas como referência editorial, nunca copie literalmente.',
+      dados_requisicao: dados,
+      exemplos_wordpress: exemplos,
+      diretrizes_pmais: [
+        'Valorizar clareza, assiduidade, responsabilidade e aderência operacional.',
+        'Separar informação pública de observação interna.',
+        'Evitar linguagem técnica interna do GV.',
+        'Fazer o texto ser convidativo sem prometer o que não está nos dados.',
+      ],
+    })
+
+    try {
+      if (!$ai || !$ai.chat) return e.json(200, makeFallback())
+      var aiRes = $ai.chat({
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.4,
+      })
+      var content = ''
+      try {
+        if (aiRes && aiRes.choices && aiRes.choices.length > 0)
+          content = aiRes.choices[0].message.content || ''
+        else if (aiRes && aiRes.content) content = aiRes.content
+      } catch (_) {}
+      content = String(content || '').trim()
+      if (!content) return e.json(200, makeFallback())
+      content = content
+        .replace(/^```json\s*/i, '')
+        .replace(/^```\s*/i, '')
+        .replace(/```$/i, '')
+        .trim()
+      var parsed = JSON.parse(content)
+      parsed.ok = true
+      parsed.fallback = false
+      parsed.audit = {
+        origem: 'iris_gv_requisicao',
+        provider: 'skip_ai',
+        modelo: safeStr(aiRes.model || ''),
+        exemplos_wordpress: exemplos.length,
+      }
+      if (!parsed.texto_wordpress) parsed.texto_wordpress = makeFallback().texto_wordpress
+      return e.json(200, parsed)
+    } catch (err) {
+      try {
+        $app
+          .logger()
+          .warn(
+            'iris job-description fallback',
+            'requisition_id',
+            id,
+            'error',
+            String((err && err.message) || err || 'unknown'),
+          )
+      } catch (_) {}
+      return e.json(200, makeFallback())
+    }
+  },
+  $apis.requireAuth(),
+)
