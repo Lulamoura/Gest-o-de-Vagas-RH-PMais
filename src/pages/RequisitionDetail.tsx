@@ -77,6 +77,8 @@ export default function RequisitionDetail() {
   const [wpError, setWpError] = useState<string | null>(null)
   const [irisLoading, setIrisLoading] = useState(false)
   const [irisSuggestion, setIrisSuggestion] = useState<IrisJobDescriptionSuggestion | null>(null)
+  const [irisTitle, setIrisTitle] = useState('')
+  const [irisText, setIrisText] = useState('')
   const [showIrisSuggestion, setShowIrisSuggestion] = useState(false)
   const [hasPendingChangeRequest, setHasPendingChangeRequest] = useState(false)
 
@@ -169,13 +171,17 @@ export default function RequisitionDetail() {
     }
   }
 
-  const handleCreateWordpressDraft = async () => {
+  const handleCreateWordpressDraft = async (publicacaoIris?: {
+    titulo_publico_iris?: string
+    descricao_publica_iris?: string
+  }) => {
     if (!id) return
     setWpLoading(true)
     setWpError(null)
     try {
-      await createWordpressDraft(id)
+      await createWordpressDraft(id, publicacaoIris)
       toast.success('Rascunho criado no WordPress!')
+      setShowIrisSuggestion(false)
       loadReq()
     } catch (err: any) {
       setWpError(err?.message || 'Erro ao criar rascunho no WordPress')
@@ -191,6 +197,8 @@ export default function RequisitionDetail() {
     try {
       const suggestion = await suggestRequisitionJobDescription(id)
       setIrisSuggestion(suggestion)
+      setIrisTitle(suggestion.titulo_publico || '')
+      setIrisText(suggestion.texto_wordpress || '')
       setShowIrisSuggestion(true)
       toast.success('Sugestão da Íris gerada para revisão do RH')
     } catch (err: any) {
@@ -201,9 +209,9 @@ export default function RequisitionDetail() {
   }
 
   const copyIrisSuggestion = async () => {
-    if (!irisSuggestion?.texto_wordpress) return
+    if (!irisText) return
     try {
-      await navigator.clipboard.writeText(irisSuggestion.texto_wordpress)
+      await navigator.clipboard.writeText(irisText)
       toast.success('Texto copiado')
     } catch {
       toast.error('Não foi possível copiar o texto')
@@ -305,7 +313,7 @@ export default function RequisitionDetail() {
               Criar Vaga no WordPress
             </Button>
           )}
-          {canManage && (
+          {req.status === 'Aprovada' && canManage && (
             <Button variant="outline" disabled={irisLoading} onClick={handleSuggestJobDescription}>
               {irisLoading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -600,15 +608,20 @@ export default function RequisitionDetail() {
               )}
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Título público sugerido</p>
-                <p className="font-semibold">{irisSuggestion.titulo_publico || '-'}</p>
+                <Textarea
+                  value={irisTitle}
+                  onChange={(e) => setIrisTitle(e.target.value)}
+                  rows={2}
+                  placeholder="Título público da vaga..."
+                />
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
                   Texto para revisão e publicação
                 </p>
                 <Textarea
-                  readOnly
-                  value={irisSuggestion.texto_wordpress || ''}
+                  value={irisText}
+                  onChange={(e) => setIrisText(e.target.value)}
                   rows={16}
                   className="font-mono text-xs whitespace-pre-wrap"
                 />
@@ -628,7 +641,7 @@ export default function RequisitionDetail() {
               )}
               <p className="text-xs text-muted-foreground">
                 Este rascunho usa dados da requisição e referências editoriais aprovadas. Revise
-                antes de levar ao WordPress.
+                antes de criar o rascunho no WordPress.
               </p>
             </div>
           )}
@@ -636,9 +649,27 @@ export default function RequisitionDetail() {
             <Button variant="outline" onClick={() => setShowIrisSuggestion(false)}>
               Fechar
             </Button>
-            <Button onClick={copyIrisSuggestion} disabled={!irisSuggestion?.texto_wordpress}>
+            <Button variant="outline" onClick={copyIrisSuggestion} disabled={!irisText}>
               <Copy className="h-4 w-4 mr-2" /> Copiar texto
             </Button>
+            {req.status === 'Aprovada' && canManage && (
+              <Button
+                onClick={() =>
+                  handleCreateWordpressDraft({
+                    titulo_publico_iris: irisTitle,
+                    descricao_publica_iris: irisText,
+                  })
+                }
+                disabled={wpLoading || !irisText.trim()}
+              >
+                {wpLoading ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Globe className="h-4 w-4 mr-2" />
+                )}
+                Criar rascunho com esta descrição
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

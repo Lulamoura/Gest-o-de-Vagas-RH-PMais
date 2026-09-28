@@ -94,6 +94,21 @@ routerAdd(
       return String(val)
     }
 
+    var requestBody = {}
+    try {
+      requestBody = e.requestInfo().body || {}
+      if (typeof requestBody === 'string') requestBody = JSON.parse(requestBody || '{}')
+    } catch (_) {
+      requestBody = {}
+    }
+
+    var publicacaoIris = requestBody.publicacao_iris || {}
+    var tituloPublicoIris = safeStr(publicacaoIris.titulo_publico_iris).trim()
+    var descricaoPublicaIris = safeStr(publicacaoIris.descricao_publica_iris).trim()
+    if (tituloPublicoIris.length > 160) tituloPublicoIris = tituloPublicoIris.substring(0, 160)
+    if (descricaoPublicaIris.length > 8000)
+      descricaoPublicaIris = descricaoPublicaIris.substring(0, 8000)
+
     var resolveRelationNome = function (collectionName, relId) {
       if (!relId) return ''
       try {
@@ -186,18 +201,19 @@ routerAdd(
         requisition_id: id,
         versao: versao,
         oe: oeVal,
-        titulo: cargoNome,
+        titulo: tituloPublicoIris || cargoNome,
         quantidade: quantidadeVal,
         cliente_unidade: clienteNome,
         publico: {
           localizacao: cidadeNome,
+          descricao: descricaoPublicaIris,
         },
         tipo_vaga: tipoVagaNome,
         tipo_contrato: tipoContratoNome,
         prazo_desejado: safeStr(req.getString('prazo_desejado')),
         prioridade: safeStr(req.getString('prioridade')),
         faixa_salarial: safeStr(req.getString('faixa_salarial')),
-        especificacoes: safeStr(req.getString('especificacoes')),
+        especificacoes: descricaoPublicaIris || safeStr(req.getString('especificacoes')),
         justificativa: safeStr(req.getString('justificativa')),
         observacoes_internas: safeStr(req.getString('observacoes_internas')),
         jornada: safeStr(req.getString('jornada')),
@@ -382,7 +398,11 @@ routerAdd(
           historyRecord.set('acao', 'Rascunho criado no WordPress')
           historyRecord.set(
             'observacao',
-            isDuplicate ? 'Vaga duplicada no WordPress' : 'Vaga criada no WordPress',
+            descricaoPublicaIris
+              ? 'Vaga criada no WordPress com descrição revisada pela Íris'
+              : isDuplicate
+                ? 'Vaga duplicada no WordPress'
+                : 'Vaga criada no WordPress',
           )
           $app.save(historyRecord)
         } catch (histErr) {

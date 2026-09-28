@@ -28,8 +28,20 @@ export const changeRequisitionStatus = async (id: string, status: string, observ
     headers: { 'Content-Type': 'application/json' },
   })
 
-export const createWordpressDraft = async (id: string) =>
-  pb.send(`/backend/v1/requisitions/${id}/wordpress-draft`, { method: 'POST' })
+export interface WordpressDraftPublicacaoIris {
+  titulo_publico_iris?: string
+  descricao_publica_iris?: string
+}
+
+export const createWordpressDraft = async (
+  id: string,
+  publicacaoIris?: WordpressDraftPublicacaoIris,
+) =>
+  pb.send(`/backend/v1/requisitions/${id}/wordpress-draft`, {
+    method: 'POST',
+    body: publicacaoIris ? JSON.stringify({ publicacao_iris: publicacaoIris }) : undefined,
+    headers: publicacaoIris ? { 'Content-Type': 'application/json' } : undefined,
+  })
 
 export interface IrisJobDescriptionSuggestion {
   ok: boolean
