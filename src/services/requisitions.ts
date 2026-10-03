@@ -2,6 +2,38 @@ import pb from '@/lib/pocketbase/client'
 import { RequisitionRecord } from '@/types'
 
 const EXPAND = 'solicitante,cliente,cargo,cidade,tipo_vaga,tipo_contrato,departamento'
+const IRIS_GV_BROWSER_ADAPTER_BASE_URL = 'https://agents.pmaisservicos.com.br/preview/iris-gv'
+
+interface BrowserAdapterErrorBody {
+  detail?: { code?: string; message?: string } | string
+  message?: string
+}
+
+const irisBrowserAdapterRequest = async <T>(path: string, body: unknown): Promise<T> => {
+  const token = pb.authStore.token
+  if (!token) {
+    throw new Error('Sua sessão expirou. Entre novamente para usar a Íris.')
+  }
+  const response = await fetch(`${IRIS_GV_BROWSER_ADAPTER_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  })
+  const responseBody = (await response.json().catch(() => null)) as BrowserAdapterErrorBody | T | null
+  if (!response.ok) {
+    const detail = (responseBody as BrowserAdapterErrorBody | null)?.detail
+    const message =
+      (typeof detail === 'object' && detail?.message) ||
+      (typeof detail === 'string' && detail) ||
+      (responseBody as BrowserAdapterErrorBody | null)?.message ||
+      'Não foi possível concluir a ação da Íris.'
+    throw new Error(message)
+  }
+  return responseBody as T
+}
 
 export const getRequisitions = async () =>
   pb.collection<RequisitionRecord>('requisitions').getFullList({
@@ -36,11 +68,10 @@ export interface WordpressDraftPublicacaoIris {
 }
 
 export const createWordpressDraft = async (id: string, publicacaoIris: WordpressDraftPublicacaoIris) =>
-  pb.send<WordpressDraftResult>(`/backend/v1/requisitions/${id}/wordpress-draft`, {
-    method: 'POST',
-    body: JSON.stringify({ publicacao_iris: publicacaoIris }),
-    headers: { 'Content-Type': 'application/json' },
-  })
+  irisBrowserAdapterRequest<WordpressDraftResult>(
+    `/v1/pessoas/iris/gv-rh/browser/requisitions/${encodeURIComponent(id)}/wordpress-draft`,
+    { publicacao_iris: publicacaoIris },
+  )
 
 export interface IrisSuggestionProof {
   request_id: string
@@ -82,6 +113,7 @@ export interface IrisJobDescriptionSuggestion {
 }
 
 export const suggestRequisitionJobDescription = async (id: string) =>
-  pb.send<IrisJobDescriptionSuggestion>(`/backend/v1/iris/requisitions/${id}/job-description`, {
-    method: 'POST',
-  })
+  irisBrowserAdapterRequest<IrisJobDescriptionSuggestion>(
+    `/v1/pessoas/iris/gv-rh/browser/requisitions/${encodeURIComponent(id)}/job-description-package`,
+    {},
+  )

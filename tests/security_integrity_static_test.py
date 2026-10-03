@@ -173,6 +173,33 @@ def test_frontend_review_contract() -> None:
     forbid(PAGE, r">\s*Criar vaga no WordPress\s*<", "old direct WordPress button returned")
 
 
+def test_frontend_uses_preview_browser_adapter() -> None:
+    expected_fragments = (
+        "https://agents.pmaisservicos.com.br/preview/iris-gv",
+        "/v1/pessoas/iris/gv-rh/browser/requisitions/",
+        "/job-description-package",
+        "/wordpress-draft",
+        "pb.authStore.token",
+        "Authorization: `Bearer ${token}`",
+    )
+    for fragment in expected_fragments:
+        if fragment not in SERVICE:
+            raise AssertionError(f"frontend browser adapter contract missing {fragment}")
+    for legacy_route in (
+        "/backend/v1/iris/requisitions/",
+        "/backend/v1/requisitions/${id}/wordpress-draft",
+    ):
+        if legacy_route in SERVICE:
+            raise AssertionError(f"legacy PocketBase transport remains active: {legacy_route}")
+    for secret_name in (
+        "PMAIS_IRIS_GV_API_KEY",
+        "PMAIS_IRIS_GV_HMAC_SECRET",
+        "IRIS_HERMES_SECRET",
+    ):
+        if secret_name in SERVICE:
+            raise AssertionError(f"frontend must not reference server secret {secret_name}")
+
+
 def test_manifest() -> None:
     manifest_path = ROOT / "manifest.json"
     if not manifest_path.exists():
