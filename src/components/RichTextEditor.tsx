@@ -19,6 +19,8 @@ interface RichTextEditorProps {
   onChange: (value: string) => void
   placeholder?: string
   availableVariables?: { key: string; label: string }[]
+  showHtmlToggle?: boolean
+  sanitizeHtml?: (value: string) => string
 }
 
 export function RichTextEditor({
@@ -26,35 +28,88 @@ export function RichTextEditor({
   onChange,
   placeholder = 'Escreva o conteúdo do e-mail...',
   availableVariables = [],
+  showHtmlToggle = true,
+  sanitizeHtml = (html) => html,
 }: RichTextEditorProps) {
   const editorRef = useRef<HTMLDivElement>(null)
   const [showHtml, setShowHtml] = useState(false)
 
   useEffect(() => {
     if (editorRef.current && !showHtml) {
-      if (editorRef.current.innerHTML !== value) {
-        editorRef.current.innerHTML = value || ''
+      const cleanValue = sanitizeHtml(value || '')
+      const currentCleanValue = sanitizeHtml(editorRef.current.innerHTML)
+      if (currentCleanValue !== cleanValue) {
+        editorRef.current.innerHTML = cleanValue
       }
     }
-  }, [value, showHtml])
+  }, [value, showHtml, sanitizeHtml])
+
+  const emitEditorValue = () => {
+    if (!editorRef.current) return
+    const cleanValue = sanitizeHtml(editorRef.current.innerHTML)
+    onChange(cleanValue)
+  }
+
+  const normalizeEditorValue = () => {
+    if (!editorRef.current) return
+    const cleanValue = sanitizeHtml(editorRef.current.innerHTML)
+    if (editorRef.current.innerHTML !== cleanValue) {
+      editorRef.current.innerHTML = cleanValue
+    }
+    onChange(cleanValue)
+  }
+
+  const handleEditorKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'Enter') return
+    event.preventDefault()
+    document.execCommand('insertLineBreak', false)
+    emitEditorValue()
+  }
+
+  const handleEditorPaste = (event: React.ClipboardEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const pastedHtml = event.clipboardData.getData('text/html')
+    if (pastedHtml) {
+      document.execCommand('insertHTML', false, sanitizeHtml(pastedHtml))
+    } else {
+      document.execCommand('insertText', false, event.clipboardData.getData('text/plain'))
+    }
+    emitEditorValue()
+  }
+
+  const handleEditorDrop = (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const droppedHtml = event.dataTransfer.getData('text/html')
+    if (droppedHtml) {
+      document.execCommand('insertHTML', false, sanitizeHtml(droppedHtml))
+    } else {
+      document.execCommand('insertText', false, event.dataTransfer.getData('text/plain'))
+    }
+    emitEditorValue()
+  }
+
+  const handleEditorBeforeInput = (event: React.FormEvent<HTMLDivElement>) => {
+    const inputType = (event.nativeEvent as InputEvent).inputType
+    if (inputType === 'insertFromDrop' || inputType === 'insertFromPaste') {
+      event.preventDefault()
+    }
+  }
 
   const execCommand = (command: string, arg?: string) => {
     document.execCommand(command, false, arg)
-    if (editorRef.current) {
-      onChange(editorRef.current.innerHTML)
-    }
+    emitEditorValue()
   }
 
   const handleInsertVariable = (varKey: string) => {
     const token = `{{${varKey}}}`
     if (showHtml) {
-      onChange((value || '') + token)
+      onChange(sanitizeHtml((value || '') + token))
       return
     }
     if (editorRef.current) {
       editorRef.current.focus()
       document.execCommand('insertText', false, token)
-      onChange(editorRef.current.innerHTML)
+      emitEditorValue()
     }
   }
 
@@ -159,23 +214,25 @@ export function RichTextEditor({
         </Button>
 
         <div className="ml-auto flex items-center gap-1">
-          <Button
-            type="button"
-            variant={showHtml ? 'secondary' : 'ghost'}
-            size="sm"
-            onClick={() => setShowHtml(!showHtml)}
-            className="h-8 px-2 text-xs font-medium text-slate-700 hover:text-slate-900"
-          >
-            {showHtml ? (
-              <>
-                <Eye className="h-3.5 w-3.5 mr-1" /> Mod Visual
-              </>
-            ) : (
-              <>
-                <Code className="h-3.5 w-3.5 mr-1" /> Editar HTML
-              </>
-            )}
-          </Button>
+          {showHtmlToggle && (
+            <Button
+              type="button"
+              variant={showHtml ? 'secondary' : 'ghost'}
+              size="sm"
+              onClick={() => setShowHtml(!showHtml)}
+              className="h-8 px-2 text-xs font-medium text-slate-700 hover:text-slate-900"
+            >
+              {showHtml ? (
+                <>
+                  <Eye className="h-3.5 w-3.5 mr-1" /> Mod Visual
+                </>
+              ) : (
+                <>
+                  <Code className="h-3.5 w-3.5 mr-1" /> Editar HTML
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -206,11 +263,13 @@ export function RichTextEditor({
         <div
           ref={editorRef}
           contentEditable
-          onInput={() => {
-            if (editorRef.current) {
-              onChange(editorRef.current.innerHTML)
-            }
-          }}
+          onInput={emitEditorValue}
+          onBlur={normalizeEditorValue}
+          onKeyDown={handleEditorKeyDown}
+          onPaste={handleEditorPaste}
+          onDrop={handleEditorDrop}
+          onDragOver={(event) => event.preventDefault()}
+          onBeforeInput={handleEditorBeforeInput}
           className="min-h-[220px] p-3 text-slate-800 focus:outline-none prose prose-slate max-w-none text-sm leading-relaxed"
           style={{ wordBreak: 'break-word' }}
         />

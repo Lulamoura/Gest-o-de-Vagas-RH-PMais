@@ -12,6 +12,9 @@ ROOT = Path(__file__).resolve().parents[1]
 HOOK = (ROOT / "pocketbase/hooks/requisition_wordpress_draft.js").read_text(encoding="utf-8")
 SERVICE = (ROOT / "src/services/requisitions.ts").read_text(encoding="utf-8")
 PAGE = (ROOT / "src/pages/RequisitionDetail.tsx").read_text(encoding="utf-8")
+RICH_EDITOR = (ROOT / "src/components/RichTextEditor.tsx").read_text(encoding="utf-8")
+IRIS_PUBLIC_HTML_PATH = ROOT / "src/lib/iris-public-html.ts"
+IRIS_PUBLIC_HTML = IRIS_PUBLIC_HTML_PATH.read_text(encoding="utf-8") if IRIS_PUBLIC_HTML_PATH.exists() else ""
 
 
 def require(source: str, pattern: str, message: str) -> None:
@@ -168,6 +171,56 @@ def test_frontend_review_contract() -> None:
             raise AssertionError(f"frontend service contract missing {field}")
     for state in ("irisTitle", "irisText", "irisInternalProfile"):
         require(PAGE, rf"value=\{{{state}\}}[\s\S]{{0,150}}onChange=", f"{state} is no longer human-editable")
+    require(
+        PAGE,
+        r"<RichTextEditor\s+value=\{irisText\}[\s\S]{0,220}onChange=\{setIrisText\}[\s\S]{0,220}showHtmlToggle=\{false\}[\s\S]{0,220}sanitizeHtml=\{sanitizeIrisPublicHtml\}",
+        "public WordPress HTML must be shown in a sanitized visual rich-text editor",
+    )
+    forbid(
+        PAGE,
+        r"<Textarea\s+value=\{irisText\}",
+        "public WordPress HTML must not be exposed as literal tags in a textarea",
+    )
+    require(PAGE, r"sanitizeIrisPublicHtml\(suggestion\.descricao_publica\)", "generated public HTML must be sanitized before display")
+    require(RICH_EDITOR, r"showHtmlToggle\?:\s*boolean", "rich-text editor must support hiding raw HTML mode")
+    require(RICH_EDITOR, r"sanitizeHtml\?:\s*\(value:\s*string\)\s*=>\s*string", "rich-text editor must sanitize edited HTML")
+    require(
+        RICH_EDITOR,
+        r"const\s+emitEditorValue[\s\S]*?onChange\(cleanValue\)",
+        "rich-text editor must emit only sanitized HTML",
+    )
+    forbid(
+        RICH_EDITOR,
+        r"const\s+emitEditorValue\s*=\s*\(\)\s*=>\s*\{[^}]*editorRef\.current\.innerHTML\s*=",
+        "onInput sanitization must not rewrite innerHTML and reset the caret",
+    )
+    require(RICH_EDITOR, r"onBlur=\{normalizeEditorValue\}", "editor DOM must normalize after editing")
+    require(RICH_EDITOR, r"onKeyDown=\{handleEditorKeyDown\}", "editor must normalize line breaks without moving the caret")
+    require(RICH_EDITOR, r"onPaste=\{handleEditorPaste\}", "pasted HTML must be sanitized before insertion")
+    require(RICH_EDITOR, r"onDrop=\{handleEditorDrop\}", "dropped content must be intercepted before DOM insertion")
+    require(RICH_EDITOR, r"event\.preventDefault\(\)[\s\S]{0,600}dataTransfer\.getData\('text/html'\)[\s\S]{0,600}sanitizeHtml", "dropped HTML must be prevented and sanitized before insertion")
+    require(RICH_EDITOR, r"onBeforeInput=\{handleEditorBeforeInput\}", "drop beforeinput must fail closed")
+    require(RICH_EDITOR, r"inputType\s*===\s*'insertFromDrop'[\s\S]{0,120}preventDefault", "native drop insertion must be blocked")
+    require(IRIS_PUBLIC_HTML, r"DOMPurify\.sanitize", "Íris public HTML must use a vetted sanitizer")
+    require(IRIS_PUBLIC_HTML, r"ALLOWED_ATTR:\s*\[\]", "Íris public HTML must reject all HTML attributes")
+    expected_tags = {"p", "br", "strong", "b", "em", "i", "u", "s", "h2", "h3", "ul", "ol", "li"}
+    tag_block = re.search(r"const\s+IRIS_PUBLIC_HTML_TAGS\s*=\s*\[([\s\S]*?)\]\s*as const", IRIS_PUBLIC_HTML)
+    if not tag_block:
+        raise AssertionError("Íris sanitizer allowlist is missing")
+    actual_tags = set(re.findall(r"['\"]([a-z0-9]+)['\"]", tag_block.group(1)))
+    if actual_tags != expected_tags:
+        raise AssertionError(f"Íris sanitizer allowlist differs: {actual_tags!r}")
+    require(PAGE, r"sugestão expira em 15 minutos", "UI proof TTL must match the 900-second Gateway TTL")
+    require(
+        PAGE,
+        r"descricao_publica_iris:\s*irisText,",
+        "the exact sanitized HTML reviewed by RH must be sent to WordPress",
+    )
+    forbid(
+        PAGE,
+        r"descricao_publica_iris:\s*irisText\.trim\(\)",
+        "reviewed public HTML must not be silently changed during submission",
+    )
     if PAGE.count("createWordpressDraft(") != 1:
         raise AssertionError("unexpected legacy/direct WordPress mutation path in page")
     forbid(PAGE, r">\s*Criar vaga no WordPress\s*<", "old direct WordPress button returned")
