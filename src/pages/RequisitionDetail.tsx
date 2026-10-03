@@ -60,6 +60,12 @@ import {
 import type { RequisitionRecord } from '@/types'
 import { cn } from '@/lib/utils'
 
+const IRIS_REVIEW_LIMITS = {
+  title: 160,
+  publicText: 10000,
+  internalProfile: 8000,
+} as const
+
 export default function RequisitionDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -79,6 +85,7 @@ export default function RequisitionDetail() {
   const [irisSuggestion, setIrisSuggestion] = useState<IrisJobDescriptionSuggestion | null>(null)
   const [irisTitle, setIrisTitle] = useState('')
   const [irisText, setIrisText] = useState('')
+  const [irisInternalProfile, setIrisInternalProfile] = useState('')
   const [showIrisSuggestion, setShowIrisSuggestion] = useState(false)
   const [hasPendingChangeRequest, setHasPendingChangeRequest] = useState(false)
 
@@ -171,21 +178,30 @@ export default function RequisitionDetail() {
     }
   }
 
-  const handleCreateWordpressDraft = async (publicacaoIris?: {
-    titulo_publico_iris?: string
-    descricao_publica_iris?: string
-  }) => {
-    if (!id) return
+  const handleCreateWordpressDraft = async () => {
+    if (!id || !irisSuggestion) return
+    if (
+      irisTitle.trim().length > IRIS_REVIEW_LIMITS.title ||
+      irisText.trim().length > IRIS_REVIEW_LIMITS.publicText ||
+      irisInternalProfile.trim().length > IRIS_REVIEW_LIMITS.internalProfile
+    ) {
+      setWpError('Revise os limites de caracteres dos três campos antes de confirmar.')
+      return
+    }
     setWpLoading(true)
     setWpError(null)
     try {
-      await createWordpressDraft(id, publicacaoIris)
+      await createWordpressDraft(id, {
+        titulo_publico_iris: irisTitle.trim(),
+        descricao_publica_iris: irisText.trim(),
+        perfil_interno_triagem_iris: irisInternalProfile.trim(),
+        suggestion_proof: irisSuggestion.suggestion_proof,
+      })
       toast.success('Rascunho criado no WordPress!')
       setShowIrisSuggestion(false)
       loadReq()
     } catch (err: any) {
       setWpError(err?.message || 'Erro ao criar rascunho no WordPress')
-      loadReq()
     } finally {
       setWpLoading(false)
     }
@@ -197,8 +213,9 @@ export default function RequisitionDetail() {
     try {
       const suggestion = await suggestRequisitionJobDescription(id)
       setIrisSuggestion(suggestion)
-      setIrisTitle(suggestion.titulo_publico || '')
-      setIrisText(suggestion.texto_wordpress || '')
+      setIrisTitle(suggestion.titulo_publico)
+      setIrisText(suggestion.texto_wordpress)
+      setIrisInternalProfile(suggestion.perfil_interno_triagem)
       setShowIrisSuggestion(true)
       toast.success('Sugestão da Íris gerada para revisão do RH')
     } catch (err: any) {
@@ -301,16 +318,6 @@ export default function RequisitionDetail() {
               onClick={() => navigate(`/requisicoes/nova?duplicate=${req.id}`)}
             >
               <Copy className="h-4 w-4 mr-2" /> Duplicar
-            </Button>
-          )}
-          {req.status === 'Aprovada' && canManage && (
-            <Button variant="outline" disabled={wpLoading} onClick={handleCreateWordpressDraft}>
-              {wpLoading ? (
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              ) : (
-                <Globe className="h-4 w-4 mr-2" />
-              )}
-              Criar Vaga no WordPress
             </Button>
           )}
           {req.status === 'Aprovada' && canManage && (
@@ -596,16 +603,6 @@ export default function RequisitionDetail() {
           </DialogHeader>
           {irisSuggestion && (
             <div className="space-y-4">
-              {irisSuggestion.fallback && (
-                <Alert className="border-amber-300 bg-amber-50">
-                  <AlertCircle className="h-4 w-4 text-amber-600" />
-                  <AlertTitle className="text-amber-800">Sugestão sem geração avançada</AlertTitle>
-                  <AlertDescription className="text-amber-700">
-                    A Íris usou um modelo seguro de rascunho porque a geração avançada não
-                    respondeu.
-                  </AlertDescription>
-                </Alert>
-              )}
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Título público sugerido</p>
                 <Textarea
@@ -614,6 +611,16 @@ export default function RequisitionDetail() {
                   rows={2}
                   placeholder="Título público da vaga..."
                 />
+                <p
+                  className={cn(
+                    'text-xs mt-1',
+                    irisTitle.trim().length > IRIS_REVIEW_LIMITS.title
+                      ? 'text-rose-600'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {irisTitle.trim().length}/{IRIS_REVIEW_LIMITS.title} caracteres
+                </p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
@@ -625,23 +632,52 @@ export default function RequisitionDetail() {
                   rows={16}
                   className="font-mono text-xs whitespace-pre-wrap"
                 />
+                <p
+                  className={cn(
+                    'text-xs mt-1',
+                    irisText.trim().length > IRIS_REVIEW_LIMITS.publicText
+                      ? 'text-rose-600'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {irisText.trim().length}/{IRIS_REVIEW_LIMITS.publicText} caracteres
+                </p>
               </div>
-              {irisSuggestion.alerta_publicacao && irisSuggestion.alerta_publicacao.length > 0 && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertTitle>Cuidados antes de publicar</AlertTitle>
-                  <AlertDescription>
-                    <ul className="list-disc pl-5 mt-2 space-y-1">
-                      {irisSuggestion.alerta_publicacao.map((item) => (
-                        <li key={item}>{item}</li>
-                      ))}
-                    </ul>
-                  </AlertDescription>
-                </Alert>
-              )}
+              <div>
+                <p className="text-sm font-medium mb-1">Perfil interno para triagem</p>
+                <Textarea
+                  value={irisInternalProfile}
+                  onChange={(e) => setIrisInternalProfile(e.target.value)}
+                  rows={10}
+                  className="font-mono text-xs whitespace-pre-wrap"
+                  placeholder="Critérios internos, objetivos e verificáveis para análise curricular..."
+                />
+                <p className="text-xs text-amber-700 mt-1">
+                  Campo não público. Ele será salvo separadamente no WordPress e não fará parte da
+                  descrição pública da vaga.
+                </p>
+                <p
+                  className={cn(
+                    'text-xs mt-1',
+                    irisInternalProfile.trim().length > IRIS_REVIEW_LIMITS.internalProfile
+                      ? 'text-rose-600'
+                      : 'text-muted-foreground',
+                  )}
+                >
+                  {irisInternalProfile.trim().length}/{IRIS_REVIEW_LIMITS.internalProfile} caracteres
+                </p>
+              </div>
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Revisão humana obrigatória</AlertTitle>
+                <AlertDescription>
+                  Revise os três campos. Ao confirmar, o sistema criará somente um rascunho no
+                  WordPress; nenhuma vaga será publicada automaticamente.
+                </AlertDescription>
+              </Alert>
               <p className="text-xs text-muted-foreground">
-                Este rascunho usa dados da requisição e referências editoriais aprovadas. Revise
-                antes de criar o rascunho no WordPress.
+                Conteúdo gerado pelo perfil Hermes da Íris com a base governada de Pessoas. A
+                sugestão expira em 30 minutos; se expirar, gere novamente antes de confirmar.
               </p>
             </div>
           )}
@@ -654,20 +690,23 @@ export default function RequisitionDetail() {
             </Button>
             {req.status === 'Aprovada' && canManage && (
               <Button
-                onClick={() =>
-                  handleCreateWordpressDraft({
-                    titulo_publico_iris: irisTitle,
-                    descricao_publica_iris: irisText,
-                  })
+                onClick={handleCreateWordpressDraft}
+                disabled={
+                  wpLoading ||
+                  !irisTitle.trim() ||
+                  !irisText.trim() ||
+                  !irisInternalProfile.trim() ||
+                  irisTitle.trim().length > IRIS_REVIEW_LIMITS.title ||
+                  irisText.trim().length > IRIS_REVIEW_LIMITS.publicText ||
+                  irisInternalProfile.trim().length > IRIS_REVIEW_LIMITS.internalProfile
                 }
-                disabled={wpLoading || !irisText.trim()}
               >
                 {wpLoading ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 ) : (
                   <Globe className="h-4 w-4 mr-2" />
                 )}
-                Criar rascunho com esta descrição
+                Confirmar e criar somente o rascunho
               </Button>
             )}
           </DialogFooter>
