@@ -36,6 +36,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { ChangeRequestDialog } from '@/components/ChangeRequestDialog'
+import { RichTextEditor } from '@/components/RichTextEditor'
 import { RequisitionChangeRequests } from '@/components/RequisitionChangeRequests'
 import { getPriorityBadgeClass, formatDateBR } from '@/lib/status-utils'
 import {
@@ -59,6 +60,7 @@ import {
 } from '@/lib/requisition-utils'
 import type { RequisitionRecord } from '@/types'
 import { cn } from '@/lib/utils'
+import { sanitizeIrisPublicHtml } from '@/lib/iris-public-html'
 
 const IRIS_REVIEW_LIMITS = {
   title: 160,
@@ -193,7 +195,7 @@ export default function RequisitionDetail() {
     try {
       await createWordpressDraft(id, {
         titulo_publico_iris: irisTitle.trim(),
-        descricao_publica_iris: irisText.trim(),
+        descricao_publica_iris: irisText,
         perfil_interno_triagem_iris: irisInternalProfile.trim(),
         suggestion_proof: irisSuggestion.suggestion_proof,
       })
@@ -214,7 +216,7 @@ export default function RequisitionDetail() {
       const suggestion = await suggestRequisitionJobDescription(id)
       setIrisSuggestion(suggestion)
       setIrisTitle(suggestion.titulo_publico)
-      setIrisText(suggestion.texto_wordpress)
+      setIrisText(sanitizeIrisPublicHtml(suggestion.descricao_publica))
       setIrisInternalProfile(suggestion.perfil_interno_triagem)
       setShowIrisSuggestion(true)
       toast.success('Sugestão da Íris gerada para revisão do RH')
@@ -626,11 +628,12 @@ export default function RequisitionDetail() {
                 <p className="text-sm text-muted-foreground mb-1">
                   Texto para revisão e publicação
                 </p>
-                <Textarea
+                <RichTextEditor
                   value={irisText}
-                  onChange={(e) => setIrisText(e.target.value)}
-                  rows={16}
-                  className="font-mono text-xs whitespace-pre-wrap"
+                  onChange={setIrisText}
+                  placeholder="Texto público da vaga..."
+                  showHtmlToggle={false}
+                  sanitizeHtml={sanitizeIrisPublicHtml}
                 />
                 <p
                   className={cn(
@@ -678,7 +681,7 @@ export default function RequisitionDetail() {
               </Alert>
               <p className="text-xs text-muted-foreground">
                 Conteúdo gerado pelo perfil Hermes da Íris com a base governada de Pessoas. A
-                sugestão expira em 30 minutos; se expirar, gere novamente antes de confirmar.
+                sugestão expira em 15 minutos; se expirar, gere novamente antes de confirmar.
               </p>
             </div>
           )}
