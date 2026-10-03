@@ -103,6 +103,26 @@ def test_verified_wordpress_response_and_atomic_success() -> None:
     forbid(HOOK, r"history save failed", "history failure is still swallowed")
 
 
+def test_gateway_signed_atomic_commit_endpoint() -> None:
+    require(
+        HOOK,
+        r"/backend/v1/requisitions/\{id\}/wordpress-draft-commit",
+        "missing dedicated atomic WordPress commit endpoint",
+    )
+    require(HOOK, r"pmais_gv_wordpress_commit_v1", "missing commit schema version")
+    require(HOOK, r"X-PMais-Timestamp", "commit endpoint does not require a timestamp")
+    require(HOOK, r"X-PMais-Signature", "commit endpoint does not require a gateway signature")
+    require(HOOK, r"PMAIS_IRIS_GV_HMAC_SECRET", "commit endpoint lacks its server-side HMAC secret")
+    require(HOOK, r"canonicalCommitJson", "commit HMAC is not based on order-independent canonical JSON")
+    require(HOOK, r"proofExpiresAt\s*<=\s*nowSeconds", "commit endpoint does not expire proof at the exact deadline")
+    require(HOOK, r"reviewed_fields", "commit endpoint does not receive exact reviewed fields")
+    require(HOOK, r"wordpress_sync_date", "commit endpoint lacks an explicit signed Recife sync date")
+    require(HOOK, r"successRecord\.set\(['\"]wordpress_sync_date['\"],\s*wordpressSyncDate\)", "commit endpoint does not persist the signed Recife sync date")
+    require(HOOK, r"wordpress_http_status", "commit endpoint does not verify duplicate/status semantics")
+    require(HOOK, r"duplicate_local", "commit endpoint lacks idempotent local replay semantics")
+    require(HOOK, r"\$app\.runInTransaction", "commit endpoint does not persist atomically")
+
+
 def test_generation_response_contract() -> None:
     for token in (
         "pmais_iris_gv_rh_job_description_response_v1",

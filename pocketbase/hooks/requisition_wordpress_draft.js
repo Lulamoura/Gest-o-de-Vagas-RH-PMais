@@ -813,3 +813,359 @@ routerAdd(
   },
   $apis.requireAuth(),
 )
+
+var canonicalizeCommitValue = function (value) {
+  if (Array.isArray(value)) {
+    return value.map(function (item) {
+      return canonicalizeCommitValue(item)
+    })
+  }
+  if (value && typeof value === 'object') {
+    var normalized = {}
+    Object.keys(value)
+      .sort()
+      .forEach(function (key) {
+        normalized[key] = canonicalizeCommitValue(value[key])
+      })
+    return normalized
+  }
+  return value
+}
+
+var canonicalCommitJson = function (value) {
+  return JSON.stringify(canonicalizeCommitValue(value))
+}
+
+var exactObjectKeys = function (value, expected) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  var actual = Object.keys(value).sort()
+  var wanted = expected.slice().sort()
+  return JSON.stringify(actual) === JSON.stringify(wanted)
+}
+
+routerAdd(
+  'POST',
+  '/backend/v1/requisitions/{id}/wordpress-draft-commit',
+  (e) => {
+    var id = safeString(e.request.pathValue('id')).trim()
+    if (!/^[A-Za-z0-9_-]{1,160}$/.test(id)) {
+      return e.json(400, { ok: false, code: 'REQUISITION_ID_INVALID' })
+    }
+
+    var actor = authorizeRhOrAdmin(e)
+    if (!actor.ok) return e.forbiddenError(actor.message)
+    if (actor.user.getBool('verified') !== true || actor.user.getBool('disabled') === true) {
+      return e.json(403, { ok: false, code: 'GV_RH_ACTOR_INACTIVE' })
+    }
+    var activeFields = ['active', 'ativo', 'enabled']
+    for (var activeIndex = 0; activeIndex < activeFields.length; activeIndex++) {
+      try {
+        var activeValue = actor.user.get(activeFields[activeIndex])
+        if (activeValue !== null && typeof activeValue !== 'undefined' && activeValue !== true) {
+          return e.json(403, { ok: false, code: 'GV_RH_ACTOR_INACTIVE' })
+        }
+      } catch (_) {}
+    }
+
+    var requestBody = {}
+    try {
+      requestBody = e.requestInfo().body || {}
+      if (typeof requestBody === 'string') requestBody = JSON.parse(requestBody || '{}')
+    } catch (_) {
+      return e.json(400, { ok: false, code: 'WORDPRESS_COMMIT_REQUEST_INVALID' })
+    }
+    if (
+      !exactObjectKeys(requestBody, [
+        'schema_version',
+        'operation',
+        'requisition_id',
+        'actor_id',
+        'proof',
+        'reviewed_fields',
+        'reviewed_field_hashes',
+        'wordpress_sync_date',
+        'wordpress_http_status',
+        'wordpress_result',
+      ]) ||
+      requestBody.schema_version !== 'pmais_gv_wordpress_commit_v1' ||
+      requestBody.operation !== 'commit_wordpress_draft' ||
+      safeString(requestBody.requisition_id) !== id ||
+      safeString(requestBody.actor_id) !== actor.id
+    ) {
+      return e.json(400, { ok: false, code: 'WORDPRESS_COMMIT_REQUEST_INVALID' })
+    }
+
+    var gatewaySecret = safeString($secrets.get('PMAIS_IRIS_GV_HMAC_SECRET') || '').trim()
+    var timestamp = safeString(e.request.header.get('X-PMais-Timestamp') || '').trim()
+    var suppliedSignature = safeString(e.request.header.get('X-PMais-Signature') || '')
+      .trim()
+      .toLowerCase()
+    var nowSeconds = Math.floor(Date.now() / 1000)
+    if (!gatewaySecret || !/^\d{10}$/.test(timestamp) || Math.abs(nowSeconds - Number(timestamp)) > 300) {
+      return e.json(401, { ok: false, code: 'WORDPRESS_COMMIT_AUTH_INVALID' })
+    }
+    var expectedGatewaySignature = $security.hs256(
+      timestamp + '.' + canonicalCommitJson(requestBody),
+      gatewaySecret,
+    )
+    if (!constantTimeEqual(expectedGatewaySignature, suppliedSignature)) {
+      return e.json(401, { ok: false, code: 'WORDPRESS_COMMIT_AUTH_INVALID' })
+    }
+    var wordpressSyncDate = safeString(requestBody.wordpress_sync_date).trim()
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(wordpressSyncDate)) {
+      return e.json(400, { ok: false, code: 'WORDPRESS_COMMIT_DATE_INVALID' })
+    }
+
+    var proof = requestBody.proof || {}
+    var proofRequestId = safeString(proof.request_id).trim()
+    var proofVersion = safeString(proof.second_brain_version).trim()
+    var proofSecondBrainSha256 = safeString(proof.second_brain_sha256).trim().toLowerCase()
+    var proofSourceFingerprint = safeString(proof.source_fingerprint).trim().toLowerCase()
+    var proofExpiresAt = parseInt(proof.expires_at || 0, 10)
+    var proofSignature = safeString(proof.signature).trim().toLowerCase()
+    var sha256Pattern = /^[a-f0-9]{64}$/
+    if (
+      !exactObjectKeys(proof, [
+        'request_id',
+        'second_brain_version',
+        'second_brain_sha256',
+        'source_fingerprint',
+        'expires_at',
+        'signature',
+      ]) ||
+      !proofRequestId ||
+      !proofVersion ||
+      !sha256Pattern.test(proofSecondBrainSha256) ||
+      !sha256Pattern.test(proofSourceFingerprint) ||
+      !sha256Pattern.test(proofSignature) ||
+      !proofExpiresAt ||
+      proofExpiresAt <= nowSeconds ||
+      proofExpiresAt > nowSeconds + 900
+    ) {
+      return e.json(400, { ok: false, code: 'IRIS_SUGGESTION_EXPIRED' })
+    }
+    var proofSecret = safeString($secrets.get('PMAIS_IRIS_GV_PROOF_SECRET') || '').trim()
+    var proofCanonical =
+      id +
+      '\n' +
+      actor.id +
+      '\n' +
+      proofRequestId +
+      '\n' +
+      proofVersion +
+      '\n' +
+      proofSecondBrainSha256 +
+      '\n' +
+      proofSourceFingerprint +
+      '\n' +
+      String(proofExpiresAt)
+    if (!proofSecret || !constantTimeEqual($security.hs256(proofCanonical, proofSecret), proofSignature)) {
+      return e.json(403, { ok: false, code: 'IRIS_SUGGESTION_PROOF_INVALID' })
+    }
+
+    var reviewed = requestBody.reviewed_fields || {}
+    if (
+      !exactObjectKeys(reviewed, [
+        'titulo_publico',
+        'descricao_publica',
+        'perfil_interno_triagem',
+      ])
+    ) {
+      return e.json(400, { ok: false, code: 'WORDPRESS_COMMIT_REVIEW_INVALID' })
+    }
+    var publicTitle = safeString(reviewed.titulo_publico)
+    var publicDescription = safeString(reviewed.descricao_publica)
+    var internalProfile = safeString(reviewed.perfil_interno_triagem)
+    if (
+      !publicTitle ||
+      !publicDescription ||
+      !internalProfile ||
+      publicTitle.length > 160 ||
+      publicDescription.length > 10000 ||
+      internalProfile.length > 8000
+    ) {
+      return e.json(422, { ok: false, code: 'WORDPRESS_COMMIT_REVIEW_INVALID' })
+    }
+    var reviewedHashes = requestBody.reviewed_field_hashes || {}
+    if (
+      !exactObjectKeys(reviewedHashes, [
+        'titulo_sha256',
+        'descricao_publica_sha256',
+        'perfil_interno_sha256',
+      ]) ||
+      !constantTimeEqual(reviewedHashes.titulo_sha256, $security.sha256(publicTitle)) ||
+      !constantTimeEqual(
+        reviewedHashes.descricao_publica_sha256,
+        $security.sha256(publicDescription),
+      ) ||
+      !constantTimeEqual(reviewedHashes.perfil_interno_sha256, $security.sha256(internalProfile))
+    ) {
+      return e.json(409, { ok: false, code: 'WORDPRESS_COMMIT_HASH_MISMATCH' })
+    }
+
+    var wordpressStatus = Number(requestBody.wordpress_http_status || 0)
+    var wordpressResult = requestBody.wordpress_result || {}
+    var wordpressHashes = wordpressResult.verification_hashes || {}
+    var wordpressDuplicate = wordpressResult.duplicate === true
+    var wordpressJobId = safeString(wordpressResult.wordpress_job_id).trim()
+    var wordpressAdminUrl = safeString(wordpressResult.wordpress_admin_url).trim()
+    var exactAdminUrl =
+      'https://pmaisservicos.com.br/wp-admin/post.php?post=' +
+      wordpressJobId +
+      '&action=edit'
+    if (
+      !exactObjectKeys(wordpressResult, [
+        'ok',
+        'duplicate',
+        'verified',
+        'post_status',
+        'wordpress_job_id',
+        'wordpress_admin_url',
+        'verification_hashes',
+      ]) ||
+      wordpressResult.ok !== true ||
+      wordpressResult.verified !== true ||
+      wordpressResult.post_status !== 'draft' ||
+      !/^\d+$/.test(wordpressJobId) ||
+      wordpressAdminUrl !== exactAdminUrl ||
+      !exactObjectKeys(wordpressHashes, [
+        'titulo_sha256',
+        'descricao_publica_sha256',
+        'perfil_interno_sha256',
+      ]) ||
+      !constantTimeEqual(wordpressHashes.titulo_sha256, reviewedHashes.titulo_sha256) ||
+      !constantTimeEqual(
+        wordpressHashes.descricao_publica_sha256,
+        reviewedHashes.descricao_publica_sha256,
+      ) ||
+      !constantTimeEqual(
+        wordpressHashes.perfil_interno_sha256,
+        reviewedHashes.perfil_interno_sha256,
+      ) ||
+      !(
+        (wordpressStatus === 200 && wordpressDuplicate) ||
+        (wordpressStatus === 201 && !wordpressDuplicate)
+      )
+    ) {
+      return e.json(409, { ok: false, code: 'WORDPRESS_COMMIT_RESULT_INVALID' })
+    }
+
+    var requisition = null
+    try {
+      requisition = $app.findRecordById('requisitions', id)
+    } catch (_) {
+      return e.json(404, { ok: false, code: 'REQUISITION_NOT_FOUND' })
+    }
+    var currentStatus = requisition.getString('status')
+    if (currentStatus === 'Rascunho criado no WordPress') {
+      var localExact =
+        requisition.getString('wordpress_sync_status') === 'sucesso' &&
+        requisition.getString('wordpress_sync_date') === wordpressSyncDate &&
+        requisition.getString('wordpress_job_id') === wordpressJobId &&
+        requisition.getString('wordpress_admin_url') === wordpressAdminUrl
+      var historyExact = false
+      if (localExact) {
+        try {
+          var replayHistory = $app.findRecordsByFilter(
+            'requisition_history',
+            'requisition_id = "' + id + '" && usuario_id = "' + actor.id + '"',
+            '-created',
+            10,
+            0,
+          )
+          for (var replayIndex = 0; replayIndex < replayHistory.length; replayIndex++) {
+            var replayObservation = JSON.parse(replayHistory[replayIndex].getString('observacao') || '{}')
+            if (
+              replayObservation.proof_request_id === proofRequestId &&
+              replayObservation.second_brain_version === proofVersion &&
+              constantTimeEqual(
+                replayObservation.second_brain_sha256,
+                proofSecondBrainSha256,
+              ) &&
+              constantTimeEqual(
+                replayObservation.source_fingerprint,
+                proofSourceFingerprint,
+              ) &&
+              JSON.stringify(replayObservation.reviewed_field_hashes || {}) ===
+                JSON.stringify(reviewedHashes)
+            ) {
+              historyExact = true
+              break
+            }
+          }
+        } catch (_) {
+          historyExact = false
+        }
+      }
+      if (!localExact || !historyExact) {
+        return e.json(409, { ok: false, code: 'WORDPRESS_COMMIT_REPLAY_MISMATCH' })
+      }
+      return e.json(200, {
+        ok: true,
+        committed: true,
+        duplicate_local: true,
+        verified: true,
+        post_status: 'draft',
+        wordpress_job_id: wordpressJobId,
+      })
+    }
+    if (currentStatus !== 'Aprovada') {
+      return e.json(409, { ok: false, code: 'REQUISITION_NOT_APPROVED' })
+    }
+    var currentFingerprint = sourceFingerprint(buildSourceSnapshot(requisition)).toLowerCase()
+    if (!constantTimeEqual(currentFingerprint, proofSourceFingerprint)) {
+      return e.json(409, { ok: false, code: 'IRIS_SUGGESTION_STALE' })
+    }
+
+    var auditObservation = JSON.stringify({
+      schema_version: 'pmais_gv_wordpress_draft_audit_v1',
+      proof_request_id: proofRequestId,
+      second_brain_version: proofVersion,
+      second_brain_sha256: proofSecondBrainSha256,
+      source_fingerprint: proofSourceFingerprint,
+      reviewed_field_hashes: reviewedHashes,
+    })
+    try {
+      $app.runInTransaction((txApp) => {
+        var successRecord = txApp.findRecordById('requisitions', id)
+        if (successRecord.getString('status') !== 'Aprovada') {
+          throw new Error('REQUISITION_STATUS_CHANGED')
+        }
+        var txFingerprint = sourceFingerprint(buildSourceSnapshot(successRecord, txApp)).toLowerCase()
+        if (!constantTimeEqual(txFingerprint, proofSourceFingerprint)) {
+          throw new Error('REQUISITION_SOURCE_CHANGED')
+        }
+        successRecord.set('wordpress_sync_status', 'sucesso')
+        successRecord.set('wordpress_sync_date', wordpressSyncDate)
+        successRecord.set('wordpress_error_message', '')
+        successRecord.set('wordpress_job_id', wordpressJobId)
+        successRecord.set('wordpress_admin_url', wordpressAdminUrl)
+        successRecord.set('status', 'Rascunho criado no WordPress')
+
+        var historyCollection = txApp.findCollectionByNameOrId('requisition_history')
+        var historyRecord = new Record(historyCollection)
+        historyRecord.set('requisition_id', id)
+        historyRecord.set('usuario_id', actor.id)
+        historyRecord.set('status_anterior', 'Aprovada')
+        historyRecord.set('status_novo', 'Rascunho criado no WordPress')
+        historyRecord.set('acao', 'Rascunho criado no WordPress')
+        historyRecord.set('observacao', auditObservation)
+        txApp.save(successRecord)
+        txApp.save(historyRecord)
+      })
+    } catch (transactionError) {
+      logHookError('wordpress-draft-commit: atomic persistence failed', id, transactionError)
+      return e.json(500, { ok: false, code: 'WORDPRESS_COMMIT_TRANSACTION_FAILED' })
+    }
+
+    return e.json(200, {
+      ok: true,
+      committed: true,
+      duplicate_local: false,
+      verified: true,
+      post_status: 'draft',
+      wordpress_job_id: wordpressJobId,
+    })
+  },
+  $apis.requireAuth(),
+)
