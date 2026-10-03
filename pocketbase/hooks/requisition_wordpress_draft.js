@@ -156,11 +156,7 @@ var authorizeRhOrAdmin = function (e) {
     return { ok: false, message: 'Apenas RH ou administradores podem realizar esta ação.' }
   }
 
-  actorResult.profile = isAdmin
-    ? userProfile === 'superadmin'
-      ? 'superadmin'
-      : 'admin'
-    : 'rh'
+  actorResult.profile = isAdmin ? (userProfile === 'superadmin' ? 'superadmin' : 'admin') : 'rh'
   return actorResult
 }
 
@@ -248,13 +244,15 @@ var readJsonResponse = function (response) {
 
 var logHookError = function (scope, requisitionId, error) {
   try {
-    $app.logger().error(
-      scope,
-      'requisition_id',
-      requisitionId,
-      'error',
-      safeString((error && error.message) || error || 'unknown').substring(0, 500),
-    )
+    $app
+      .logger()
+      .error(
+        scope,
+        'requisition_id',
+        requisitionId,
+        'error',
+        safeString((error && error.message) || error || 'unknown').substring(0, 500),
+      )
   } catch (_) {}
 }
 
@@ -308,7 +306,10 @@ routerAdd(
       })
     }
     if (publicTitle.length > 160) {
-      return e.json(422, { ok: false, message: 'O título público deve ter no máximo 160 caracteres.' })
+      return e.json(422, {
+        ok: false,
+        message: 'O título público deve ter no máximo 160 caracteres.',
+      })
     }
     if (publicDescription.length > 10000) {
       return e.json(422, {
@@ -527,7 +528,8 @@ routerAdd(
       logHookError('wordpress-draft: response integrity verification failed', id, '')
       return e.json(502, {
         ok: false,
-        message: 'O WordPress não comprovou a integridade exata do rascunho. Nada foi salvo localmente.',
+        message:
+          'O WordPress não comprovou a integridade exata do rascunho. Nada foi salvo localmente.',
       })
     }
 

@@ -35,7 +35,10 @@ export interface WordpressDraftPublicacaoIris {
   suggestion_proof: IrisSuggestionProof
 }
 
-export const createWordpressDraft = async (id: string, publicacaoIris: WordpressDraftPublicacaoIris) =>
+export const createWordpressDraft = async (
+  id: string,
+  publicacaoIris: WordpressDraftPublicacaoIris,
+) =>
   pb.send<WordpressDraftResult>(`/backend/v1/requisitions/${id}/wordpress-draft`, {
     method: 'POST',
     body: JSON.stringify({ publicacao_iris: publicacaoIris }),

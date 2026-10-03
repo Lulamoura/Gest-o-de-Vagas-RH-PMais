@@ -664,7 +664,8 @@ export default function RequisitionDetail() {
                       : 'text-muted-foreground',
                   )}
                 >
-                  {irisInternalProfile.trim().length}/{IRIS_REVIEW_LIMITS.internalProfile} caracteres
+                  {irisInternalProfile.trim().length}/{IRIS_REVIEW_LIMITS.internalProfile}{' '}
+                  caracteres
                 </p>
               </div>
               <Alert>
