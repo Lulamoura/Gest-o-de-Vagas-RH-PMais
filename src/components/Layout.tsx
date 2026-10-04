@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { Button } from '@/components/ui/button'
@@ -30,8 +31,11 @@ import {
   ClipboardCheck,
   ClipboardList,
   TrendingUp,
+  MessageSquareText,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { canAccessCurriculumFeedback } from '@/lib/curriculum-feedback'
+import { CurriculumFeedbackModal } from '@/components/CurriculumFeedbackModal'
 import { NotificationCenter } from '@/components/NotificationCenter'
 import logoImage from '@/assets/logo-fundo-branco-c5f7d.png'
 
@@ -160,8 +164,15 @@ function SidebarHeaderLogo() {
 }
 
 export function Layout() {
-  const { user, isAdmin, isSuperAdmin } = useAuth()
+  const { user, isAdmin, isSuperAdmin, isRH } = useAuth()
   const location = useLocation()
+  const [feedbackOpen, setFeedbackOpen] = useState(false)
+  const canUseCurriculumFeedback = canAccessCurriculumFeedback({
+    isRH,
+    isAdmin,
+    isSuperAdmin,
+    profile: user?.profile,
+  })
 
   const navItems = [
     { label: 'Painel', path: '/dashboard', icon: LayoutDashboard },
@@ -284,6 +295,19 @@ export function Layout() {
                 PMais RH Ativo
               </div>
 
+              {canUseCurriculumFeedback && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setFeedbackOpen(true)}
+                  className="h-8 gap-2 px-2.5 text-xs"
+                >
+                  <MessageSquareText className="h-4 w-4" />
+                  <span>Feedback curricular</span>
+                </Button>
+              )}
+
               <NotificationCenter />
 
               <div className="h-6 w-[1px] bg-slate-200 hidden sm:block" />
@@ -310,6 +334,9 @@ export function Layout() {
           </footer>
         </SidebarInset>
       </div>
+      {canUseCurriculumFeedback && (
+        <CurriculumFeedbackModal open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      )}
     </SidebarProvider>
   )
 }
