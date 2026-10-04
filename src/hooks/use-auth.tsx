@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { getDepartamentos } from '@/services/departamentos'
+import { isRhDepartmentName } from '@/lib/auth'
 import { UserRecord } from '@/types'
 
 interface AuthContextType {
@@ -99,7 +100,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const isAdmin = user?.profile === 'admin'
   const isOperator = user?.profile === 'operator' || isAdmin
   const isSuperAdmin = user?.profile === 'superadmin'
-  const isRH = user?.expand?.departamento?.nome === 'rh'
+  const isRH = isRhDepartmentName(user?.expand?.departamento?.nome)
   const canEditVacancy = isAdmin || isSuperAdmin
   const canManageUsers = isAdmin || isSuperAdmin
   const canIntegrateCandidate =

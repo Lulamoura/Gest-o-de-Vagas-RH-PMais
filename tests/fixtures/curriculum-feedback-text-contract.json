@@ -1,0 +1,151 @@
+[
+  {
+    "name": "perception rejects a lone high surrogate from exact JSON escape",
+    "field": "perception",
+    "value": { "json_escape": "abc\\ud83d" },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  },
+  {
+    "name": "understanding rejects a lone low surrogate from exact JSON escape",
+    "field": "understanding",
+    "value": { "json_escape": "\\ude00" },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  },
+  {
+    "name": "justification rejects a malformed surrogate sequence from exact JSON escapes",
+    "field": "justification",
+    "value": { "json_escape": "\\ud83dA\\ude00" },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  },
+  {
+    "name": "complement rejects an ill-formed surrogate from exact JSON escape",
+    "field": "complement",
+    "confirmation": "complemented",
+    "value": { "json_escape": "\\ude00" },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  },
+  {
+    "name": "perception preserves a valid astral surrogate pair from exact JSON escapes",
+    "field": "perception",
+    "value": { "json_escape": "a\\ud83d\\ude00" },
+    "valid": true
+  },
+  {
+    "name": "understanding preserves a valid astral surrogate pair from exact JSON escapes",
+    "field": "understanding",
+    "value": { "json_escape": "\\ud83d\\ude00" },
+    "valid": true
+  },
+  {
+    "name": "justification preserves a valid astral surrogate pair from exact JSON escapes",
+    "field": "justification",
+    "value": { "json_escape": "\\ud83d\\ude00" },
+    "valid": true
+  },
+  {
+    "name": "complement preserves a valid astral surrogate pair from exact JSON escapes",
+    "field": "complement",
+    "confirmation": "complemented",
+    "value": { "json_escape": "\\ud83d\\ude00" },
+    "valid": true
+  },
+  {
+    "name": "perception whitespace-only",
+    "field": "perception",
+    "value": { "literal": "   \n\t" },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  },
+  {
+    "name": "perception padded below minimum",
+    "field": "perception",
+    "value": { "literal": "  ab  " },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  },
+  {
+    "name": "perception one astral emoji is two UTF-16 units",
+    "field": "perception",
+    "value": { "literal": "😀" },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  },
+  {
+    "name": "perception two astral emoji are four UTF-16 units",
+    "field": "perception",
+    "value": { "token": "😀", "repeat": 2 },
+    "valid": true
+  },
+  {
+    "name": "perception padded trimmed astral maximum",
+    "field": "perception",
+    "value": { "prefix": "  ", "token": "😀", "repeat": 2000, "suffix": "  " },
+    "valid": true
+  },
+  {
+    "name": "perception padded trimmed ASCII maximum",
+    "field": "perception",
+    "value": { "prefix": "  ", "token": "x", "repeat": 4000, "suffix": "  " },
+    "valid": true
+  },
+  {
+    "name": "perception trimmed astral over maximum",
+    "field": "perception",
+    "value": { "token": "😀", "repeat": 2001 },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  },
+  {
+    "name": "understanding whitespace-only",
+    "field": "understanding",
+    "value": { "literal": " \n " },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  },
+  {
+    "name": "understanding padded trimmed astral maximum",
+    "field": "understanding",
+    "value": { "prefix": " ", "token": "😀", "repeat": 2000, "suffix": " " },
+    "valid": true
+  },
+  {
+    "name": "justification whitespace-only",
+    "field": "justification",
+    "value": { "literal": "\t \n" },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  },
+  {
+    "name": "justification padded trimmed astral maximum",
+    "field": "justification",
+    "value": { "prefix": " ", "token": "😀", "repeat": 2000, "suffix": " " },
+    "valid": true
+  },
+  {
+    "name": "complemented whitespace-only",
+    "field": "complement",
+    "confirmation": "complemented",
+    "value": { "literal": " \n\t " },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_CONFIRMATION_INVALID"
+  },
+  {
+    "name": "complement raw astral maximum",
+    "field": "complement",
+    "confirmation": "complemented",
+    "value": { "token": "😀", "repeat": 2000 },
+    "valid": true
+  },
+  {
+    "name": "complement raw astral over maximum",
+    "field": "complement",
+    "confirmation": "complemented",
+    "value": { "token": "😀", "repeat": 2001 },
+    "valid": false,
+    "expected_code": "CURRICULUM_FEEDBACK_FIELD_INVALID"
+  }
+]
