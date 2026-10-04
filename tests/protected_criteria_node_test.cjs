@@ -24,7 +24,7 @@ vm.runInContext(source, context, { filename: 'requisition_wordpress_draft.js' })
 
 assert.equal(typeof context.findProtectedCriterion, 'function')
 assert.equal(typeof context.normalizeProtectedCriteriaText, 'function')
-assert.equal(routes.length, 2)
+assert.equal(routes.length, 3)
 
 const cases = [
   ['age', 'Ter ATÉ 30 anos'],
