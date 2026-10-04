@@ -1,20 +1,25 @@
 import pb from '@/lib/pocketbase/client'
+import { resolveIrisGvBrowserAdapterBaseUrl } from '@/services/irisAdapterUrl'
 import { RequisitionRecord } from '@/types'
 
 const EXPAND = 'solicitante,cliente,cargo,cidade,tipo_vaga,tipo_contrato,departamento'
-const IRIS_GV_BROWSER_ADAPTER_BASE_URL = 'https://agents.pmaisservicos.com.br/preview/iris-gv'
 
 interface BrowserAdapterErrorBody {
   detail?: { code?: string; message?: string } | string
   message?: string
 }
 
-const irisBrowserAdapterRequest = async <T>(path: string, body: unknown): Promise<T> => {
+export const irisBrowserAdapterRequest = async <T>(
+  path: string,
+  body: unknown,
+  origin: string = window.location.origin,
+): Promise<T> => {
+  const baseUrl = resolveIrisGvBrowserAdapterBaseUrl(origin)
   const token = pb.authStore.token
   if (!token) {
     throw new Error('Sua sessão expirou. Entre novamente para usar a Íris.')
   }
-  const response = await fetch(`${IRIS_GV_BROWSER_ADAPTER_BASE_URL}${path}`, {
+  const response = await fetch(`${baseUrl}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
