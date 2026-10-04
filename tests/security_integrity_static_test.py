@@ -11,6 +11,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 HOOK = (ROOT / "pocketbase/hooks/requisition_wordpress_draft.js").read_text(encoding="utf-8")
 SERVICE = (ROOT / "src/services/requisitions.ts").read_text(encoding="utf-8")
+IRIS_ADAPTER_URL = (ROOT / "src/services/irisAdapterUrl.ts").read_text(encoding="utf-8")
+FRONTEND_TRANSPORT = SERVICE + "\n" + IRIS_ADAPTER_URL
 PAGE = (ROOT / "src/pages/RequisitionDetail.tsx").read_text(encoding="utf-8")
 RICH_EDITOR = (ROOT / "src/components/RichTextEditor.tsx").read_text(encoding="utf-8")
 IRIS_PUBLIC_HTML_PATH = ROOT / "src/lib/iris-public-html.ts"
@@ -101,6 +103,26 @@ def test_verified_wordpress_response_and_atomic_success() -> None:
     for content_variable in ("publicTitle", "publicDescription", "internalProfile"):
         forbid(observation.group(1), content_variable, "audit observation contains reviewed content")
     forbid(HOOK, r"history save failed", "history failure is still swallowed")
+
+
+def test_gateway_signed_atomic_commit_endpoint() -> None:
+    require(
+        HOOK,
+        r"/backend/v1/requisitions/\{id\}/wordpress-draft-commit",
+        "missing dedicated atomic WordPress commit endpoint",
+    )
+    require(HOOK, r"pmais_gv_wordpress_commit_v1", "missing commit schema version")
+    require(HOOK, r"X-PMais-Timestamp", "commit endpoint does not require a timestamp")
+    require(HOOK, r"X-PMais-Signature", "commit endpoint does not require a gateway signature")
+    require(HOOK, r"PMAIS_IRIS_GV_HMAC_SECRET", "commit endpoint lacks its server-side HMAC secret")
+    require(HOOK, r"canonicalCommitJson", "commit HMAC is not based on order-independent canonical JSON")
+    require(HOOK, r"proofExpiresAt\s*<=\s*nowSeconds", "commit endpoint does not expire proof at the exact deadline")
+    require(HOOK, r"reviewed_fields", "commit endpoint does not receive exact reviewed fields")
+    require(HOOK, r"wordpress_sync_date", "commit endpoint lacks an explicit signed Recife sync date")
+    require(HOOK, r"successRecord\.set\(['\"]wordpress_sync_date['\"],\s*wordpressSyncDate\)", "commit endpoint does not persist the signed Recife sync date")
+    require(HOOK, r"wordpress_http_status", "commit endpoint does not verify duplicate/status semantics")
+    require(HOOK, r"duplicate_local", "commit endpoint lacks idempotent local replay semantics")
+    require(HOOK, r"\$app\.runInTransaction", "commit endpoint does not persist atomically")
 
 
 def test_generation_response_contract() -> None:
@@ -226,17 +248,21 @@ def test_frontend_review_contract() -> None:
     forbid(PAGE, r">\s*Criar vaga no WordPress\s*<", "old direct WordPress button returned")
 
 
-def test_frontend_uses_preview_browser_adapter() -> None:
+def test_frontend_routes_browser_adapter_by_exact_environment() -> None:
     expected_fragments = (
         "https://agents.pmaisservicos.com.br/preview/iris-gv",
+        "https://agents.pmaisservicos.com.br/pessoas/iris/gv",
+        "https://vagaspmais.pmaisservicos.com.br",
         "/v1/pessoas/iris/gv-rh/browser/requisitions/",
         "/job-description-package",
         "/wordpress-draft",
         "pb.authStore.token",
-        "Authorization: `Bearer ${token}`",
+        "Authorization:",
+        "${token}",
+        "IRIS_GV_BROWSER_ORIGIN_NOT_ALLOWED",
     )
     for fragment in expected_fragments:
-        if fragment not in SERVICE:
+        if fragment not in FRONTEND_TRANSPORT:
             raise AssertionError(f"frontend browser adapter contract missing {fragment}")
     for legacy_route in (
         "/backend/v1/iris/requisitions/",
