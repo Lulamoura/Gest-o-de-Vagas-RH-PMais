@@ -6,6 +6,7 @@ import {
   updateUser,
   deleteUser,
   requestPasswordReset,
+  setUserAtivo,
 } from '@/services/users'
 import { getDepartamentos } from '@/services/departamentos'
 import { UserRecord, UserProfile, DepartamentoRecord } from '@/types'
@@ -41,7 +42,7 @@ import {
 import { Label } from '@/components/ui/label'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { toast } from 'sonner'
-import { UserCheck, PlusCircle, Pencil, Trash2, Shield, X, KeyRound } from 'lucide-react'
+import { PlusCircle, Pencil, Trash2, X, KeyRound, UserCheck, UserX } from 'lucide-react'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { useRealtime } from '@/hooks/use-realtime'
 
@@ -71,6 +72,10 @@ export default function Users() {
   const [userToReset, setUserToReset] = useState<UserRecord | null>(null)
   const [resetDialogOpen, setResetDialogOpen] = useState(false)
   const [resetting, setResetting] = useState(false)
+
+  const [userToToggleAtivo, setUserToToggleAtivo] = useState<UserRecord | null>(null)
+  const [toggleAtivoDialogOpen, setToggleAtivoDialogOpen] = useState(false)
+  const [togglingAtivo, setTogglingAtivo] = useState(false)
 
   const loadData = async () => {
     try {
@@ -194,6 +199,35 @@ export default function Users() {
     setResetDialogOpen(true)
   }
 
+  const promptToggleAtivo = (u: UserRecord) => {
+    setUserToToggleAtivo(u)
+    setToggleAtivoDialogOpen(true)
+  }
+
+  const handleConfirmToggleAtivo = async () => {
+    if (!userToToggleAtivo) return
+    const novoStatus = userToToggleAtivo.ativo === false ? true : false
+    setTogglingAtivo(true)
+    try {
+      await setUserAtivo(userToToggleAtivo.id, novoStatus)
+      toast.success(
+        novoStatus
+          ? `Usuário ${userToToggleAtivo.name} ativado com sucesso!`
+          : `Usuário ${userToToggleAtivo.name} desativado com sucesso!`,
+      )
+      setToggleAtivoDialogOpen(false)
+      setUserToToggleAtivo(null)
+      loadData()
+    } catch (err) {
+      toast.error(
+        getErrorMessage(err) ||
+          `Erro ao ${novoStatus ? 'ativar' : 'desativar'} usuário. Tente novamente.`,
+      )
+    } finally {
+      setTogglingAtivo(false)
+    }
+  }
+
   const handleConfirmResetPassword = async () => {
     if (!userToReset || !userToReset.email) return
     setResetting(true)
@@ -269,8 +303,25 @@ export default function Users() {
                 </TableRow>
               ) : (
                 usersList.map((u) => (
-                  <TableRow key={u.id} className="hover:bg-slate-50">
-                    <TableCell className="font-bold text-slate-900 text-sm">{u.name}</TableCell>
+                  <TableRow
+                    key={u.id}
+                    className={`hover:bg-slate-50 ${u.ativo === false ? 'bg-slate-50/60 opacity-80' : ''}`}
+                  >
+                    <TableCell className="font-bold text-slate-900 text-sm">
+                      <div className="flex items-center gap-2">
+                        <span>{u.name}</span>
+                        <Badge
+                          variant="outline"
+                          className={
+                            u.ativo === false
+                              ? 'bg-slate-100 text-slate-600 border-slate-300 text-[10px] px-1.5 py-0 font-medium'
+                              : 'bg-emerald-50 text-emerald-700 border-emerald-200 text-[10px] px-1.5 py-0 font-medium'
+                          }
+                        >
+                          {u.ativo === false ? 'Inativo' : 'Ativo'}
+                        </Badge>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-xs text-slate-600">{u.email}</TableCell>
                     <TableCell>
                       <Badge
@@ -302,6 +353,23 @@ export default function Users() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => promptToggleAtivo(u)}
+                          title={u.ativo === false ? 'Ativar Acesso' : 'Desativar Acesso'}
+                          className={`h-8 w-8 ${
+                            u.ativo === false
+                              ? 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50'
+                              : 'text-amber-600 hover:text-amber-700 hover:bg-amber-50'
+                          }`}
+                        >
+                          {u.ativo === false ? (
+                            <UserCheck className="h-4 w-4" />
+                          ) : (
+                            <UserX className="h-4 w-4" />
+                          )}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="icon"
@@ -489,6 +557,26 @@ export default function Users() {
         variant="primary"
         loading={resetting}
         onConfirm={handleConfirmResetPassword}
+      />
+
+      <ConfirmDialog
+        open={toggleAtivoDialogOpen}
+        onOpenChange={setToggleAtivoDialogOpen}
+        title={
+          userToToggleAtivo?.ativo === false
+            ? 'Ativar Acesso do Usuário'
+            : 'Desativar Acesso do Usuário'
+        }
+        description={
+          userToToggleAtivo?.ativo === false
+            ? `Deseja reativar o acesso de ${userToToggleAtivo?.name || 'usuário'} (${userToToggleAtivo?.email})? O usuário voltará a ter acesso ao sistema.`
+            : `Deseja desativar o acesso de ${userToToggleAtivo?.name || 'usuário'} (${userToToggleAtivo?.email})? O usuário não poderá mais acessar o sistema. O histórico e os registros vinculados a ele serão preservados.`
+        }
+        confirmText={userToToggleAtivo?.ativo === false ? 'Reativar Usuário' : 'Desativar Usuário'}
+        cancelText="Cancelar"
+        variant={userToToggleAtivo?.ativo === false ? 'primary' : 'destructive'}
+        loading={togglingAtivo}
+        onConfirm={handleConfirmToggleAtivo}
       />
     </div>
   )

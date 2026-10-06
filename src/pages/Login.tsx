@@ -49,7 +49,16 @@ export default function Login() {
     setLoading(false)
 
     if (err) {
-      setError('Email ou senha inválidos. Verifique suas credenciais.')
+      const msg = err?.message || ''
+      if (
+        msg.includes('Usuário inativo') ||
+        err?.response?.message?.includes('Usuário inativo') ||
+        err?.data?.message?.includes('Usuário inativo')
+      ) {
+        setError('Usuário inativo. Contate o administrador.')
+      } else {
+        setError('Email ou senha inválidos. Verifique suas credenciais.')
+      }
     } else {
       navigate('/dashboard')
     }

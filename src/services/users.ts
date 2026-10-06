@@ -15,9 +15,11 @@ export const createUser = async (data: {
   passwordConfirm?: string
   profile?: 'admin' | 'operator' | 'viewer' | 'superadmin'
   departamento?: string
+  ativo?: boolean
 }) => {
   return pb.collection<UserRecord>('users').create({
     ...data,
+    ativo: data.ativo ?? true,
     passwordConfirm: data.passwordConfirm || data.password,
   })
 }
@@ -28,6 +30,20 @@ export const updateUser = async (
   params?: { expand?: string },
 ) => {
   return pb.collection<UserRecord>('users').update(id, data, params)
+}
+
+/**
+ * Altera o status ativo/inativo de um usuário.
+ * Ao desativar, se for o próprio usuário logado, limpa o authStore.
+ */
+export const setUserAtivo = async (id: string, ativo: boolean) => {
+  const updated = await pb
+    .collection<UserRecord>('users')
+    .update(id, { ativo }, { expand: 'departamento' })
+  if (!ativo && pb.authStore.record?.id === id) {
+    pb.authStore.clear()
+  }
+  return updated
 }
 
 export const deleteUser = async (id: string) => {

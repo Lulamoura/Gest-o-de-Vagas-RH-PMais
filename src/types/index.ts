@@ -8,6 +8,7 @@ export interface UserRecord extends RecordModel {
   profile?: UserProfile
   email: string
   departamento?: string
+  ativo?: boolean
   expand?: {
     departamento?: DepartamentoRecord
   }
