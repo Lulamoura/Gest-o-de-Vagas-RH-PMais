@@ -9,6 +9,7 @@ export interface UserRecord extends RecordModel {
   email: string
   departamento?: string
   ativo?: boolean
+  permitir_acesso_fora_pmais?: boolean
   expand?: {
     departamento?: DepartamentoRecord
   }
@@ -184,6 +185,8 @@ export interface CandidatoConsultaJuridicaRecord extends RecordModel {
 
 export interface SystemParameterRecord extends RecordModel {
   prazo_alerta_dias: number
+  restringir_acesso_fora_pmais?: boolean
+  redes_autorizadas_pmais?: string
   nome_remetente?: string
   email_remetente?: string
   slogan_pmais?: string

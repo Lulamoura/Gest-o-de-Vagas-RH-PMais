@@ -6,9 +6,9 @@ import {
   updateUser,
   deleteUser,
   requestPasswordReset,
-  setUserAtivo,
 } from '@/services/users'
 import { getDepartamentos } from '@/services/departamentos'
+import { setRemoteAccessPermission, setUserActiveStatus } from '@/services/access-control'
 import { UserRecord, UserProfile, DepartamentoRecord } from '@/types'
 import { useAuth } from '@/hooks/use-auth'
 import { formatDateBR } from '@/lib/status-utils'
@@ -40,6 +40,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 import { Label } from '@/components/ui/label'
+import { Switch } from '@/components/ui/switch'
 import { extractFieldErrors, getErrorMessage, type FieldErrors } from '@/lib/pocketbase/errors'
 import { toast } from 'sonner'
 import { PlusCircle, Pencil, Trash2, X, KeyRound, UserCheck, UserX } from 'lucide-react'
@@ -62,6 +63,7 @@ export default function Users() {
   const [password, setPassword] = useState('')
   const [profile, setProfile] = useState<UserProfile>('viewer')
   const [departamento, setDepartamento] = useState<string>('')
+  const [permitirAcessoRemoto, setPermitirAcessoRemoto] = useState(false)
   const [saving, setSaving] = useState(false)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
 
@@ -128,6 +130,7 @@ export default function Users() {
     setPassword('')
     setProfile('operator')
     setDepartamento('')
+    setPermitirAcessoRemoto(false)
     setFieldErrors({})
     setModalOpen(true)
   }
@@ -139,6 +142,7 @@ export default function Users() {
     setPassword('')
     setProfile(u.profile || 'viewer')
     setDepartamento(u.departamento || '')
+    setPermitirAcessoRemoto(u.permitir_acesso_fora_pmais === true)
     setFieldErrors({})
     setModalOpen(true)
   }
@@ -167,7 +171,15 @@ export default function Users() {
         if (isSuperAdmin) {
           updateData.departamento = departamento || null
         }
+        const remotePermissionChanged =
+          isSuperAdmin && editingUser.permitir_acesso_fora_pmais !== permitirAcessoRemoto
+        if (remotePermissionChanged && !permitirAcessoRemoto) {
+          await setRemoteAccessPermission(editingUser.id, false)
+        }
         await updateUser(editingUser.id, updateData, { expand: 'departamento' })
+        if (remotePermissionChanged && permitirAcessoRemoto) {
+          await setRemoteAccessPermission(editingUser.id, true)
+        }
         toast.success('Usuário atualizado com sucesso!')
       } else {
         if (!password) {
@@ -175,7 +187,18 @@ export default function Users() {
           setSaving(false)
           return
         }
-        await createUser({ name, email, password, profile, departamento })
+        const createData: Parameters<typeof createUser>[0] = {
+          name,
+          email,
+          password,
+          profile,
+          permitir_acesso_fora_pmais: false,
+        }
+        if (isSuperAdmin) createData.departamento = departamento
+        const createdUser = await createUser(createData)
+        if (isSuperAdmin && permitirAcessoRemoto) {
+          await setRemoteAccessPermission(createdUser.id, true)
+        }
         toast.success('Usuário criado com sucesso!')
       }
       setModalOpen(false)
@@ -209,7 +232,7 @@ export default function Users() {
     const novoStatus = userToToggleAtivo.ativo === false ? true : false
     setTogglingAtivo(true)
     try {
-      await setUserAtivo(userToToggleAtivo.id, novoStatus)
+      await setUserActiveStatus(userToToggleAtivo.id, novoStatus)
       toast.success(
         novoStatus
           ? `Usuário ${userToToggleAtivo.name} ativado com sucesso!`
@@ -518,6 +541,28 @@ export default function Users() {
                 </p>
               )}
             </div>
+
+            {isSuperAdmin && (
+              <div className="flex items-center justify-between rounded-md border border-slate-200 p-3">
+                <div className="space-y-0.5">
+                  <Label
+                    htmlFor="permitirAcessoRemoto"
+                    className="text-xs font-bold text-slate-700"
+                  >
+                    Permitir acesso fora da PMais
+                  </Label>
+                  <p className="text-[11px] text-slate-500">
+                    Exige código enviado ao e-mail cadastrado quando a restrição global estiver
+                    ativa.
+                  </p>
+                </div>
+                <Switch
+                  id="permitirAcessoRemoto"
+                  checked={permitirAcessoRemoto}
+                  onCheckedChange={setPermitirAcessoRemoto}
+                />
+              </div>
+            )}
 
             <DialogFooter className="pt-3">
               <Button type="button" variant="outline" onClick={() => setModalOpen(false)}>

@@ -1,6 +1,13 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react'
 import pb from '@/lib/pocketbase/client'
 import { getDepartamentos } from '@/services/departamentos'
+import {
+  resendRemoteAccessCode,
+  startAccessLogin,
+  validateAccessSession,
+  verifyRemoteAccessCode,
+} from '@/services/access-control'
+import type { RemoteMfaChallengeResponse } from '@/services/access-control'
 import { isRhDepartmentName } from '@/lib/auth'
 import { UserRecord } from '@/types'
 
@@ -14,7 +21,14 @@ interface AuthContextType {
   canEditVacancy: boolean
   canManageUsers: boolean
   canIntegrateCandidate: boolean
-  signIn: (email: string, password: string) => Promise<{ error: any }>
+  signIn: (
+    email: string,
+    password: string,
+  ) => Promise<{ error: unknown; challenge?: RemoteMfaChallengeResponse }>
+  verifyRemoteCode: (challengeId: string, code: string) => Promise<{ error: unknown }>
+  resendRemoteCode: (
+    challengeId: string,
+  ) => Promise<{ error: unknown; challenge?: RemoteMfaChallengeResponse }>
   signOut: () => void
   loading: boolean
 }
@@ -44,10 +58,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     })
 
     if (pb.authStore.isValid) {
-      pb.collection('users')
-        .authRefresh({}, { expand: 'departamento' })
-        .then((res) => {
-          setUser(res.record as unknown as UserRecord)
+      validateAccessSession()
+        .then((record) =>
+          pb.collection('users').getOne(record.id, {
+            expand: 'departamento',
+          }),
+        )
+        .then((record) => {
+          setUser(record as unknown as UserRecord)
         })
         .catch(() => {
           if (!isSigningInRef.current) {
@@ -74,19 +92,51 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       .catch(() => {})
   }, [isAuthenticated])
 
+  const loadAuthenticatedUser = async (recordId: string) => {
+    const record = await pb.collection('users').getOne(recordId, { expand: 'departamento' })
+    setUser(record as unknown as UserRecord)
+    setIsAuthenticated(true)
+  }
+
   const signIn = async (email: string, password: string) => {
     isSigningInRef.current = true
     try {
-      const authData = await pb.collection('users').authWithPassword(email, password, {
-        expand: 'departamento',
-      })
-      setUser(authData.record as unknown as UserRecord)
-      setIsAuthenticated(true)
+      const response = await startAccessLogin(email, password)
+      if (response.type === 'remote_mfa_required') {
+        return { error: null, challenge: response }
+      }
+      await loadAuthenticatedUser(response.record.id)
       return { error: null }
     } catch (error) {
+      pb.authStore.clear()
+      setUser(null)
       return { error }
     } finally {
       isSigningInRef.current = false
+    }
+  }
+
+  const verifyRemoteCode = async (challengeId: string, code: string) => {
+    isSigningInRef.current = true
+    try {
+      const response = await verifyRemoteAccessCode(challengeId, code)
+      await loadAuthenticatedUser(response.record.id)
+      return { error: null }
+    } catch (error) {
+      pb.authStore.clear()
+      setUser(null)
+      return { error }
+    } finally {
+      isSigningInRef.current = false
+    }
+  }
+
+  const resendRemoteCode = async (challengeId: string) => {
+    try {
+      const challenge = await resendRemoteAccessCode(challengeId)
+      return { error: null, challenge }
+    } catch (error) {
+      return { error }
     }
   }
 
@@ -124,6 +174,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         canManageUsers,
         canIntegrateCandidate,
         signIn,
+        verifyRemoteCode,
+        resendRemoteCode,
         signOut,
         loading,
       }}

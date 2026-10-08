@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import type { RemoteMfaChallengeResponse } from '@/services/access-control'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/hooks/use-auth'
 import { requestPasswordReset } from '@/services/users'
@@ -31,37 +32,97 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [challenge, setChallenge] = useState<RemoteMfaChallengeResponse | null>(null)
+  const [otpCode, setOtpCode] = useState('')
+  const [resendSeconds, setResendSeconds] = useState(0)
 
   // Forgot password modal state
   const [forgotModalOpen, setForgotModalOpen] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   const [forgotLoading, setForgotLoading] = useState(false)
 
-  const { signIn } = useAuth()
+  const { signIn, verifyRemoteCode, resendRemoteCode } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (resendSeconds <= 0) return
+    const timer = window.setInterval(() => {
+      setResendSeconds((current) => Math.max(0, current - 1))
+    }, 1000)
+    return () => window.clearInterval(timer)
+  }, [resendSeconds])
+
+  const getErrorMessage = (err: unknown) => {
+    if (!err || typeof err !== 'object') return ''
+    const value = err as {
+      message?: string
+      response?: { message?: string }
+      data?: { message?: string }
+    }
+    return value.response?.message || value.data?.message || value.message || ''
+  }
+
+  const presentLoginError = (err: unknown) => {
+    const message = getErrorMessage(err)
+    if (message.includes('Acesso remoto não autorizado')) {
+      setError('Acesso remoto não autorizado')
+    } else if (message.includes('Usuário inativo')) {
+      setError('Usuário inativo. Contate o administrador.')
+    } else {
+      setError('Email ou senha inválidos. Verifique suas credenciais.')
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
-    const { error: err } = await signIn(email, password)
+    const result = await signIn(email, password)
     setLoading(false)
 
-    if (err) {
-      const msg = err?.message || ''
-      if (
-        msg.includes('Usuário inativo') ||
-        err?.response?.message?.includes('Usuário inativo') ||
-        err?.data?.message?.includes('Usuário inativo')
-      ) {
-        setError('Usuário inativo. Contate o administrador.')
-      } else {
-        setError('Email ou senha inválidos. Verifique suas credenciais.')
-      }
+    if (result.error) {
+      presentLoginError(result.error)
+    } else if (result.challenge) {
+      setChallenge(result.challenge)
+      setPassword('')
+      setResendSeconds(result.challenge.resendAfter)
     } else {
       navigate('/dashboard')
     }
+  }
+
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!challenge || !/^\d{6}$/.test(otpCode)) {
+      setError('Informe o código numérico de seis dígitos.')
+      return
+    }
+    setError(null)
+    setLoading(true)
+    const result = await verifyRemoteCode(challenge.challengeId, otpCode)
+    setLoading(false)
+    if (result.error) {
+      setError('Código inválido ou expirado.')
+      return
+    }
+    navigate('/dashboard')
+  }
+
+  const handleResend = async () => {
+    if (!challenge || resendSeconds > 0 || loading) return
+    setError(null)
+    setLoading(true)
+    const result = await resendRemoteCode(challenge.challengeId)
+    setLoading(false)
+    if (result.error || !result.challenge) {
+      setError('Não foi possível reenviar o código. Tente novamente.')
+      return
+    }
+    setChallenge(result.challenge)
+    setOtpCode('')
+    setResendSeconds(result.challenge.resendAfter)
+    toast.success('Novo código enviado ao e-mail cadastrado.')
   }
 
   const handleOpenForgotPassword = () => {
@@ -81,7 +142,7 @@ export default function Login() {
       await requestPasswordReset(forgotEmail.trim())
       toast.success(`E-mail de redefinição enviado para ${forgotEmail.trim()}`)
       setForgotModalOpen(false)
-    } catch (err: any) {
+    } catch {
       // Por segurança e padrão PB, se o email não existir ou falhar
       toast.error(
         'Não foi possível enviar o e-mail de recuperação. Verifique o endereço e tente novamente.',
@@ -106,11 +167,13 @@ export default function Login() {
             PMais RH — Módulo de Vagas
           </CardTitle>
           <CardDescription className="text-slate-400 text-sm">
-            Acesse o sistema para gestão de vagas, pipeline de candidatos e indicadores.
+            {challenge
+              ? `Digite o código enviado para ${challenge.maskedEmail}.`
+              : 'Acesse o sistema para gestão de vagas, pipeline de candidatos e indicadores.'}
           </CardDescription>
         </CardHeader>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={challenge ? handleOtpSubmit : handleSubmit}>
           <CardContent className="space-y-4 pt-4">
             {error && (
               <Alert variant="destructive" className="bg-rose-950/50 border-rose-800 text-rose-300">
@@ -119,48 +182,74 @@ export default function Login() {
               </Alert>
             )}
 
-            <div className="space-y-2">
-              <Label htmlFor="email" className="text-slate-200">
-                Email Corporativo
-              </Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="usuario@pmaisservicos.com.br"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-9 bg-slate-900 border-slate-800 text-slate-100 placeholder:text-slate-500 focus-visible:ring-indigo-500"
-                  required
-                />
-              </div>
-            </div>
+            {!challenge ? (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-slate-200">
+                    Email Corporativo
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="usuario@pmaisservicos.com.br"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-9 bg-slate-900 border-slate-800 text-slate-100 placeholder:text-slate-500 focus-visible:ring-indigo-500"
+                      required
+                    />
+                  </div>
+                </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-slate-200">
-                Senha
-              </Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
-                <Input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-9 pr-10 bg-slate-900 border-slate-800 text-slate-100 placeholder:text-slate-500 focus-visible:ring-indigo-500"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-3 text-slate-400 hover:text-slate-200"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-slate-200">
+                    Senha
+                  </Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="pl-9 pr-10 bg-slate-900 border-slate-800 text-slate-100 placeholder:text-slate-500 focus-visible:ring-indigo-500"
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-3 text-slate-400 hover:text-slate-200"
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="space-y-2">
+                <Label htmlFor="otp-code" className="text-slate-200">
+                  Código de acesso
+                </Label>
+                <div className="relative">
+                  <KeyRound className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                  <Input
+                    id="otp-code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
+                    value={otpCode}
+                    onChange={(event) => setOtpCode(event.target.value.replace(/\D/g, ''))}
+                    className="pl-9 bg-slate-900 border-slate-800 text-slate-100 tracking-[0.4em] focus-visible:ring-indigo-500"
+                    required
+                    autoFocus
+                  />
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
 
           <CardFooter className="pt-2 pb-6 flex flex-col space-y-3">
@@ -169,17 +258,49 @@ export default function Login() {
               disabled={loading}
               className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2.5 rounded-lg shadow-md transition-all flex items-center justify-center space-x-2"
             >
-              <span>{loading ? 'Entrando...' : 'Entrar no Módulo'}</span>
+              <span>
+                {loading
+                  ? challenge
+                    ? 'Validando...'
+                    : 'Entrando...'
+                  : challenge
+                    ? 'Validar código'
+                    : 'Entrar no Módulo'}
+              </span>
               {!loading && <ArrowRight className="h-4 w-4" />}
             </Button>
 
-            <button
-              type="button"
-              onClick={handleOpenForgotPassword}
-              className="text-xs text-slate-400 hover:text-indigo-400 hover:underline transition-colors focus:outline-none"
-            >
-              Esqueci minha senha
-            </button>
+            {challenge ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={loading || resendSeconds > 0}
+                  className="text-xs text-slate-400 hover:text-indigo-400 disabled:opacity-50 transition-colors"
+                >
+                  {resendSeconds > 0 ? `Reenviar código em ${resendSeconds}s` : 'Reenviar código'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChallenge(null)
+                    setOtpCode('')
+                    setError(null)
+                  }}
+                  className="text-xs text-slate-400 hover:text-indigo-400 transition-colors"
+                >
+                  Voltar ao login
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handleOpenForgotPassword}
+                className="text-xs text-slate-400 hover:text-indigo-400 hover:underline transition-colors focus:outline-none"
+              >
+                Esqueci minha senha
+              </button>
+            )}
           </CardFooter>
         </form>
       </Card>

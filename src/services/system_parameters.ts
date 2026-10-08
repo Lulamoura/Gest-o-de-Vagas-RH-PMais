@@ -10,6 +10,8 @@ export const getSystemParameters = async (): Promise<SystemParameterRecord | nul
 
 export const createSystemParameters = (data: {
   prazo_alerta_dias: number
+  restringir_acesso_fora_pmais?: boolean
+  redes_autorizadas_pmais?: string
   nome_remetente?: string
   email_remetente?: string
   slogan_pmais?: string
@@ -24,6 +26,8 @@ export const updateSystemParameters = (
   id: string,
   data: Partial<{
     prazo_alerta_dias: number
+    restringir_acesso_fora_pmais: boolean
+    redes_autorizadas_pmais: string
     nome_remetente: string
     email_remetente: string
     slogan_pmais: string
