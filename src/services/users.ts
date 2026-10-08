@@ -16,6 +16,7 @@ export const createUser = async (data: {
   profile?: 'admin' | 'operator' | 'viewer' | 'superadmin'
   departamento?: string
   ativo?: boolean
+  permitir_acesso_fora_pmais?: boolean
 }) => {
   return pb.collection<UserRecord>('users').create({
     ...data,

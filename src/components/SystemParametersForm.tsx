@@ -3,15 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  createSystemParameters,
-  updateSystemParameters,
-  deleteSystemParameters,
-} from '@/services/system_parameters'
+import { Switch } from '@/components/ui/switch'
+import { updateSystemParameters } from '@/services/system_parameters'
 import { useSystemParameters } from '@/hooks/use-system-parameters'
 import { toast } from 'sonner'
-import { Save, Trash2, Settings } from 'lucide-react'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
+import { Save, Settings } from 'lucide-react'
+import { setRemoteAccessSettings } from '@/services/access-control'
 import type { FieldErrors } from '@/lib/pocketbase/errors'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -41,6 +38,26 @@ function validateSingleEmail(value: string): string | null {
   return null
 }
 
+function validateOfficeNetworks(value: string): string | null {
+  const networks = value
+    .split(/[\n,]+/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+  if (networks.length === 0) return 'Informe ao menos uma rede da PMais.'
+  for (const network of networks) {
+    const match = network.match(/^(\d{1,3}(?:\.\d{1,3}){3})\/(\d{1,2})$/)
+    if (!match) return `Rede inválida: ${network}`
+    const octets = match[1].split('.').map(Number)
+    const prefix = Number(match[2])
+    if (octets.some((octet) => octet < 0 || octet > 255) || prefix !== 32) {
+      return `Rede inválida: ${network}`
+    }
+    const canonical = `${octets.join('.')}/${prefix}`
+    if (canonical !== network) return `Use o formato canônico da rede: ${canonical}`
+  }
+  return null
+}
+
 export function SystemParametersForm() {
   const { parameters, refresh } = useSystemParameters()
   const [prazoAlertaDias, setPrazoAlertaDias] = useState('30')
@@ -50,11 +67,11 @@ export function SystemParametersForm() {
   const [emailDpLista, setEmailDpLista] = useState('')
   const [emailOperacionalLista, setEmailOperacionalLista] = useState('')
   const [emailComercial, setEmailComercial] = useState('')
+  const [restringirAcessoRedePmais, setRestringirAcessoRedePmais] = useState(false)
+  const [redesPmaisAutorizadas, setRedesPmaisAutorizadas] = useState('143.208.130.134/32')
   const [saving, setSaving] = useState(false)
   const [recordId, setRecordId] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({})
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
-  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     if (parameters) {
@@ -67,6 +84,8 @@ export function SystemParametersForm() {
         parameters.email_operacional_lista || parameters.email_operacional || '',
       )
       setEmailComercial(parameters.email_comercial || '')
+      setRestringirAcessoRedePmais(parameters.restringir_acesso_fora_pmais === true)
+      setRedesPmaisAutorizadas(parameters.redes_autorizadas_pmais || '143.208.130.134/32')
       setRecordId(parameters.id)
     } else {
       setPrazoAlertaDias('30')
@@ -76,6 +95,8 @@ export function SystemParametersForm() {
       setEmailDpLista('')
       setEmailOperacionalLista('')
       setEmailComercial('')
+      setRestringirAcessoRedePmais(false)
+      setRedesPmaisAutorizadas('143.208.130.134/32')
       setRecordId(null)
     }
   }, [parameters])
@@ -90,6 +111,8 @@ export function SystemParametersForm() {
     if (opErr) errors.email_operacional_lista = opErr
     const comErr = validateCommaEmails(emailComercial)
     if (comErr) errors.email_comercial = comErr
+    const networksErr = validateOfficeNetworks(redesPmaisAutorizadas)
+    if (networksErr) errors.redes_autorizadas_pmais = networksErr
     setFieldErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -107,6 +130,10 @@ export function SystemParametersForm() {
     }
     setSaving(true)
     try {
+      const officeNetworks = redesPmaisAutorizadas
+        .split(/[\n,]+/)
+        .map((item) => item.trim())
+        .filter(Boolean)
       const data = {
         prazo_alerta_dias: dias,
         nome_remetente: nomeRemetente,
@@ -116,40 +143,15 @@ export function SystemParametersForm() {
         email_operacional_lista: emailOperacionalLista,
         email_comercial: emailComercial,
       }
-      if (recordId) {
-        await updateSystemParameters(recordId, data)
-      } else {
-        await createSystemParameters(data)
-      }
+      if (!recordId) throw new Error('Parâmetros de segurança não encontrados.')
+      await updateSystemParameters(recordId, data)
+      await setRemoteAccessSettings(restringirAcessoRedePmais, officeNetworks)
       toast.success('Parâmetros salvos com sucesso!')
       refresh()
     } catch {
       toast.error('Erro ao salvar parâmetros.')
     } finally {
       setSaving(false)
-    }
-  }
-
-  const handleConfirmDelete = async () => {
-    if (!recordId) return
-    setDeleting(true)
-    try {
-      await deleteSystemParameters(recordId)
-      setRecordId(null)
-      setPrazoAlertaDias('30')
-      setNomeRemetente('')
-      setEmailRemetente('')
-      setSloganPmais('')
-      setEmailDpLista('')
-      setEmailOperacionalLista('')
-      setEmailComercial('')
-      toast.success('Parâmetros excluídos com sucesso.')
-      setDeleteDialogOpen(false)
-      refresh()
-    } catch {
-      toast.error('Erro ao excluir parâmetros.')
-    } finally {
-      setDeleting(false)
     }
   }
 
@@ -160,19 +162,47 @@ export function SystemParametersForm() {
           <Settings className="h-4 w-4 text-indigo-600" />
           <span>Parâmetros do Sistema</span>
         </CardTitle>
-        {recordId && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => setDeleteDialogOpen(true)}
-            className="text-rose-600 hover:text-rose-700"
-          >
-            <Trash2 className="h-4 w-4 mr-1" /> Excluir
-          </Button>
-        )}
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSave} className="space-y-4 max-w-lg">
+          <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-4">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label
+                  htmlFor="restringirAcessoRedePmais"
+                  className="text-xs font-bold text-slate-800"
+                >
+                  Restringir acesso à rede da PMais
+                </Label>
+                <p className="mt-1 text-xs text-slate-600">
+                  Fora dessas redes, somente usuários autorizados poderão entrar com código por
+                  e-mail.
+                </p>
+              </div>
+              <Switch
+                id="restringirAcessoRedePmais"
+                checked={restringirAcessoRedePmais}
+                onCheckedChange={setRestringirAcessoRedePmais}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="redesPmaisAutorizadas" className="text-xs font-bold text-slate-700">
+                Redes públicas da PMais
+              </Label>
+              <textarea
+                id="redesPmaisAutorizadas"
+                value={redesPmaisAutorizadas}
+                onChange={(event) => setRedesPmaisAutorizadas(event.target.value)}
+                className="min-h-20 w-full rounded-md border border-slate-300 bg-white px-3 py-2 font-mono text-sm"
+                placeholder="143.208.130.134/32"
+              />
+              {fieldErrors.redes_autorizadas_pmais && (
+                <p className="text-xs text-red-500">{fieldErrors.redes_autorizadas_pmais}</p>
+              )}
+              <p className="text-xs text-slate-500">Uma rede IPv4 por linha, no formato CIDR.</p>
+            </div>
+          </div>
+
           <div className="space-y-1.5">
             <Label className="text-xs font-bold text-slate-700">
               Prazo em dias para alerta de Ação Necessária
@@ -305,18 +335,6 @@ export function SystemParametersForm() {
           </Button>
         </form>
       </CardContent>
-
-      <ConfirmDialog
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-        title="Confirmação de Exclusão"
-        description="Excluir parâmetros do sistema? Os valores padrão serão restaurados."
-        confirmText="Confirmar"
-        cancelText="Cancelar"
-        variant="destructive"
-        loading={deleting}
-        onConfirm={handleConfirmDelete}
-      />
     </Card>
   )
 }
