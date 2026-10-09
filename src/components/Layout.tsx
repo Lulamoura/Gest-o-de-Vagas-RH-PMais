@@ -18,6 +18,7 @@ import {
 } from '@/components/ui/sidebar'
 import {
   LayoutDashboard,
+  LayoutGrid,
   Briefcase,
   Users,
   UserCheck,
@@ -176,6 +177,7 @@ export function Layout() {
 
   const navItems = [
     { label: 'Painel', path: '/dashboard', icon: LayoutDashboard },
+    { label: 'Mural de Vagas', path: '/mural-vagas', icon: LayoutGrid },
     { label: 'Vagas', path: '/vagas', icon: Briefcase },
     { label: 'Candidatos', path: '/candidatos', icon: Users },
     { label: 'Requisições', path: '/requisicoes', icon: ClipboardList },
@@ -193,6 +195,7 @@ export function Layout() {
 
   const getPageTitle = (pathname: string) => {
     if (pathname === '/' || pathname === '/dashboard') return 'Painel de Indicadores'
+    if (pathname.startsWith('/mural-vagas')) return 'Mural de Vagas'
     if (pathname.startsWith('/vagas/nova')) return 'Nova Vaga'
     if (pathname.includes('/editar')) return 'Editar Vaga'
     if (pathname.startsWith('/vagas/')) return 'Detalhes da Vaga'

@@ -11,6 +11,7 @@ import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Reports from './pages/Reports'
 import Vacancies from './pages/Vacancies'
+import MuralVagas from './pages/MuralVagas'
 import VacancyDetail from './pages/VacancyDetail'
 import VacancyForm from './pages/VacancyForm'
 import Candidates from './pages/Candidates'
@@ -47,6 +48,7 @@ const App = () => (
               <Route element={<Layout />}>
                 <Route path="/" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/mural-vagas" element={<MuralVagas />} />
                 <Route path="/vagas" element={<Vacancies />} />
                 <Route path="/vagas/nova" element={<VacancyForm />} />
                 <Route path="/vagas/:id" element={<VacancyDetail />} />
