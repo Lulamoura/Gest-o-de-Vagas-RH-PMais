@@ -17,9 +17,58 @@ routerAdd(
     const candidateEmail = candidate.getString('email')
     if (!candidateEmail) return e.badRequestError('Candidato não possui e-mail cadastrado')
 
-    const dataIntegracao = candidate.getString('data_integracao')
-    const horaIntegracao = candidate.getString('hora_integracao') || ''
-    const tipoIntegracao = candidate.getString('tipo_integracao') || ''
+    const dataIntegracao = (candidate.getString('data_integracao') || '').trim()
+    const horaIntegracao = (candidate.getString('hora_integracao') || '').trim()
+    const tipoIntegracao = (candidate.getString('tipo_integracao') || '').trim()
+
+    // Validação 1: Data da integração obrigatória
+    if (!dataIntegracao) {
+      return e.badRequestError(
+        'Preencha a data da integração antes de enviar o aviso ao candidato.',
+      )
+    }
+
+    // Validação 3: Tipo On-line → exigir data e horário preenchidos
+    if (tipoIntegracao === 'On-line' && !horaIntegracao) {
+      return e.badRequestError(
+        'Preencha o horário da integração antes de enviar o aviso ao candidato.',
+      )
+    }
+
+    // Resolução da base de integração para Tipo Presencial
+    let baseNome = ''
+    let baseEndereco = ''
+    let baseTelefone = ''
+    let baseContato = ''
+
+    if (tipoIntegracao === 'Presencial') {
+      if (body.base_id) {
+        try {
+          const base = $app.findRecordById('base_integracao', body.base_id)
+          baseNome = (base.getString('nome') || '').trim()
+          baseEndereco = (base.getString('endereco') || '').trim()
+          baseTelefone = (base.getString('telefone') || '').trim()
+          baseContato = (base.getString('pessoa_contato') || '').trim()
+        } catch (_) {}
+      } else {
+        try {
+          const bases = $app.findRecordsByFilter('base_integracao', '', 'created', 1, 0)
+          if (bases.length > 0) {
+            baseNome = (bases[0].getString('nome') || '').trim()
+            baseEndereco = (bases[0].getString('endereco') || '').trim()
+            baseTelefone = (bases[0].getString('telefone') || '').trim()
+            baseContato = (bases[0].getString('pessoa_contato') || '').trim()
+          }
+        } catch (_) {}
+      }
+
+      // Validação 2: Tipo Presencial → local obrigatório (base de integração com endereço resolvida)
+      if (!baseNome || !baseEndereco) {
+        return e.badRequestError(
+          'Preencha o local (base) da integração antes de enviar o aviso ao candidato.',
+        )
+      }
+    }
 
     let dataFormatada = ''
     if (dataIntegracao) {
@@ -48,31 +97,6 @@ routerAdd(
 
     let detalheIntegracao = ''
     if (tipoIntegracao === 'Presencial') {
-      let baseNome = ''
-      let baseEndereco = ''
-      let baseTelefone = ''
-      let baseContato = ''
-
-      if (body.base_id) {
-        try {
-          const base = $app.findRecordById('base_integracao', body.base_id)
-          baseNome = base.getString('nome') || ''
-          baseEndereco = base.getString('endereco') || ''
-          baseTelefone = base.getString('telefone') || ''
-          baseContato = base.getString('pessoa_contato') || ''
-        } catch (_) {}
-      } else {
-        try {
-          const bases = $app.findRecordsByFilter('base_integracao', '', 'created', 1, 0)
-          if (bases.length > 0) {
-            baseNome = bases[0].getString('nome') || ''
-            baseEndereco = bases[0].getString('endereco') || ''
-            baseTelefone = bases[0].getString('telefone') || ''
-            baseContato = bases[0].getString('pessoa_contato') || ''
-          }
-        } catch (_) {}
-      }
-
       detalheIntegracao = '<p><strong>Tipo de Integração:</strong> Presencial</p>'
       if (dataFormatada) detalheIntegracao += '<p><strong>Data:</strong> ' + dataFormatada + '</p>'
       if (horaIntegracao)
