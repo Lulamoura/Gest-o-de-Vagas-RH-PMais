@@ -41,7 +41,9 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
 
     var vacancyId = ''
     var vacancyRecord = null
-    var requestedSkipVacancyId = body.skip_vaga_id ? String(body.skip_vaga_id).trim() : ''
+    var requestedSkipVacancyId = body.skip_vaga_id
+      ? String(body.skip_vaga_id).trim()
+      : ''
     var requestedWordpressVacancyId = body.wordpress_vaga_id
       ? String(body.wordpress_vaga_id).trim()
       : ''
@@ -74,7 +76,7 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
         vacancyByWordpressId = $app.findFirstRecordByFilter(
           'vacancies',
           'wordpress_job_id = {:jobId}',
-          requestedWordpressVacancyId,
+          { jobId: requestedWordpressVacancyId },
         )
       } catch (vacErr2) {
         writeLog(requestedWordpressVacancyId, 'erro', 'Vaga não encontrada no SKIP')
@@ -85,11 +87,7 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
         })
       }
       if (vacancyRecord && vacancyRecord.id !== vacancyByWordpressId.id) {
-        writeLog(
-          wordpressCandidaturaId,
-          'erro',
-          'Identificadores de vaga apontam para destinos diferentes',
-        )
+        writeLog(wordpressCandidaturaId, 'erro', 'Identificadores de vaga apontam para destinos diferentes')
         return e.json(409, {
           ok: false,
           code: 'pmais_gv_vacancy_conflict',
@@ -169,8 +167,7 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
     var cidade = body.cidade ? String(body.cidade).trim() : ''
     var ranking = body.ranking || body.ranking === 0 ? Number(body.ranking) : null
     var requestedClosedVacancyOverride = body.confirm_closed_vacancy === true
-    var confirmedClosedVacancy =
-      vacancySummary.requires_confirmation && requestedClosedVacancyOverride
+    var confirmedClosedVacancy = vacancySummary.requires_confirmation && requestedClosedVacancyOverride
     var overrideReason = body.closed_vacancy_override_reason
       ? String(body.closed_vacancy_override_reason).trim().slice(0, 500)
       : ''
@@ -182,7 +179,11 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
       : ''
 
     if (vacancySummary.requires_confirmation && !confirmedClosedVacancy) {
-      writeLog(wordpressCandidaturaId, 'erro', 'Envio bloqueado: vaga não está aberta no GV')
+      writeLog(
+        wordpressCandidaturaId,
+        'erro',
+        'Envio bloqueado: vaga não está aberta no GV',
+      )
       return e.json(409, {
         ok: false,
         code: 'pmais_gv_vacancy_closed',
@@ -211,7 +212,8 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
 
     if (confirmedClosedVacancy) {
       var suppliedOverrideToken = e.request.header.get('X-PMais-Override-Token') || ''
-      var expectedOverrideToken = $secrets.get('WORDPRESS_CLOSED_VACANCY_OVERRIDE_TOKEN') || ''
+      var expectedOverrideToken =
+        $secrets.get('WORDPRESS_CLOSED_VACANCY_OVERRIDE_TOKEN') || ''
       if (
         !expectedOverrideToken ||
         expectedOverrideToken === expectedToken ||
@@ -229,12 +231,10 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
           vacancy: vacancySummary,
         })
       }
-      var expectedOverrideActorId = (
-        $secrets.get('WORDPRESS_CLOSED_VACANCY_OVERRIDE_ACTOR_ID') || ''
-      ).trim()
-      var expectedOverrideActorLogin = (
-        $secrets.get('WORDPRESS_CLOSED_VACANCY_OVERRIDE_ACTOR_LOGIN') || ''
-      ).trim()
+      var expectedOverrideActorId =
+        ($secrets.get('WORDPRESS_CLOSED_VACANCY_OVERRIDE_ACTOR_ID') || '').trim()
+      var expectedOverrideActorLogin =
+        ($secrets.get('WORDPRESS_CLOSED_VACANCY_OVERRIDE_ACTOR_LOGIN') || '').trim()
       if (
         !expectedOverrideActorId ||
         !expectedOverrideActorLogin ||
@@ -384,11 +384,7 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
       })
     }
     if (transactionResult.kind === 'closed') {
-      writeLog(
-        wordpressCandidaturaId,
-        'erro',
-        'Envio bloqueado após releitura: vaga não está aberta no GV',
-      )
+      writeLog(wordpressCandidaturaId, 'erro', 'Envio bloqueado após releitura: vaga não está aberta no GV')
       return e.json(409, {
         ok: false,
         code: 'pmais_gv_vacancy_closed',
