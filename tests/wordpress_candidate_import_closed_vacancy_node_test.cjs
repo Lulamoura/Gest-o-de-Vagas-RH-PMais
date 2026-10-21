@@ -60,9 +60,11 @@ const app = {
     if ((collection === 'cargos' || collection === 'clientes') && relations[id]) return relations[id]
     throw new Error('not found')
   },
-  findFirstRecordByFilter(collection, filter, ...params) {
+  findFirstRecordByFilter(collection, filter, params) {
     if (collection === 'vacancies' && filter.includes('wordpress_job_id')) {
-      const found = Object.values(vacancies).find((item) => item.getString('wordpress_job_id') === String(params[0]))
+      assert.equal(typeof params, 'object')
+      assert.equal(Array.isArray(params), false)
+      const found = Object.values(vacancies).find((item) => item.getString('wordpress_job_id') === String(params.jobId))
       if (found) return found
     }
     throw new Error('not found')

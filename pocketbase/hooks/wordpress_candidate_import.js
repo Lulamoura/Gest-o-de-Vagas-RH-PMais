@@ -76,7 +76,7 @@ routerAdd('POST', '/backend/v1/candidatos/wordpress', (e) => {
         vacancyByWordpressId = $app.findFirstRecordByFilter(
           'vacancies',
           'wordpress_job_id = {:jobId}',
-          requestedWordpressVacancyId,
+          { jobId: requestedWordpressVacancyId },
         )
       } catch (vacErr2) {
         writeLog(requestedWordpressVacancyId, 'erro', 'Vaga não encontrada no SKIP')
