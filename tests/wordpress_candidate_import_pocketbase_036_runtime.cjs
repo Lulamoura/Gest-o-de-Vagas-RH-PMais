@@ -200,6 +200,21 @@ async function main() {
       requires_confirmation: false,
     })
 
+    const openByWordpressId = await request(`${baseUrl}/backend/v1/candidatos/wordpress`, { method: 'POST', headers: auth }, {
+      preflight: true,
+      wordpress_vaga_id: '74074',
+    })
+    assert.equal(openByWordpressId.status, 200, openByWordpressId.raw)
+    assert.deepEqual(openByWordpressId.body.vacancy, open.body.vacancy)
+
+    const openByBothIds = await request(`${baseUrl}/backend/v1/candidatos/wordpress`, { method: 'POST', headers: auth }, {
+      preflight: true,
+      skip_vaga_id: 'vacancyopen0001',
+      wordpress_vaga_id: '74074',
+    })
+    assert.equal(openByBothIds.status, 200, openByBothIds.raw)
+    assert.deepEqual(openByBothIds.body.vacancy, open.body.vacancy)
+
     const candidate = {
       wordpress_candidatura_id: 'runtime-closed-1',
       nome: 'Pessoa teste',
