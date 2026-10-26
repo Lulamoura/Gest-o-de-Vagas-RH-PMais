@@ -88,6 +88,109 @@ const setupMigration = `migrate(
     parameter.set('prazo_alerta_dias', 30)
     app.save(parameter)
 
+    var cargos = new Collection({ type: 'base', name: 'cargos' })
+    cargos.fields.add(new TextField({ name: 'nome', required: true }))
+    app.save(cargos)
+    var cargo = new Record(cargos)
+    cargo.set('nome', 'Cargo de teste')
+    app.save(cargo)
+
+    var clientes = new Collection({ type: 'base', name: 'clientes' })
+    clientes.fields.add(new TextField({ name: 'nome', required: true }))
+    app.save(clientes)
+    var cliente = new Record(clientes)
+    cliente.set('nome', 'Cliente de teste')
+    app.save(cliente)
+
+    var vacancies = new Collection({ type: 'base', name: 'vacancies' })
+    for (var vacancyTextField of [
+      'wordpress_job_id',
+      'status_vaga',
+      'data_abertura',
+      'prazo_desejado',
+      'responsavel_operacional',
+    ]) {
+      vacancies.fields.add(new TextField({ name: vacancyTextField }))
+    }
+    vacancies.fields.add(
+      new RelationField({ name: 'cargo', collectionId: cargos.id, maxSelect: 1 }),
+    )
+    vacancies.fields.add(
+      new RelationField({ name: 'cliente', collectionId: clientes.id, maxSelect: 1 }),
+    )
+    vacancies.fields.add(
+      new RelationField({ name: 'responsavel_rh', collectionId: users.id, maxSelect: 1 }),
+    )
+    vacancies.fields.add(new NumberField({ name: 'quantidade_vagas' }))
+    app.save(vacancies)
+    var vacancy = new Record(vacancies)
+    vacancy.set('wordpress_job_id', 'wp-runtime-1')
+    vacancy.set('status_vaga', 'Aberta')
+    vacancy.set('data_abertura', '2026-09-01')
+    vacancy.set('prazo_desejado', '2026-10-01')
+    vacancy.set('quantidade_vagas', 3)
+    vacancy.set('cargo', cargo.id)
+    vacancy.set('cliente', cliente.id)
+    vacancy.set('responsavel_rh', user.id)
+    vacancy.set('responsavel_operacional', 'Operação')
+    app.save(vacancy)
+    for (var vacancyIndex = 1; vacancyIndex < 501; vacancyIndex++) {
+      var paginatedVacancy = new Record(vacancies)
+      paginatedVacancy.set('wordpress_job_id', 'wp-runtime-' + (vacancyIndex + 1))
+      paginatedVacancy.set('status_vaga', 'Aberta')
+      paginatedVacancy.set('data_abertura', '2026-09-01')
+      paginatedVacancy.set('prazo_desejado', '2026-10-01')
+      paginatedVacancy.set('quantidade_vagas', 1)
+      paginatedVacancy.set('cargo', cargo.id)
+      paginatedVacancy.set('cliente', cliente.id)
+      paginatedVacancy.set('responsavel_rh', user.id)
+      paginatedVacancy.set('responsavel_operacional', 'Operação')
+      app.save(paginatedVacancy)
+    }
+
+    var candidates = new Collection({ type: 'base', name: 'candidates' })
+    candidates.fields.add(
+      new RelationField({ name: 'vacancy_id', collectionId: vacancies.id, maxSelect: 1, required: true }),
+    )
+    candidates.fields.add(
+      new SelectField({
+        name: 'status_candidato',
+        maxSelect: 1,
+        values: [
+          'Análise do RH',
+          'Análise do gestor',
+          'Documentação e exame',
+          'Cadastro DP',
+          'Integrado',
+          'Desistente',
+          'Desclassificado',
+          'Em banco',
+        ],
+      }),
+    )
+    candidates.fields.add(new NumberField({ name: 'rank' }))
+    candidates.fields.add(new TextField({ name: 'nome' }))
+    candidates.fields.add(new EmailField({ name: 'email' }))
+    candidates.fields.add(new TextField({ name: 'cpf' }))
+    app.save(candidates)
+    for (var candidateIndex = 0; candidateIndex < 501; candidateIndex++) {
+      var candidate = new Record(candidates)
+      candidate.set('vacancy_id', vacancy.id)
+      candidate.set(
+        'status_candidato',
+        candidateIndex % 3 === 0
+          ? 'Integrado'
+          : candidateIndex % 3 === 1
+            ? 'Análise do RH'
+            : 'Desclassificado',
+      )
+      candidate.set('rank', candidateIndex % 2 === 0 ? 5 : 3)
+      candidate.set('nome', 'Dado pessoal proibido ' + candidateIndex)
+      candidate.set('email', 'candidate-' + candidateIndex + '@example.test')
+      candidate.set('cpf', '00000000000')
+      app.save(candidate)
+    }
+
     var settings = app.settings()
     settings.trustedProxy.headers = ['X-Test-Client-IP']
     settings.trustedProxy.useLeftmostIP = true
@@ -95,13 +198,20 @@ const setupMigration = `migrate(
   },
   function (_) {},
 )`
-fs.writeFileSync(path.join(migrationsDirectory, '0077_remote_auth_runtime_setup.js'), setupMigration)
+fs.writeFileSync(
+  path.join(migrationsDirectory, '0077_remote_auth_runtime_setup.js'),
+  setupMigration,
+)
 fs.copyFileSync(
   path.join(ROOT, 'pocketbase', 'migrations', '0078_add_remote_access_control.js'),
   path.join(migrationsDirectory, '0078_add_remote_access_control.js'),
 )
 const accessSecret = 'runtime-test-access-secret'
 const integrationSecret = 'runtime-test-iris-integration-secret'
+const consultativeSecret =
+  process.env.TEST_CONSULTATIVE_SECRET || 'runtime-test-rh-consultative-secret'
+const consultativeRuntimeEnvironment = process.env.TEST_CONSULTATIVE_RUNTIME_ENV || 'preview'
+const consultativeShouldBeDisabled = process.env.TEST_CONSULTATIVE_EXPECT_DISABLED === 'true'
 const trustedProxyIps = process.env.TEST_TRUSTED_PROXY_IPS || '10.0.0.1'
 const mailRequests = []
 let mailResponseStatus = 200
@@ -130,7 +240,10 @@ function request(url, options = {}, body) {
         method: options.method || 'GET',
         headers: {
           ...(payload
-            ? { 'content-type': 'application/json', 'content-length': Buffer.byteLength(payload) }
+            ? {
+                'content-type': 'application/json',
+                'content-length': Buffer.byteLength(payload),
+              }
             : {}),
           ...(options.headers || {}),
         },
@@ -146,7 +259,12 @@ function request(url, options = {}, body) {
           try {
             parsed = raw ? JSON.parse(raw) : null
           } catch (_) {}
-          resolve({ status: res.statusCode, body: parsed, raw })
+          resolve({
+            status: res.statusCode,
+            body: parsed,
+            raw,
+            headers: res.headers,
+          })
         })
       },
     )
@@ -193,7 +311,9 @@ function startMailServer() {
           body = raw ? JSON.parse(raw) : null
         } catch (_) {}
         mailRequests.push({ method: req.method, url: req.url, body, raw })
-        res.writeHead(mailResponseStatus, { 'content-type': 'application/json' })
+        res.writeHead(mailResponseStatus, {
+          'content-type': 'application/json',
+        })
         res.end(JSON.stringify({ id: 'runtime-mail-1' }))
       })
     })
@@ -212,16 +332,22 @@ async function main() {
       "$secrets.get('PMAIS_IRIS_GV_HMAC_SECRET') || ''",
       JSON.stringify(integrationSecret),
     )
+    .replaceAll(
+      "$secrets.get('PMAIS_RH_CONSULTIVO_GV_PREVIEW_HMAC_SECRET') || ''",
+      JSON.stringify(consultativeSecret),
+    )
+    .replaceAll(
+      "$secrets.get('PMAIS_RH_CONSULTIVO_GV_RUNTIME_ENV') || ''",
+      JSON.stringify(consultativeRuntimeEnvironment),
+    )
+    .replaceAll(
+      "$secrets.get('PMAIS_RH_CONSULTIVO_GV_PREVIEW_ENABLED') || ''",
+      JSON.stringify('true'),
+    )
     .replaceAll("$secrets.get('GV_RH_IP_DIAGNOSTIC_ENABLED') || ''", JSON.stringify('true'))
-    .replaceAll(
-      "$secrets.get('GV_RH_TRUSTED_PROXY_IPS') || ''",
-      JSON.stringify(trustedProxyIps),
-    )
+    .replaceAll("$secrets.get('GV_RH_TRUSTED_PROXY_IPS') || ''", JSON.stringify(trustedProxyIps))
     .replaceAll("$secrets.get('RESEND_API_KEY') || ''", JSON.stringify('runtime-resend-key'))
-    .replaceAll(
-      'https://api.resend.com/emails',
-      `http://127.0.0.1:${mailAddress.port}/emails`,
-    )
+    .replaceAll('https://api.resend.com/emails', `http://127.0.0.1:${mailAddress.port}/emails`)
   fs.writeFileSync(path.join(hooksDirectory, 'enforce_user_ativo.pb.js'), hookSource)
   fs.copyFileSync(
     path.join(ROOT, 'pocketbase', 'hooks', 'enforce_profile_update.js'),
@@ -280,6 +406,12 @@ routerAdd('POST', '/test/rate-limit/saturate', (e) => {
   record.set('request_count', 300)
   record.set('blocked_until', 0)
   $app.save(record)
+  return e.json(200, { ok: true })
+})
+routerAdd('POST', '/test/cargos/rename', (e) => {
+  var collection = $app.findCollectionByNameOrId('cargos')
+  collection.name = 'cargos_unavailable'
+  $app.save(collection)
   return e.json(200, { ok: true })
 })
 routerAdd('GET', '/test/audit', (e) => {
@@ -348,6 +480,166 @@ routerAdd('GET', '/test/audit', (e) => {
 
   try {
     await waitForReady(baseUrl, server, output)
+
+    const consultativePath = '/backend/v1/access/integrations/pmais-rh-consultivo/snapshot'
+    const consultativeBody = { request_version: 1 }
+    if (consultativeShouldBeDisabled) {
+      const disabledConsultative = await request(
+        `${baseUrl}${consultativePath}`,
+        { method: 'POST' },
+        consultativeBody,
+      )
+      assert.equal(disabledConsultative.status, 404, disabledConsultative.raw)
+    } else {
+      const unsignedConsultative = await request(
+        `${baseUrl}${consultativePath}`,
+        { method: 'POST' },
+        consultativeBody,
+      )
+      assert.equal(unsignedConsultative.status, 403, unsignedConsultative.raw)
+      assert.equal(unsignedConsultative.body.code, 'consultative_snapshot_unauthorized')
+
+      const irisSignedTimestamp = String(Math.floor(Date.now() / 1000))
+      const irisSignedSignature = crypto
+        .createHmac('sha256', integrationSecret)
+        .update(
+          `${irisSignedTimestamp}\nPOST\n${consultativePath}\n${JSON.stringify(consultativeBody)}`,
+        )
+        .digest('hex')
+      const irisSignedConsultative = await request(
+        `${baseUrl}${consultativePath}`,
+        {
+          method: 'POST',
+          headers: {
+            'X-PMais-Consultivo-Timestamp': irisSignedTimestamp,
+            'X-PMais-Consultivo-Signature': irisSignedSignature,
+          },
+        },
+        consultativeBody,
+      )
+      assert.equal(irisSignedConsultative.status, 403, irisSignedConsultative.raw)
+
+      const staleTimestamp = String(Math.floor(Date.now() / 1000) - 61)
+      const staleSignature = crypto
+        .createHmac('sha256', consultativeSecret)
+        .update(`${staleTimestamp}\nPOST\n${consultativePath}\n${JSON.stringify(consultativeBody)}`)
+        .digest('hex')
+      const staleConsultative = await request(
+        `${baseUrl}${consultativePath}`,
+        {
+          method: 'POST',
+          headers: {
+            'X-PMais-Consultivo-Timestamp': staleTimestamp,
+            'X-PMais-Consultivo-Signature': staleSignature,
+          },
+        },
+        consultativeBody,
+      )
+      assert.equal(staleConsultative.status, 403, staleConsultative.raw)
+
+      const consultativeTimestamp = String(Math.floor(Date.now() / 1000))
+      const consultativeSignature = crypto
+        .createHmac('sha256', consultativeSecret)
+        .update(
+          `${consultativeTimestamp}\nPOST\n${consultativePath}\n${JSON.stringify(consultativeBody)}`,
+        )
+        .digest('hex')
+      const consultativeSnapshot = await request(
+        `${baseUrl}${consultativePath}`,
+        {
+          method: 'POST',
+          headers: {
+            'X-PMais-Consultivo-Timestamp': consultativeTimestamp,
+            'X-PMais-Consultivo-Signature': consultativeSignature,
+          },
+        },
+        consultativeBody,
+      )
+      assert.equal(consultativeSnapshot.status, 200, `${consultativeSnapshot.raw}\n${output()}`)
+      assert.equal(consultativeSnapshot.headers['cache-control'], 'no-store')
+      assert.deepEqual(Object.keys(consultativeSnapshot.body).sort(), [
+        'generated_at',
+        'schema_version',
+        'totals',
+        'vacancies',
+      ])
+      assert.deepEqual(consultativeSnapshot.body.totals, {
+        vacancies_processed: 501,
+        candidates_processed: 501,
+      })
+      assert.equal(consultativeSnapshot.body.vacancies.length, 501)
+      const snapshotVacancy = consultativeSnapshot.body.vacancies.find(
+        (item) => item.wordpress_job_id === 'wp-runtime-1',
+      )
+      assert.ok(snapshotVacancy)
+      assert.equal(snapshotVacancy.cargo_nome, 'Cargo de teste')
+      assert.equal(snapshotVacancy.cliente_nome, 'Cliente de teste')
+      assert.equal(snapshotVacancy.candidates, 501)
+      assert.deepEqual(snapshotVacancy.candidate_status_counts, {
+        Integrado: 167,
+        'Análise do RH': 167,
+        Desclassificado: 167,
+      })
+      assert.equal(snapshotVacancy.priority_45, 83)
+      const snapshotJson = JSON.stringify(consultativeSnapshot.body)
+      for (const forbiddenValue of ['Dado pessoal proibido', 'candidate-', '00000000000']) {
+        assert.equal(snapshotJson.includes(forbiddenValue), false, forbiddenValue)
+      }
+      const snapshotKeys = new Set()
+      const collectSnapshotKeys = (value) => {
+        if (Array.isArray(value)) {
+          for (const item of value) collectSnapshotKeys(item)
+          return
+        }
+        if (!value || typeof value !== 'object') return
+        for (const [key, child] of Object.entries(value)) {
+          snapshotKeys.add(key)
+          collectSnapshotKeys(child)
+        }
+      }
+      collectSnapshotKeys(consultativeSnapshot.body)
+      for (const forbiddenKey of [
+        'nome',
+        'email',
+        'telefone',
+        'cpf',
+        'rg',
+        'data_nascimento',
+        'bairro',
+        'observacao',
+        'observacoes',
+        'informacoes_integracao',
+        'expand',
+      ]) {
+        assert.equal(snapshotKeys.has(forbiddenKey), false, forbiddenKey)
+      }
+
+      const renameCargoCollection = await request(`${baseUrl}/test/cargos/rename`, {
+        method: 'POST',
+      })
+      assert.equal(renameCargoCollection.status, 200, renameCargoCollection.raw)
+      const unavailableTimestamp = String(Math.floor(Date.now() / 1000))
+      const unavailableSignature = crypto
+        .createHmac('sha256', consultativeSecret)
+        .update(
+          `${unavailableTimestamp}\nPOST\n${consultativePath}\n${JSON.stringify(consultativeBody)}`,
+        )
+        .digest('hex')
+      const unavailableSnapshot = await request(
+        `${baseUrl}${consultativePath}`,
+        {
+          method: 'POST',
+          headers: {
+            'X-PMais-Consultivo-Timestamp': unavailableTimestamp,
+            'X-PMais-Consultivo-Signature': unavailableSignature,
+          },
+        },
+        consultativeBody,
+      )
+      assert.equal(unavailableSnapshot.status, 503, unavailableSnapshot.raw)
+      assert.equal(Object.hasOwn(unavailableSnapshot.body || {}, 'vacancies'), false)
+    }
+
     const login = await request(
       `${baseUrl}/backend/v1/access/login`,
       { method: 'POST' },
@@ -401,7 +693,10 @@ routerAdd('GET', '/test/audit', (e) => {
     const createdUserLogin = await request(
       `${baseUrl}/backend/v1/access/login`,
       { method: 'POST' },
-      { identity: 'new-user@example.test', password: 'new-user-password-12345' },
+      {
+        identity: 'new-user@example.test',
+        password: 'new-user-password-12345',
+      },
     )
     assert.equal(createdUserLogin.status, 200, createdUserLogin.raw)
     const inactiveUserToken = createdUserLogin.body.token
@@ -571,10 +866,10 @@ routerAdd('GET', '/test/audit', (e) => {
     )
     assert.notEqual(signedCommit.status, 403, signedCommit.raw)
 
-    const externalRefresh = await request(
-      `${baseUrl}/api/collections/users/auth-refresh`,
-      { method: 'POST', headers: { Authorization: login.body.token } },
-    )
+    const externalRefresh = await request(`${baseUrl}/api/collections/users/auth-refresh`, {
+      method: 'POST',
+      headers: { Authorization: login.body.token },
+    })
     assert.equal(externalRefresh.status, 403, `${externalRefresh.raw}\n${output()}`)
     assert.equal(externalRefresh.body.code, 'remote_access_unauthorized')
     assert.equal(externalRefresh.body.message, 'Acesso remoto não autorizado')
@@ -587,16 +882,13 @@ routerAdd('GET', '/test/audit', (e) => {
     if (trustedProxyIps === '127.0.0.1') {
       assert.equal(spoofedOfficeLogin.status, 200, spoofedOfficeLogin.raw)
       assert.ok(spoofedOfficeLogin.body.token)
-      const officeRefresh = await request(
-        `${baseUrl}/api/collections/users/auth-refresh`,
-        {
-          method: 'POST',
-          headers: {
-            Authorization: spoofedOfficeLogin.body.token,
-            'X-Test-Client-IP': '143.208.130.134',
-          },
+      const officeRefresh = await request(`${baseUrl}/api/collections/users/auth-refresh`, {
+        method: 'POST',
+        headers: {
+          Authorization: spoofedOfficeLogin.body.token,
+          'X-Test-Client-IP': '143.208.130.134',
         },
-      )
+      })
       assert.equal(officeRefresh.status, 200, officeRefresh.raw)
     } else {
       assert.equal(spoofedOfficeLogin.status, 403, spoofedOfficeLogin.raw)
@@ -671,7 +963,10 @@ routerAdd('GET', '/test/audit', (e) => {
     const wrongAttempt = await request(
       `${baseUrl}/backend/v1/access/verify`,
       { method: 'POST' },
-      { challengeId: remoteChallenge.body.challengeId, code: code === '000000' ? '111111' : '000000' },
+      {
+        challengeId: remoteChallenge.body.challengeId,
+        code: code === '000000' ? '111111' : '000000',
+      },
     )
     assert.equal(wrongAttempt.status, 400, wrongAttempt.raw)
 
@@ -711,10 +1006,10 @@ routerAdd('GET', '/test/audit', (e) => {
     )
     assert.equal(reactivateCreatedUser.status, 200, reactivateCreatedUser.raw)
 
-    const expireSession = await request(
-      `${baseUrl}/test/sessions/expire`,
-      { method: 'POST', headers: { Authorization: verified.body.token } },
-    )
+    const expireSession = await request(`${baseUrl}/test/sessions/expire`, {
+      method: 'POST',
+      headers: { Authorization: verified.body.token },
+    })
     assert.equal(expireSession.status, 200, expireSession.raw)
     const expiredSessionRead = await request(
       `${baseUrl}/api/collections/system_parameters/records`,
