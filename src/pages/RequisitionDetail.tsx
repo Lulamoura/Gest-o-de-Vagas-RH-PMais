@@ -334,7 +334,9 @@ export default function RequisitionDetail() {
       setIrisOperationalStatus(freshStatus)
       if (!canUseManualContingency(req.status, canManage, freshStatus)) {
         setShowManualContingency(false)
-        toast.error('A contingência manual não está mais autorizada. Atualize a página e tente novamente.')
+        toast.error(
+          'A contingência manual não está mais autorizada. Atualize a página e tente novamente.',
+        )
         return
       }
       await createManualContingencyWordpressDraft(id, {
