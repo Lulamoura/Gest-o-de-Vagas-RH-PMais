@@ -17,6 +17,7 @@ PAGE = (ROOT / "src/pages/RequisitionDetail.tsx").read_text(encoding="utf-8")
 RICH_EDITOR = (ROOT / "src/components/RichTextEditor.tsx").read_text(encoding="utf-8")
 IRIS_PUBLIC_HTML_PATH = ROOT / "src/lib/iris-public-html.ts"
 IRIS_PUBLIC_HTML = IRIS_PUBLIC_HTML_PATH.read_text(encoding="utf-8") if IRIS_PUBLIC_HTML_PATH.exists() else ""
+IRIS_OPERATIONAL = (ROOT / "src/lib/iris-operational-status.ts").read_text(encoding="utf-8")
 
 
 def require(source: str, pattern: str, message: str) -> None:
@@ -235,12 +236,17 @@ def test_frontend_review_contract() -> None:
     require(PAGE, r"sugestão expira em 15 minutos", "UI proof TTL must match the 900-second Gateway TTL")
     require(
         PAGE,
-        r"descricao_publica_iris:\s*irisText,",
-        "the exact sanitized HTML reviewed by RH must be sent to WordPress",
+        r"publicDescription:\s*irisText,",
+        "the reviewed public HTML must be passed unchanged to the payload builder",
+    )
+    require(
+        IRIS_OPERATIONAL,
+        r"descricao_publica_iris:\s*publicDescription,",
+        "the payload builder must preserve the exact reviewed public HTML",
     )
     forbid(
-        PAGE,
-        r"descricao_publica_iris:\s*irisText\.trim\(\)",
+        PAGE + "\n" + IRIS_OPERATIONAL,
+        r"(?:descricao_publica_iris:\s*irisText|publicDescription:)\.trim\(\)",
         "reviewed public HTML must not be silently changed during submission",
     )
     if PAGE.count("createWordpressDraft(") != 1:
