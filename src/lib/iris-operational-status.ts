@@ -3,6 +3,7 @@ import type {
   IrisOperationalState,
   IrisSuggestionProof,
 } from '@/services/requisitions'
+import { isIrisHermesUnavailableSuggestionError } from '@/services/requisitions'
 
 const STATUS_LABELS: Record<IrisOperationalState, string> = {
   HEALTHY: 'Disponível',
@@ -22,6 +23,24 @@ export const canUseManualContingency = (
   shouldLoadIrisOperationalStatus(requisitionStatus, canManage) &&
   status?.status === 'UNAVAILABLE' &&
   status.manual_contingency_allowed === true
+
+export const canRequestIrisSuggestion = (
+  status: IrisOperationalStatus | null,
+  statusLoading: boolean,
+) =>
+  !statusLoading && status !== null && (status.status === 'HEALTHY' || status.status === 'DEGRADED')
+
+export const refreshIrisStatusAfterUnavailableSuggestionError = async (
+  error: unknown,
+  refreshStatus: () => Promise<unknown>,
+) => {
+  if (!isIrisHermesUnavailableSuggestionError(error)) return false
+  await refreshStatus()
+  return true
+}
+
+export const reconcileIrisUnavailableAlert = (current: boolean, status: IrisOperationalStatus) =>
+  current && status.status !== 'HEALTHY'
 
 export const buildIrisReviewedPublication = ({
   title,
