@@ -9,9 +9,21 @@ interface BrowserAdapterErrorBody {
   message?: string
 }
 
+interface BrowserAdapterRequestOptions {
+  method: 'GET' | 'POST'
+  body?: unknown
+}
+
+const isBrowserAdapterRequestOptions = (value: unknown): value is BrowserAdapterRequestOptions =>
+  typeof value === 'object' &&
+  value !== null &&
+  'method' in value &&
+  ((value as BrowserAdapterRequestOptions).method === 'GET' ||
+    (value as BrowserAdapterRequestOptions).method === 'POST')
+
 export const irisBrowserAdapterRequest = async <T>(
   path: string,
-  body: unknown,
+  bodyOrOptions: unknown,
   origin: string = window.location.origin,
 ): Promise<T> => {
   const baseUrl = resolveIrisGvBrowserAdapterBaseUrl(origin)
@@ -19,14 +31,16 @@ export const irisBrowserAdapterRequest = async <T>(
   if (!token) {
     throw new Error('Sua sessão expirou. Entre novamente para usar a Íris.')
   }
-  const response = await fetch(`${baseUrl}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(body),
-  })
+  const options = isBrowserAdapterRequestOptions(bodyOrOptions)
+    ? bodyOrOptions
+    : { method: 'POST' as const, body: bodyOrOptions }
+  const headers: Record<string, string> = { Authorization: `Bearer ${token}` }
+  const request: RequestInit = { method: options.method, headers }
+  if (options.method === 'POST') {
+    headers['Content-Type'] = 'application/json'
+    request.body = JSON.stringify(options.body)
+  }
+  const response = await fetch(`${baseUrl}${path}`, request)
   const responseBody = (await response.json().catch(() => null)) as
     | BrowserAdapterErrorBody
     | T
@@ -101,6 +115,43 @@ export interface WordpressDraftResult {
   wordpress_job_id: string
   wordpress_admin_url: string
 }
+
+export type IrisOperationalState = 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE' | 'UNKNOWN'
+
+export interface IrisOperationalStatus {
+  status: IrisOperationalState
+  manual_contingency_allowed: boolean
+  last_successful_check_at: string | null
+}
+
+export const getIrisOperationalStatus = async () =>
+  irisBrowserAdapterRequest<IrisOperationalStatus>(
+    '/v1/pessoas/iris/gv-rh/browser/operational-status',
+    { method: 'GET' },
+  )
+
+export interface ManualContingencyPublication {
+  titulo_publico: string
+  descricao_publica: string
+  perfil_interno_triagem: string
+  confirmacao_explicita: true
+}
+
+export const createManualContingencyWordpressDraft = async (
+  id: string,
+  payload: ManualContingencyPublication,
+) =>
+  irisBrowserAdapterRequest<WordpressDraftResult>(
+    `/v1/pessoas/iris/gv-rh/browser/requisitions/${encodeURIComponent(id)}/wordpress-draft-manual`,
+    {
+      publicacao_manual: {
+        titulo_publico: payload.titulo_publico,
+        descricao_publica: payload.descricao_publica,
+        perfil_interno_triagem: payload.perfil_interno_triagem,
+        confirmacao_explicita: payload.confirmacao_explicita,
+      },
+    },
+  )
 
 export interface IrisJobDescriptionSuggestion {
   ok: boolean

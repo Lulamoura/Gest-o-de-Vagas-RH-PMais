@@ -25,6 +25,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
+import { Checkbox } from '@/components/ui/checkbox'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -44,9 +46,12 @@ import {
   changeRequisitionStatus,
   deleteRequisition,
   createWordpressDraft,
+  createManualContingencyWordpressDraft,
+  getIrisOperationalStatus,
   updateRequisition,
   suggestRequisitionJobDescription,
   type IrisJobDescriptionSuggestion,
+  type IrisOperationalStatus,
 } from '@/services/requisitions'
 import { getChangeRequests } from '@/services/requisition_change_requests'
 import { RequisitionHistory } from '@/components/RequisitionHistory'
@@ -61,6 +66,13 @@ import {
 import type { RequisitionRecord } from '@/types'
 import { cn } from '@/lib/utils'
 import { sanitizeIrisPublicHtml } from '@/lib/iris-public-html'
+import { isRhDepartmentName } from '@/lib/auth'
+import {
+  buildIrisReviewedPublication,
+  canUseManualContingency,
+  getIrisOperationalStatusView,
+  shouldLoadIrisOperationalStatus,
+} from '@/lib/iris-operational-status'
 
 const IRIS_REVIEW_LIMITS = {
   title: 160,
@@ -89,7 +101,23 @@ export default function RequisitionDetail() {
   const [irisText, setIrisText] = useState('')
   const [irisInternalProfile, setIrisInternalProfile] = useState('')
   const [showIrisSuggestion, setShowIrisSuggestion] = useState(false)
+  const [irisOperationalStatus, setIrisOperationalStatus] = useState<IrisOperationalStatus | null>(
+    null,
+  )
+  const [irisStatusLoading, setIrisStatusLoading] = useState(false)
+  const [showManualContingency, setShowManualContingency] = useState(false)
+  const [manualTitle, setManualTitle] = useState('')
+  const [manualPublicDescription, setManualPublicDescription] = useState('')
+  const [manualInternalProfile, setManualInternalProfile] = useState('')
+  const [manualConfirmed, setManualConfirmed] = useState(false)
+  const [manualLoading, setManualLoading] = useState(false)
+  const [manualError, setManualError] = useState<string | null>(null)
   const [hasPendingChangeRequest, setHasPendingChangeRequest] = useState(false)
+  const isSolicitante = user?.id === req?.solicitante
+  const isAdmin = user?.profile === 'admin' || user?.profile === 'superadmin'
+  const isRH = isRhDepartmentName(user?.expand?.departamento?.nome)
+  const canManage = isAdmin || isRH
+  const requisitionStatus = req?.status
 
   const loadReq = useCallback(async () => {
     if (!id) return
@@ -132,6 +160,44 @@ export default function RequisitionDetail() {
     loadChangeRequests()
   })
 
+  useEffect(() => {
+    if (!requisitionStatus || !shouldLoadIrisOperationalStatus(requisitionStatus, canManage)) {
+      setIrisOperationalStatus(null)
+      setIrisStatusLoading(false)
+      setShowManualContingency(false)
+      return
+    }
+
+    let active = true
+    const refreshStatus = async () => {
+      if (!active) return
+      setIrisStatusLoading(true)
+      setIrisOperationalStatus(null)
+      setShowManualContingency(false)
+      try {
+        const status = await getIrisOperationalStatus()
+        if (active) setIrisOperationalStatus(status)
+      } catch {
+        if (active) {
+          setIrisOperationalStatus({
+            status: 'UNKNOWN',
+            manual_contingency_allowed: false,
+            last_successful_check_at: null,
+          })
+        }
+      } finally {
+        if (active) setIrisStatusLoading(false)
+      }
+    }
+
+    void refreshStatus()
+    const refreshInterval = window.setInterval(refreshStatus, 60_000)
+    return () => {
+      active = false
+      window.clearInterval(refreshInterval)
+    }
+  }, [requisitionStatus, canManage])
+
   if (loading)
     return (
       <div className="flex items-center justify-center p-8">
@@ -140,10 +206,6 @@ export default function RequisitionDetail() {
     )
   if (!req) return null
 
-  const isSolicitante = user?.id === req.solicitante
-  const isAdmin = user?.profile === 'admin' || user?.profile === 'superadmin'
-  const isRH = user?.expand?.departamento?.nome === 'rh'
-  const canManage = isAdmin || isRH
   const missingApprovalFields = getMissingApprovalFields(req)
   const canSubmitForApproval = missingApprovalFields.length === 0
   const canEdit =
@@ -151,6 +213,9 @@ export default function RequisitionDetail() {
     (req.edicao_liberada && isSolicitante)
   const canCreate = ['operator', 'admin', 'superadmin'].includes(user?.profile || '')
   const canDeleteReq = user?.profile === 'superadmin'
+  const irisStatusView = irisOperationalStatus
+    ? getIrisOperationalStatusView(irisOperationalStatus)
+    : null
 
   const handleDelete = async () => {
     if (!id) return
@@ -193,12 +258,15 @@ export default function RequisitionDetail() {
     setWpLoading(true)
     setWpError(null)
     try {
-      await createWordpressDraft(id, {
-        titulo_publico_iris: irisTitle.trim(),
-        descricao_publica_iris: irisText,
-        perfil_interno_triagem_iris: irisInternalProfile.trim(),
-        suggestion_proof: irisSuggestion.suggestion_proof,
-      })
+      await createWordpressDraft(
+        id,
+        buildIrisReviewedPublication({
+          title: irisTitle,
+          publicDescription: irisText,
+          internalProfile: irisInternalProfile,
+          suggestionProof: irisSuggestion.suggestion_proof,
+        }),
+      )
       toast.success('Rascunho criado no WordPress!')
       setShowIrisSuggestion(false)
       loadReq()
@@ -224,6 +292,70 @@ export default function RequisitionDetail() {
       toast.error(err?.message || 'Erro ao gerar sugestão da Íris')
     } finally {
       setIrisLoading(false)
+    }
+  }
+
+  const openManualContingency = () => {
+    if (!canUseManualContingency(req.status, canManage, irisOperationalStatus)) return
+    setManualTitle(req.expand?.cargo?.nome || '')
+    setManualPublicDescription(req.especificacoes || '')
+    setManualInternalProfile(req.observacoes_internas || '')
+    setManualConfirmed(false)
+    setManualError(null)
+    setShowManualContingency(true)
+  }
+
+  const handleManualContingencyDraft = async () => {
+    if (
+      !id ||
+      !manualConfirmed ||
+      !canUseManualContingency(req.status, canManage, irisOperationalStatus)
+    ) {
+      setShowManualContingency(false)
+      return
+    }
+    if (
+      !manualTitle.trim() ||
+      !manualPublicDescription.trim() ||
+      !manualInternalProfile.trim() ||
+      manualTitle.length > IRIS_REVIEW_LIMITS.title ||
+      manualPublicDescription.length > IRIS_REVIEW_LIMITS.publicText ||
+      manualInternalProfile.length > IRIS_REVIEW_LIMITS.internalProfile
+    ) {
+      setManualError('Revise o preenchimento e os limites dos três campos antes de confirmar.')
+      return
+    }
+
+    setManualLoading(true)
+    setManualError(null)
+    setIrisOperationalStatus(null)
+    try {
+      const freshStatus = await getIrisOperationalStatus()
+      setIrisOperationalStatus(freshStatus)
+      if (!canUseManualContingency(req.status, canManage, freshStatus)) {
+        setShowManualContingency(false)
+        toast.error('A contingência manual não está mais autorizada. Atualize a página e tente novamente.')
+        return
+      }
+      await createManualContingencyWordpressDraft(id, {
+        titulo_publico: manualTitle,
+        descricao_publica: manualPublicDescription,
+        perfil_interno_triagem: manualInternalProfile,
+        confirmacao_explicita: true,
+      })
+      toast.success('Rascunho manual criado no WordPress!')
+      setShowManualContingency(false)
+      loadReq()
+    } catch {
+      setIrisOperationalStatus({
+        status: 'UNKNOWN',
+        manual_contingency_allowed: false,
+        last_successful_check_at: null,
+      })
+      setShowManualContingency(false)
+      toast.error('Não foi possível confirmar a autorização e criar o rascunho manual.')
+    } finally {
+      setManualLoading(false)
     }
   }
 
@@ -413,6 +545,34 @@ export default function RequisitionDetail() {
           </>
         )}
       </div>
+
+      {req.status === 'Aprovada' && canManage && (
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>
+            Estado operacional da Íris:{' '}
+            {irisStatusLoading && !irisStatusView
+              ? 'Verificando disponibilidade'
+              : irisStatusView?.label || 'Estado não confirmado'}
+          </AlertTitle>
+          <AlertDescription className="space-y-3">
+            {irisStatusView?.lastSuccessfulCheckLabel && (
+              <p>{irisStatusView.lastSuccessfulCheckLabel}</p>
+            )}
+            {irisStatusView?.showManualAction && (
+              <div className="space-y-2">
+                <p>
+                  A contingência manual está autorizada pelo sistema. O conteúdo continuará sujeito
+                  à revisão do RH e criará somente um rascunho no WordPress.
+                </p>
+                <Button type="button" variant="outline" onClick={openManualContingency}>
+                  Criar rascunho manual em contingência
+                </Button>
+              </div>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {wpError && req.status === 'Aprovada' && (
         <Alert variant="destructive">
@@ -713,6 +873,115 @@ export default function RequisitionDetail() {
                 Confirmar e criar somente o rascunho
               </Button>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showManualContingency} onOpenChange={setShowManualContingency}>
+        <DialogContent className="sm:max-w-3xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Rascunho manual durante a contingência</DialogTitle>
+            <DialogDescription>
+              Revise integralmente os três campos. Esta ação cria somente um rascunho no WordPress;
+              ela não publica a vaga, não aprova a requisição e não substitui a revisão humana.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <Label htmlFor="manual-contingency-title">Título público</Label>
+              <Textarea
+                id="manual-contingency-title"
+                value={manualTitle}
+                onChange={(event) => setManualTitle(event.target.value)}
+                rows={2}
+                maxLength={IRIS_REVIEW_LIMITS.title}
+              />
+              <p className="text-xs text-muted-foreground">
+                {manualTitle.length}/{IRIS_REVIEW_LIMITS.title} caracteres
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="manual-contingency-public-description">Descrição pública</Label>
+              <Textarea
+                id="manual-contingency-public-description"
+                value={manualPublicDescription}
+                onChange={(event) => setManualPublicDescription(event.target.value)}
+                rows={12}
+                maxLength={IRIS_REVIEW_LIMITS.publicText}
+              />
+              <p className="text-xs text-muted-foreground">
+                {manualPublicDescription.length}/{IRIS_REVIEW_LIMITS.publicText} caracteres
+              </p>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="manual-contingency-internal-profile">
+                Perfil interno para triagem
+              </Label>
+              <Textarea
+                id="manual-contingency-internal-profile"
+                value={manualInternalProfile}
+                onChange={(event) => setManualInternalProfile(event.target.value)}
+                rows={10}
+                maxLength={IRIS_REVIEW_LIMITS.internalProfile}
+              />
+              <p className="text-xs text-amber-700">
+                Campo interno e não público. Ele será armazenado separadamente da descrição da vaga.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {manualInternalProfile.length}/{IRIS_REVIEW_LIMITS.internalProfile} caracteres
+              </p>
+            </div>
+            <Alert>
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Somente rascunho</AlertTitle>
+              <AlertDescription>
+                Nenhum conteúdo será publicado automaticamente. O rascunho deverá ser revisado e
+                publicado separadamente no WordPress.
+              </AlertDescription>
+            </Alert>
+            <div className="flex items-start gap-3 rounded-md border p-3">
+              <Checkbox
+                id="manual-contingency-confirmation"
+                checked={manualConfirmed}
+                onCheckedChange={(checked) => setManualConfirmed(checked === true)}
+              />
+              <Label htmlFor="manual-contingency-confirmation" className="leading-5">
+                Confirmo que revisei os três campos e autorizo a criação somente de um rascunho no
+                WordPress.
+              </Label>
+            </div>
+            {manualError && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Não foi possível criar o rascunho manual</AlertTitle>
+                <AlertDescription>{manualError}</AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setShowManualContingency(false)}
+              disabled={manualLoading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={handleManualContingencyDraft}
+              disabled={
+                manualLoading ||
+                !canUseManualContingency(req.status, canManage, irisOperationalStatus) ||
+                !manualConfirmed ||
+                !manualTitle.trim() ||
+                !manualPublicDescription.trim() ||
+                !manualInternalProfile.trim()
+              }
+            >
+              {manualLoading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+              Criar somente o rascunho no WordPress
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
