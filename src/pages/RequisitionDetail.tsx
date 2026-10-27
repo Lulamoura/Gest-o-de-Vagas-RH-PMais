@@ -607,8 +607,8 @@ export default function RequisitionDetail() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>A Íris não pôde ser acionada</AlertTitle>
           <AlertDescription>
-            O estado operacional foi atualizado. A contingência manual aparecerá somente se o
-            sistema confirmar a indisponibilidade e autorizar essa operação.
+            Não foi possível gerar a descrição com a Íris. O modo de Contingência Manual foi
+            disponibilizado para o RH.
           </AlertDescription>
         </Alert>
       )}

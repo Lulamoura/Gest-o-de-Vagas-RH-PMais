@@ -40,7 +40,7 @@ export const refreshIrisStatusAfterUnavailableSuggestionError = async (
 }
 
 export const reconcileIrisUnavailableAlert = (current: boolean, status: IrisOperationalStatus) =>
-  current && status.status !== 'HEALTHY'
+  status.status === 'UNAVAILABLE' || (current && status.status !== 'HEALTHY')
 
 export const buildIrisReviewedPublication = ({
   title,
