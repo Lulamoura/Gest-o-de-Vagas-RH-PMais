@@ -7,9 +7,11 @@ vi.mock('@/lib/pocketbase/client', () => ({
 }))
 
 import {
+  IrisBrowserAdapterError,
   createManualContingencyWordpressDraft,
   getIrisOperationalStatus,
   irisBrowserAdapterRequest,
+  isIrisHermesUnavailableSuggestionError,
 } from '@/services/requisitions'
 
 const productionOrigin = 'https://vagaspmais.pmaisservicos.com.br'
@@ -128,5 +130,59 @@ describe('Íris operational continuity service contracts', () => {
     expect(init.body).not.toContain('profile')
     expect(init.body).not.toContain('status')
     expect(init.body).not.toContain('secret')
+  })
+
+  it('preserves the controlled adapter code and HTTP status in a typed error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+        json: async () => ({
+          detail: {
+            code: 'IRIS_HERMES_UNAVAILABLE',
+            message: 'A Íris está temporariamente indisponível.',
+          },
+        }),
+      }),
+    )
+
+    const error = await irisBrowserAdapterRequest('/v1/example', {}, productionOrigin).catch(
+      (reason) => reason,
+    )
+
+    expect(error).toBeInstanceOf(IrisBrowserAdapterError)
+    expect(error).toMatchObject({
+      code: 'IRIS_HERMES_UNAVAILABLE',
+      status: 503,
+      message: 'A Íris está temporariamente indisponível.',
+    })
+    expect(isIrisHermesUnavailableSuggestionError(error)).toBe(true)
+  })
+
+  it('classifies only the exact controlled adapter error as Hermes unavailability', () => {
+    expect(
+      isIrisHermesUnavailableSuggestionError(
+        new IrisBrowserAdapterError(
+          'A Íris está temporariamente indisponível.',
+          'IRIS_HERMES_UNAVAILABLE',
+          503,
+        ),
+      ),
+    ).toBe(true)
+    expect(
+      isIrisHermesUnavailableSuggestionError(
+        new IrisBrowserAdapterError('Conteúdo inválido.', 'IRIS_CONTENT_INVALID', 422),
+      ),
+    ).toBe(false)
+    expect(isIrisHermesUnavailableSuggestionError(new Error('IRIS_HERMES_UNAVAILABLE'))).toBe(
+      false,
+    )
+    expect(
+      isIrisHermesUnavailableSuggestionError({
+        code: 'IRIS_HERMES_UNAVAILABLE',
+        status: 503,
+      }),
+    ).toBe(false)
   })
 })

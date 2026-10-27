@@ -1,8 +1,12 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
+import { IrisBrowserAdapterError } from '@/services/requisitions'
 import {
   buildIrisReviewedPublication,
+  canRequestIrisSuggestion,
   canUseManualContingency,
   getIrisOperationalStatusView,
+  reconcileIrisUnavailableAlert,
+  refreshIrisStatusAfterUnavailableSuggestionError,
   shouldLoadIrisOperationalStatus,
 } from '@/lib/iris-operational-status'
 
@@ -50,6 +54,64 @@ describe('Íris operational status business view', () => {
     expect(shouldLoadIrisOperationalStatus('Aprovada', true)).toBe(true)
     expect(shouldLoadIrisOperationalStatus('Aprovada', false)).toBe(false)
     expect(shouldLoadIrisOperationalStatus('Rascunho', true)).toBe(false)
+  })
+
+  it('enables suggestion only for a loaded healthy or degraded status', () => {
+    const status = (value: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE' | 'UNKNOWN') => ({
+      status: value,
+      manual_contingency_allowed: false,
+      last_successful_check_at: null,
+    })
+
+    expect(canRequestIrisSuggestion(status('HEALTHY'), false)).toBe(true)
+    expect(canRequestIrisSuggestion(status('DEGRADED'), false)).toBe(true)
+    expect(canRequestIrisSuggestion(status('UNAVAILABLE'), false)).toBe(false)
+    expect(canRequestIrisSuggestion(status('UNKNOWN'), false)).toBe(false)
+    expect(canRequestIrisSuggestion(null, false)).toBe(false)
+    expect(canRequestIrisSuggestion(status('HEALTHY'), true)).toBe(false)
+  })
+
+  it('refreshes status exactly once only for the exact Hermes unavailability error', async () => {
+    const refresh = vi.fn().mockResolvedValue(undefined)
+    const unavailableError = new IrisBrowserAdapterError(
+      'A Íris está temporariamente indisponível.',
+      'IRIS_HERMES_UNAVAILABLE',
+      503,
+    )
+
+    await expect(
+      refreshIrisStatusAfterUnavailableSuggestionError(unavailableError, refresh),
+    ).resolves.toBe(true)
+    expect(refresh).toHaveBeenCalledTimes(1)
+
+    refresh.mockClear()
+    await expect(
+      refreshIrisStatusAfterUnavailableSuggestionError(
+        new IrisBrowserAdapterError('Conteúdo inválido.', 'IRIS_CONTENT_INVALID', 422),
+        refresh,
+      ),
+    ).resolves.toBe(false)
+    await expect(
+      refreshIrisStatusAfterUnavailableSuggestionError(
+        new Error('IRIS_HERMES_UNAVAILABLE'),
+        refresh,
+      ),
+    ).resolves.toBe(false)
+    expect(refresh).not.toHaveBeenCalled()
+  })
+
+  it('keeps the incident alert until a confirmed healthy status recovers', () => {
+    const status = (value: 'HEALTHY' | 'DEGRADED' | 'UNAVAILABLE' | 'UNKNOWN') => ({
+      status: value,
+      manual_contingency_allowed: value === 'UNAVAILABLE',
+      last_successful_check_at: null,
+    })
+
+    expect(reconcileIrisUnavailableAlert(true, status('UNAVAILABLE'))).toBe(true)
+    expect(reconcileIrisUnavailableAlert(true, status('UNKNOWN'))).toBe(true)
+    expect(reconcileIrisUnavailableAlert(true, status('DEGRADED'))).toBe(true)
+    expect(reconcileIrisUnavailableAlert(true, status('HEALTHY'))).toBe(false)
+    expect(reconcileIrisUnavailableAlert(false, status('UNAVAILABLE'))).toBe(false)
   })
 
   it('fails closed before manual submission when authorization, requisition, or status changed', () => {

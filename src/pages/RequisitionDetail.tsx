@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Loader2,
@@ -69,8 +69,11 @@ import { sanitizeIrisPublicHtml } from '@/lib/iris-public-html'
 import { isRhDepartmentName } from '@/lib/auth'
 import {
   buildIrisReviewedPublication,
+  canRequestIrisSuggestion,
   canUseManualContingency,
   getIrisOperationalStatusView,
+  reconcileIrisUnavailableAlert,
+  refreshIrisStatusAfterUnavailableSuggestionError,
   shouldLoadIrisOperationalStatus,
 } from '@/lib/iris-operational-status'
 
@@ -105,6 +108,8 @@ export default function RequisitionDetail() {
     null,
   )
   const [irisStatusLoading, setIrisStatusLoading] = useState(false)
+  const [irisUnavailableAlert, setIrisUnavailableAlert] = useState(false)
+  const irisStatusRequestId = useRef(0)
   const [showManualContingency, setShowManualContingency] = useState(false)
   const [manualTitle, setManualTitle] = useState('')
   const [manualPublicDescription, setManualPublicDescription] = useState('')
@@ -160,43 +165,49 @@ export default function RequisitionDetail() {
     loadChangeRequests()
   })
 
+  const refreshIrisOperationalStatus = useCallback(async () => {
+    const requestId = ++irisStatusRequestId.current
+    setIrisStatusLoading(true)
+    try {
+      const status = await getIrisOperationalStatus()
+      if (requestId === irisStatusRequestId.current) {
+        setIrisOperationalStatus(status)
+        setIrisUnavailableAlert((current) => reconcileIrisUnavailableAlert(current, status))
+        if (status.status !== 'UNAVAILABLE' || !status.manual_contingency_allowed) {
+          setShowManualContingency(false)
+        }
+      }
+    } catch {
+      if (requestId === irisStatusRequestId.current) {
+        setIrisOperationalStatus({
+          status: 'UNKNOWN',
+          manual_contingency_allowed: false,
+          last_successful_check_at: null,
+        })
+        setShowManualContingency(false)
+      }
+    } finally {
+      if (requestId === irisStatusRequestId.current) setIrisStatusLoading(false)
+    }
+  }, [])
+
   useEffect(() => {
     if (!requisitionStatus || !shouldLoadIrisOperationalStatus(requisitionStatus, canManage)) {
+      irisStatusRequestId.current += 1
       setIrisOperationalStatus(null)
       setIrisStatusLoading(false)
+      setIrisUnavailableAlert(false)
       setShowManualContingency(false)
       return
     }
 
-    let active = true
-    const refreshStatus = async () => {
-      if (!active) return
-      setIrisStatusLoading(true)
-      setIrisOperationalStatus(null)
-      setShowManualContingency(false)
-      try {
-        const status = await getIrisOperationalStatus()
-        if (active) setIrisOperationalStatus(status)
-      } catch {
-        if (active) {
-          setIrisOperationalStatus({
-            status: 'UNKNOWN',
-            manual_contingency_allowed: false,
-            last_successful_check_at: null,
-          })
-        }
-      } finally {
-        if (active) setIrisStatusLoading(false)
-      }
-    }
-
-    void refreshStatus()
-    const refreshInterval = window.setInterval(refreshStatus, 60_000)
+    void refreshIrisOperationalStatus()
+    const refreshInterval = window.setInterval(refreshIrisOperationalStatus, 60_000)
     return () => {
-      active = false
+      irisStatusRequestId.current += 1
       window.clearInterval(refreshInterval)
     }
-  }, [requisitionStatus, canManage])
+  }, [requisitionStatus, canManage, refreshIrisOperationalStatus])
 
   if (loading)
     return (
@@ -278,7 +289,7 @@ export default function RequisitionDetail() {
   }
 
   const handleSuggestJobDescription = async () => {
-    if (!id) return
+    if (!id || !canRequestIrisSuggestion(irisOperationalStatus, irisStatusLoading)) return
     setIrisLoading(true)
     try {
       const suggestion = await suggestRequisitionJobDescription(id)
@@ -287,9 +298,18 @@ export default function RequisitionDetail() {
       setIrisText(sanitizeIrisPublicHtml(suggestion.descricao_publica))
       setIrisInternalProfile(suggestion.perfil_interno_triagem)
       setShowIrisSuggestion(true)
+      setIrisUnavailableAlert(false)
       toast.success('Sugestão da Íris gerada para revisão do RH')
-    } catch (err: any) {
-      toast.error(err?.message || 'Erro ao gerar sugestão da Íris')
+    } catch (err: unknown) {
+      const refreshed = await refreshIrisStatusAfterUnavailableSuggestionError(
+        err,
+        refreshIrisOperationalStatus,
+      )
+      if (refreshed) {
+        setIrisUnavailableAlert(true)
+      } else {
+        toast.error(err instanceof Error ? err.message : 'Erro ao gerar sugestão da Íris')
+      }
     } finally {
       setIrisLoading(false)
     }
@@ -334,7 +354,9 @@ export default function RequisitionDetail() {
       setIrisOperationalStatus(freshStatus)
       if (!canUseManualContingency(req.status, canManage, freshStatus)) {
         setShowManualContingency(false)
-        toast.error('A contingência manual não está mais autorizada. Atualize a página e tente novamente.')
+        toast.error(
+          'A contingência manual não está mais autorizada. Atualize a página e tente novamente.',
+        )
         return
       }
       await createManualContingencyWordpressDraft(id, {
@@ -455,7 +477,13 @@ export default function RequisitionDetail() {
             </Button>
           )}
           {req.status === 'Aprovada' && canManage && (
-            <Button variant="outline" disabled={irisLoading} onClick={handleSuggestJobDescription}>
+            <Button
+              variant="outline"
+              disabled={
+                irisLoading || !canRequestIrisSuggestion(irisOperationalStatus, irisStatusLoading)
+              }
+              onClick={handleSuggestJobDescription}
+            >
               {irisLoading ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : (
@@ -570,6 +598,17 @@ export default function RequisitionDetail() {
                 </Button>
               </div>
             )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {irisUnavailableAlert && req.status === 'Aprovada' && canManage && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>A Íris não pôde ser acionada</AlertTitle>
+          <AlertDescription>
+            O estado operacional foi atualizado. A contingência manual aparecerá somente se o
+            sistema confirmar a indisponibilidade e autorizar essa operação.
           </AlertDescription>
         </Alert>
       )}

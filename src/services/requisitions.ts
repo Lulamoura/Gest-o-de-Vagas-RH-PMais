@@ -9,6 +9,22 @@ interface BrowserAdapterErrorBody {
   message?: string
 }
 
+export class IrisBrowserAdapterError extends Error {
+  constructor(
+    message: string,
+    public readonly code: string | null,
+    public readonly status: number,
+  ) {
+    super(message)
+    this.name = 'IrisBrowserAdapterError'
+  }
+}
+
+export const isIrisHermesUnavailableSuggestionError = (
+  error: unknown,
+): error is IrisBrowserAdapterError =>
+  error instanceof IrisBrowserAdapterError && error.code === 'IRIS_HERMES_UNAVAILABLE'
+
 interface BrowserAdapterRequestOptions {
   method: 'GET' | 'POST'
   body?: unknown
@@ -47,12 +63,13 @@ export const irisBrowserAdapterRequest = async <T>(
     | null
   if (!response.ok) {
     const detail = (responseBody as BrowserAdapterErrorBody | null)?.detail
+    const code = typeof detail === 'object' && typeof detail?.code === 'string' ? detail.code : null
     const message =
       (typeof detail === 'object' && detail?.message) ||
       (typeof detail === 'string' && detail) ||
       (responseBody as BrowserAdapterErrorBody | null)?.message ||
       'Não foi possível concluir a ação da Íris.'
-    throw new Error(message)
+    throw new IrisBrowserAdapterError(message, code, response.status)
   }
   return responseBody as T
 }
