@@ -111,7 +111,7 @@ describe('Íris operational status business view', () => {
     expect(reconcileIrisUnavailableAlert(true, status('UNKNOWN'))).toBe(true)
     expect(reconcileIrisUnavailableAlert(true, status('DEGRADED'))).toBe(true)
     expect(reconcileIrisUnavailableAlert(true, status('HEALTHY'))).toBe(false)
-    expect(reconcileIrisUnavailableAlert(false, status('UNAVAILABLE'))).toBe(false)
+    expect(reconcileIrisUnavailableAlert(false, status('UNAVAILABLE'))).toBe(true)
   })
 
   it('fails closed before manual submission when authorization, requisition, or status changed', () => {

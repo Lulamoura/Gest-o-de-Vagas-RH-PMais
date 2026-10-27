@@ -160,7 +160,9 @@ describe('RequisitionDetail Íris failure-to-contingency flow', () => {
     await flush()
 
     expect(mocks.getIrisOperationalStatus).toHaveBeenCalledTimes(3)
-    expect(container.textContent).toContain('A Íris não pôde ser acionada')
+    expect(container.textContent).toContain(
+      'Não foi possível gerar a descrição com a Íris. O modo de Contingência Manual foi disponibilizado para o RH.',
+    )
     expect(findButton(container, 'Sugerir descrição com Íris')?.disabled).toBe(true)
     expect(findButton(container, 'Criar rascunho manual em contingência')).toBeDefined()
     expect(container.textContent).not.toContain('Rascunho manual durante a contingência')
@@ -176,6 +178,32 @@ describe('RequisitionDetail Íris failure-to-contingency flow', () => {
     await flush()
 
     expect(container.textContent).toContain('Estado operacional da Íris: Indisponível')
+    expect(findButton(container, 'Criar rascunho manual em contingência')).toBeDefined()
+    expect(mocks.createManualContingencyWordpressDraft).not.toHaveBeenCalled()
+  })
+
+  it('keeps the business alert and manual action after reloading an unavailable status', async () => {
+    mocks.getIrisOperationalStatus.mockResolvedValue({
+      status: 'UNAVAILABLE',
+      manual_contingency_allowed: true,
+      last_successful_check_at: null,
+    })
+
+    await act(async () => {
+      root.render(
+        <MemoryRouter initialEntries={['/requisicoes/req-1']}>
+          <Routes>
+            <Route path="/requisicoes/:id" element={<RequisitionDetail />} />
+          </Routes>
+        </MemoryRouter>,
+      )
+    })
+    await flush()
+
+    expect(container.textContent).toContain(
+      'Não foi possível gerar a descrição com a Íris. O modo de Contingência Manual foi disponibilizado para o RH.',
+    )
+    expect(findButton(container, 'Sugerir descrição com Íris')?.disabled).toBe(true)
     expect(findButton(container, 'Criar rascunho manual em contingência')).toBeDefined()
     expect(mocks.createManualContingencyWordpressDraft).not.toHaveBeenCalled()
   })
