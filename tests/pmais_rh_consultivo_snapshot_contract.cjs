@@ -19,8 +19,7 @@ assert.notEqual(
   "dedicated consultative snapshot route must exist",
 );
 const routeStart = hook.lastIndexOf("routerAdd(", routePathIndex);
-const nextRoutePathIndex = hook.indexOf("'/backend/v1/access/login'", routePathIndex);
-const routeEnd = hook.lastIndexOf("routerAdd(", nextRoutePathIndex);
+const routeEnd = hook.indexOf("routerAdd(", routePathIndex);
 const route = hook.slice(routeStart, routeEnd === -1 ? hook.length : routeEnd);
 
 assert.match(route, /PMAIS_RH_CONSULTIVO_GV_PREVIEW_HMAC_SECRET/);
