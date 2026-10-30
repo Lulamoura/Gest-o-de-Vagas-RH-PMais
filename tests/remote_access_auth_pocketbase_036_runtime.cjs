@@ -171,6 +171,12 @@ const setupMigration = `migrate(
     candidates.fields.add(new NumberField({ name: 'rank' }))
     candidates.fields.add(new TextField({ name: 'nome' }))
     candidates.fields.add(new EmailField({ name: 'email' }))
+    candidates.fields.add(new TextField({ name: 'telefone' }))
+    candidates.fields.add(new TextField({ name: 'cidade' }))
+    candidates.fields.add(new TextField({ name: 'bairro' }))
+    candidates.fields.add(new TextField({ name: 'wordpress_candidatura_id' }))
+    candidates.fields.add(new TextField({ name: 'ordem_execucao' }))
+    candidates.fields.add(new TextField({ name: 'observacoes' }))
     candidates.fields.add(new TextField({ name: 'cpf' }))
     app.save(candidates)
     for (var candidateIndex = 0; candidateIndex < 501; candidateIndex++) {
@@ -185,11 +191,61 @@ const setupMigration = `migrate(
             : 'Desclassificado',
       )
       candidate.set('rank', candidateIndex % 2 === 0 ? 5 : 3)
-      candidate.set('nome', 'Dado pessoal proibido ' + candidateIndex)
+      candidate.set('nome', 'Dado pessoal permitido somente no conjunto profissional ' + candidateIndex)
       candidate.set('email', 'candidate-' + candidateIndex + '@example.test')
+      candidate.set('telefone', '+55 81 90000-' + candidateIndex)
+      candidate.set('cidade', 'Recife')
+      candidate.set('bairro', 'Bairro permitido somente no conjunto contato ' + candidateIndex)
+      candidate.set('wordpress_candidatura_id', 'wp-application-' + candidateIndex)
+      candidate.set('ordem_execucao', 'OE-' + candidateIndex)
+      candidate.set('observacoes', 'Observação irrestrita proibida ' + candidateIndex)
       candidate.set('cpf', '00000000000')
       app.save(candidate)
     }
+
+    var pipelineHistory = new Collection({ type: 'base', name: 'pipeline_history' })
+    pipelineHistory.fields.add(
+      new RelationField({ name: 'vacancy_id', collectionId: vacancies.id, maxSelect: 1 }),
+    )
+    pipelineHistory.fields.add(
+      new RelationField({ name: 'usuario_id', collectionId: users.id, maxSelect: 1 }),
+    )
+    pipelineHistory.fields.add(new TextField({ name: 'status_anterior' }))
+    pipelineHistory.fields.add(new TextField({ name: 'status_novo' }))
+    pipelineHistory.fields.add(new AutodateField({ name: 'data_mudanca', onCreate: true }))
+    pipelineHistory.fields.add(new AutodateField({ name: 'created', onCreate: true }))
+    pipelineHistory.fields.add(new AutodateField({ name: 'updated', onCreate: true, onUpdate: true }))
+    app.save(pipelineHistory)
+    var pipelineEvent = new Record(pipelineHistory)
+    pipelineEvent.set('vacancy_id', vacancy.id)
+    pipelineEvent.set('usuario_id', user.id)
+    pipelineEvent.set('status_anterior', 'Triagem')
+    pipelineEvent.set('status_novo', 'Aberta')
+    app.save(pipelineEvent)
+
+    var candidateHistory = new Collection({ type: 'base', name: 'candidate_history' })
+    candidateHistory.fields.add(
+      new RelationField({ name: 'vacancy_id', collectionId: vacancies.id, maxSelect: 1 }),
+    )
+    candidateHistory.fields.add(
+      new RelationField({ name: 'candidate_id', collectionId: candidates.id, maxSelect: 1 }),
+    )
+    candidateHistory.fields.add(
+      new RelationField({ name: 'usuario_id', collectionId: users.id, maxSelect: 1 }),
+    )
+    candidateHistory.fields.add(new TextField({ name: 'status_anterior' }))
+    candidateHistory.fields.add(new TextField({ name: 'status_novo' }))
+    candidateHistory.fields.add(new AutodateField({ name: 'data_mudanca', onCreate: true }))
+    candidateHistory.fields.add(new AutodateField({ name: 'created', onCreate: true }))
+    candidateHistory.fields.add(new AutodateField({ name: 'updated', onCreate: true, onUpdate: true }))
+    app.save(candidateHistory)
+    var candidateEvent = new Record(candidateHistory)
+    candidateEvent.set('vacancy_id', vacancy.id)
+    candidateEvent.set('candidate_id', app.findFirstRecordByFilter('candidates', 'wordpress_candidatura_id = "wp-application-0"').id)
+    candidateEvent.set('usuario_id', user.id)
+    candidateEvent.set('status_anterior', 'Análise do RH')
+    candidateEvent.set('status_novo', 'Integrado')
+    app.save(candidateEvent)
 
     var settings = app.settings()
     settings.trustedProxy.headers = ['X-Test-Client-IP']
@@ -210,6 +266,7 @@ const accessSecret = 'runtime-test-access-secret'
 const integrationSecret = 'runtime-test-iris-integration-secret'
 const consultativeSecret =
   process.env.TEST_CONSULTATIVE_SECRET || 'runtime-test-rh-consultative-secret'
+const irisRhReportSecret = 'runtime-test-iris-rh-reporting-secret-unique'
 const consultativeRuntimeEnvironment = process.env.TEST_CONSULTATIVE_RUNTIME_ENV || 'preview'
 const consultativeShouldBeDisabled = process.env.TEST_CONSULTATIVE_EXPECT_DISABLED === 'true'
 const trustedProxyIps = process.env.TEST_TRUSTED_PROXY_IPS || '10.0.0.1'
@@ -272,6 +329,15 @@ function request(url, options = {}, body) {
     if (payload) req.write(payload)
     req.end()
   })
+}
+
+function canonicalJson(value) {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  return `{${Object.keys(value)
+    .sort()
+    .map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`)
+    .join(',')}}`
 }
 
 async function waitForReady(baseUrl, server, output) {
@@ -337,6 +403,10 @@ async function main() {
       JSON.stringify(consultativeSecret),
     )
     .replaceAll(
+      "$secrets.get('PMAIS_IRIS_RH_REPORT_HMAC_SECRET') || ''",
+      JSON.stringify(irisRhReportSecret),
+    )
+    .replaceAll(
       "$secrets.get('PMAIS_RH_CONSULTIVO_GV_RUNTIME_ENV') || ''",
       JSON.stringify(consultativeRuntimeEnvironment),
     )
@@ -347,6 +417,11 @@ async function main() {
     .replaceAll("$secrets.get('GV_RH_IP_DIAGNOSTIC_ENABLED') || ''", JSON.stringify('true'))
     .replaceAll("$secrets.get('GV_RH_TRUSTED_PROXY_IPS') || ''", JSON.stringify(trustedProxyIps))
     .replaceAll("$secrets.get('RESEND_API_KEY') || ''", JSON.stringify('runtime-resend-key'))
+    .replaceAll("$secrets.get('WORDPRESS_INTEGRATION_TOKEN') || ''", JSON.stringify('runtime-wordpress-integration-token'))
+    .replaceAll("$secrets.get('WORDPRESS_CLOSED_VACANCY_OVERRIDE_TOKEN') || ''", JSON.stringify('runtime-wordpress-override-token'))
+    .replaceAll("$secrets.get('PMAIS_IRIS_GV_PROOF_SECRET') || ''", JSON.stringify('runtime-iris-proof-secret'))
+    .replaceAll("$secrets.get('PMAIS_IRIS_GV_API_KEY') || ''", JSON.stringify('runtime-iris-api-key'))
+    .replaceAll("$secrets.get('ESCAVADOR_API_TOKEN') || ''", JSON.stringify('runtime-escavador-token'))
     .replaceAll('https://api.resend.com/emails', `http://127.0.0.1:${mailAddress.port}/emails`)
   fs.writeFileSync(path.join(hooksDirectory, 'enforce_user_ativo.pb.js'), hookSource)
   fs.copyFileSync(
@@ -480,6 +555,169 @@ routerAdd('GET', '/test/audit', (e) => {
 
   try {
     await waitForReady(baseUrl, server, output)
+
+    const reportingPath = '/backend/v1/access/integrations/iris/rh-reporting/snapshot'
+    const signedReportingCall = async (body, timestampOffset = 0, secret = irisRhReportSecret) => {
+      const timestamp = String(Math.floor(Date.now() / 1000) + timestampOffset)
+      const signature = crypto
+        .createHmac('sha256', secret)
+        .update(`${timestamp}\nPOST\n${reportingPath}\n${canonicalJson(body)}`)
+        .digest('hex')
+      return request(
+        `${baseUrl}${reportingPath}`,
+        {
+          method: 'POST',
+          headers: {
+            'X-PMais-Iris-RH-Reporting-Timestamp': timestamp,
+            'X-PMais-Iris-RH-Reporting-Signature': signature,
+          },
+        },
+        body,
+      )
+    }
+
+    const reportingBody = {
+      request_version: 1,
+      resources: ['vacancies', 'candidates', 'pipeline_history', 'candidate_history'],
+    }
+    const unsignedReporting = await request(
+      `${baseUrl}${reportingPath}`,
+      { method: 'POST', headers: { Authorization: 'Bearer generic-token-must-not-authorize' } },
+      reportingBody,
+    )
+    assert.equal(unsignedReporting.status, 403, unsignedReporting.raw)
+    assert.equal(unsignedReporting.body.code, 'iris_rh_reporting_snapshot_unauthorized')
+    const staleReporting = await signedReportingCall(reportingBody, -61)
+    assert.equal(staleReporting.status, 403, staleReporting.raw)
+    const wrongSecretReporting = await signedReportingCall(reportingBody, 0, integrationSecret)
+    assert.equal(wrongSecretReporting.status, 403, wrongSecretReporting.raw)
+    const invalidResourceReporting = await signedReportingCall({
+      request_version: 1,
+      resources: ['users'],
+    })
+    assert.equal(invalidResourceReporting.status, 403, invalidResourceReporting.raw)
+    for (const inheritedResource of ['toString', 'constructor', '__proto__']) {
+      const inheritedResourceReporting = await signedReportingCall({
+        request_version: 1,
+        resources: [inheritedResource],
+      })
+      assert.equal(
+        inheritedResourceReporting.status,
+        403,
+        `${inheritedResource}: ${inheritedResourceReporting.raw}`,
+      )
+    }
+    for (const invalidFieldSet of ['', null, false, 0]) {
+      const invalidFieldSetReporting = await signedReportingCall({
+        candidate_field_set: invalidFieldSet,
+        request_version: 1,
+        resources: ['candidates'],
+      })
+      assert.equal(
+        invalidFieldSetReporting.status,
+        403,
+        `${JSON.stringify(invalidFieldSet)}: ${invalidFieldSetReporting.raw}`,
+      )
+    }
+
+    const professionalReporting = await signedReportingCall(reportingBody)
+    assert.equal(professionalReporting.status, 200, `${professionalReporting.raw}\n${output()}`)
+    assert.equal(professionalReporting.headers['cache-control'], 'no-store')
+    assert.deepEqual(Object.keys(professionalReporting.body).sort(), [
+      'generated_at',
+      'resources',
+      'schema_version',
+    ])
+    assert.deepEqual(Object.keys(professionalReporting.body.resources).sort(), [
+      'candidate_history',
+      'candidates',
+      'pipeline_history',
+      'vacancies',
+    ])
+    assert.equal(professionalReporting.body.resources.vacancies.length, 501)
+    assert.equal(professionalReporting.body.resources.candidates.length, 501)
+    assert.equal(professionalReporting.body.resources.pipeline_history.length, 1)
+    assert.equal(professionalReporting.body.resources.candidate_history.length, 1)
+    assert.equal(professionalReporting.body.resources.pipeline_history[0].new_status, 'Aberta')
+    assert.equal(professionalReporting.body.resources.candidate_history[0].new_status, 'Integrado')
+    const professionalCandidate = professionalReporting.body.resources.candidates.find(
+      (item) => item.wordpress_application_id === 'wp-application-0',
+    )
+    assert.ok(professionalCandidate)
+    assert.equal(professionalCandidate.name.includes('conjunto profissional'), true)
+    assert.equal(professionalCandidate.vacancy_id.length > 0, true)
+    assert.equal(Object.hasOwn(professionalCandidate, 'email'), false)
+    assert.equal(Object.hasOwn(professionalCandidate, 'phone'), false)
+    assert.equal(Object.hasOwn(professionalCandidate, 'city'), false)
+    assert.equal(Object.hasOwn(professionalCandidate, 'bairro'), false)
+    assert.deepEqual(
+      [...new Set(professionalReporting.body.resources.candidates.map((item) => item.status))].sort(),
+      ['Análise do RH', 'Desclassificado', 'Integrado'].sort(),
+    )
+    const professionalJson = JSON.stringify(professionalReporting.body)
+    for (const forbiddenValue of [
+      '@example.test',
+      '+55 81',
+      'Bairro permitido',
+      '00000000000',
+      'Observação irrestrita proibida',
+    ]) {
+      assert.equal(professionalJson.includes(forbiddenValue), false, forbiddenValue)
+    }
+    const forbiddenKeys = new Set([
+      'cpf',
+      'rg',
+      'full_address',
+      'data_nascimento',
+      'nome_pai',
+      'nome_mae',
+      'telefone_emergencia',
+      'tamanho_fardamento',
+      'tamanho_sapato',
+      'observacao',
+      'observacoes',
+      'informacoes_integracao',
+      'resume',
+      'curriculo',
+    ])
+    const assertNoForbiddenKeys = (value) => {
+      if (Array.isArray(value)) {
+        for (const item of value) assertNoForbiddenKeys(item)
+        return
+      }
+      if (!value || typeof value !== 'object') return
+      for (const [key, child] of Object.entries(value)) {
+        assert.equal(forbiddenKeys.has(key), false, key)
+        assertNoForbiddenKeys(child)
+      }
+    }
+    assertNoForbiddenKeys(professionalReporting.body)
+
+    const contactReporting = await signedReportingCall({
+      candidate_field_set: 'contact',
+      request_version: 1,
+      resources: ['candidates'],
+    })
+    assert.equal(contactReporting.status, 200, contactReporting.raw)
+    assert.deepEqual(Object.keys(contactReporting.body.resources), ['candidates'])
+    assert.equal(contactReporting.body.resources.candidates.length, 501)
+    const contactCandidate = contactReporting.body.resources.candidates.find(
+      (item) => item.wordpress_application_id === 'wp-application-0',
+    )
+    assert.equal(contactCandidate.email, 'candidate-0@example.test')
+    assert.equal(contactCandidate.phone, '+55 81 90000-0')
+    assert.equal(contactCandidate.city, 'Recife')
+    assert.equal(contactCandidate.bairro, 'Bairro permitido somente no conjunto contato 0')
+    assertNoForbiddenKeys(contactReporting.body)
+    assert.equal(JSON.stringify(contactReporting.body).includes('00000000000'), false)
+    assert.equal(JSON.stringify(contactReporting.body).includes('Observação irrestrita proibida'), false)
+
+    const afterReporting = await signedReportingCall(reportingBody)
+    assert.equal(afterReporting.status, 200, afterReporting.raw)
+    assert.equal(afterReporting.body.resources.vacancies.length, 501)
+    assert.equal(afterReporting.body.resources.candidates.length, 501)
+    assert.equal(afterReporting.body.resources.pipeline_history.length, 1)
+    assert.equal(afterReporting.body.resources.candidate_history.length, 1)
 
     const consultativePath = '/backend/v1/access/integrations/pmais-rh-consultivo/snapshot'
     const consultativeBody = { request_version: 1 }

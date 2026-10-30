@@ -12,37 +12,271 @@ onRecordAuthRequest((e) => {
   e.next()
 }, 'users')
 
-routerAdd('POST', '/backend/v1/access/integrations/pmais-rh-consultivo/snapshot', (e) => {
+routerAdd(
+  'POST',
+  '/backend/v1/access/integrations/pmais-rh-consultivo/snapshot',
+  (e) => {
+    e.response.header().set('Cache-Control', 'no-store')
+    var enabled = $secrets.get('PMAIS_RH_CONSULTIVO_GV_PREVIEW_ENABLED') || ''
+    var runtimeEnvironment =
+      $secrets.get('PMAIS_RH_CONSULTIVO_GV_RUNTIME_ENV') || ''
+    var secret =
+      $secrets.get('PMAIS_RH_CONSULTIVO_GV_PREVIEW_HMAC_SECRET') || ''
+    var irisSecret = $secrets.get('PMAIS_IRIS_GV_HMAC_SECRET') || ''
+    if (
+      enabled !== 'true' ||
+      runtimeEnvironment !== 'preview' ||
+      secret.length < 32 ||
+      secret === irisSecret
+    ) {
+      throw e.notFoundError('Recurso não encontrado.', null)
+    }
+
+    var deny = function () {
+      return e.json(403, {
+        status: 403,
+        code: 'consultative_snapshot_unauthorized',
+        message: 'Autenticação técnica não autorizada',
+        data: {},
+      })
+    }
+    var canonicalJson = function (value) {
+      if (value === null || typeof value !== 'object')
+        return JSON.stringify(value)
+      if (Array.isArray(value)) {
+        return (
+          '[' +
+          value
+            .map(function (item) {
+              return canonicalJson(item)
+            })
+            .join(',') +
+          ']'
+        )
+      }
+      var keys = Object.keys(value).sort()
+      return (
+        '{' +
+        keys
+          .map(function (key) {
+            return JSON.stringify(key) + ':' + canonicalJson(value[key])
+          })
+          .join(',') +
+        '}'
+      )
+    }
+
+    var routePath =
+      '/backend/v1/access/integrations/pmais-rh-consultivo/snapshot'
+    var timestamp = e.request.header.get('X-PMais-Consultivo-Timestamp') || ''
+    var signature = e.request.header.get('X-PMais-Consultivo-Signature') || ''
+    var body = e.requestInfo().body || {}
+    var bodyKeys = Object.keys(body).sort()
+    var timestampNumber = Number(timestamp)
+    if (
+      bodyKeys.length !== 1 ||
+      bodyKeys[0] !== 'request_version' ||
+      body.request_version !== 1 ||
+      !/^\d{10}$/.test(timestamp) ||
+      !/^[a-fA-F0-9]{64}$/.test(signature) ||
+      Math.abs(Math.floor(Date.now() / 1000) - timestampNumber) > 60
+    ) {
+      return deny()
+    }
+    var expectedSignature = $security.hs256(
+      timestamp + '\nPOST\n' + routePath + '\n' + canonicalJson(body),
+      secret,
+    )
+    if (!$security.equal(expectedSignature, signature.toLowerCase()))
+      return deny()
+
+    var snapshot = null
+    try {
+      $app.runInTransaction((txApp) => {
+        var readAll = function (collectionName) {
+          var rows = []
+          var offset = 0
+          while (true) {
+            var page = txApp.findRecordsByFilter(
+              collectionName,
+              '',
+              'id',
+              500,
+              offset,
+            )
+            for (var pageIndex = 0; pageIndex < page.length; pageIndex++) {
+              rows.push(page[pageIndex])
+            }
+            if (page.length < 500) break
+            offset += page.length
+            if (offset > 100000)
+              throw new ApiError(503, 'Snapshot indisponível.', null)
+          }
+          return rows
+        }
+        var relationName = function (collectionName, relationId) {
+          if (!relationId) return ''
+          try {
+            return txApp
+              .findRecordById(collectionName, relationId)
+              .getString('nome')
+          } catch (_) {
+            throw new ApiError(503, 'Snapshot indisponível.', null)
+          }
+        }
+
+        var vacancies = readAll('vacancies')
+        var candidates = readAll('candidates')
+        var candidateAggregates = Object.create(null)
+        var allowedStatuses = {
+          'Análise do RH': true,
+          'Análise do gestor': true,
+          'Documentação e exame': true,
+          'Cadastro DP': true,
+          Integrado: true,
+          Desistente: true,
+          Desclassificado: true,
+          'Em banco': true,
+          'Sem status': true,
+        }
+        var finalStatuses = {
+          Desclassificado: true,
+          Desistente: true,
+          Integrado: true,
+          'Em banco': true,
+        }
+        for (
+          var candidateIndex = 0;
+          candidateIndex < candidates.length;
+          candidateIndex++
+        ) {
+          var candidate = candidates[candidateIndex]
+          var vacancyIds = candidate.get('vacancy_id')
+          if (!Array.isArray(vacancyIds))
+            vacancyIds = vacancyIds ? [vacancyIds] : []
+          var candidateStatus =
+            candidate.getString('status_candidato') || 'Sem status'
+          if (!allowedStatuses[candidateStatus]) {
+            throw new ApiError(503, 'Snapshot indisponível.', null)
+          }
+          var candidateRank = Number(candidate.get('rank') || 0)
+          for (
+            var vacancyIndex = 0;
+            vacancyIndex < vacancyIds.length;
+            vacancyIndex++
+          ) {
+            var vacancyId = String(vacancyIds[vacancyIndex] || '')
+            if (!vacancyId) continue
+            if (!candidateAggregates[vacancyId]) {
+              candidateAggregates[vacancyId] = {
+                candidate_status_counts: Object.create(null),
+                candidates: 0,
+                priority_45: 0,
+              }
+            }
+            var aggregate = candidateAggregates[vacancyId]
+            aggregate.candidates += 1
+            aggregate.candidate_status_counts[candidateStatus] =
+              (aggregate.candidate_status_counts[candidateStatus] || 0) + 1
+            if (candidateRank >= 4 && !finalStatuses[candidateStatus])
+              aggregate.priority_45 += 1
+          }
+        }
+
+        var snapshotVacancies = []
+        for (var rowIndex = 0; rowIndex < vacancies.length; rowIndex++) {
+          var vacancy = vacancies[rowIndex]
+          var aggregate = candidateAggregates[vacancy.id] || {
+            candidate_status_counts: Object.create(null),
+            candidates: 0,
+            priority_45: 0,
+          }
+          var cargoId = vacancy.getString('cargo')
+          var clienteId = vacancy.getString('cliente')
+          snapshotVacancies.push({
+            id: vacancy.id,
+            wordpress_job_id: vacancy.getString('wordpress_job_id'),
+            status: vacancy.getString('status_vaga'),
+            data_abertura:
+              vacancy.getString('data_abertura') ||
+              vacancy.getString('created'),
+            prazo_desejado: vacancy.getString('prazo_desejado'),
+            quantidade_vagas: Number(vacancy.get('quantidade_vagas') || 0),
+            cargo_nome: relationName('cargos', cargoId),
+            cliente_nome: relationName('clientes', clienteId),
+            cargo_presente: Boolean(cargoId),
+            cliente_presente: Boolean(clienteId),
+            responsavel_rh_presente: Boolean(
+              vacancy.getString('responsavel_rh'),
+            ),
+            responsavel_operacional_presente: Boolean(
+              vacancy.getString('responsavel_operacional'),
+            ),
+            candidate_status_counts: aggregate.candidate_status_counts,
+            candidates: aggregate.candidates,
+            priority_45: aggregate.priority_45,
+          })
+        }
+
+        snapshot = {
+          schema_version: 1,
+          generated_at: new Date().toISOString(),
+          totals: {
+            vacancies_processed: vacancies.length,
+            candidates_processed: candidates.length,
+          },
+          vacancies: snapshotVacancies,
+        }
+      })
+    } catch (_) {
+      throw new ApiError(503, 'Snapshot indisponível.', null)
+    }
+    if (!snapshot) throw new ApiError(503, 'Snapshot indisponível.', null)
+    return e.json(200, snapshot)
+  },
+)
+
+routerAdd('POST', '/backend/v1/access/integrations/iris/rh-reporting/snapshot', (e) => {
   e.response.header().set('Cache-Control', 'no-store')
-  var enabled = $secrets.get('PMAIS_RH_CONSULTIVO_GV_PREVIEW_ENABLED') || ''
-  var runtimeEnvironment = $secrets.get('PMAIS_RH_CONSULTIVO_GV_RUNTIME_ENV') || ''
-  var secret = $secrets.get('PMAIS_RH_CONSULTIVO_GV_PREVIEW_HMAC_SECRET') || ''
-  var irisSecret = $secrets.get('PMAIS_IRIS_GV_HMAC_SECRET') || ''
-  if (
-    enabled !== 'true' ||
-    runtimeEnvironment !== 'preview' ||
-    secret.length < 32 ||
-    secret === irisSecret
-  ) {
+  var reportSecret = $secrets.get('PMAIS_IRIS_RH_REPORT_HMAC_SECRET') || ''
+  var conflictingSecrets = [
+    $secrets.get('PMAIS_IRIS_GV_HMAC_SECRET') || '',
+    $secrets.get('PMAIS_RH_CONSULTIVO_GV_PREVIEW_HMAC_SECRET') || '',
+    $secrets.get('GV_RH_ACCESS_HMAC_SECRET') || '',
+    $secrets.get('WORDPRESS_INTEGRATION_TOKEN') || '',
+    $secrets.get('WORDPRESS_CLOSED_VACANCY_OVERRIDE_TOKEN') || '',
+    $secrets.get('PMAIS_IRIS_GV_PROOF_SECRET') || '',
+    $secrets.get('PMAIS_IRIS_GV_API_KEY') || '',
+    $secrets.get('RESEND_API_KEY') || '',
+    $secrets.get('ESCAVADOR_API_TOKEN') || '',
+  ]
+  var reportSecretConflict = false
+  for (var reportConflictIndex = 0; reportConflictIndex < conflictingSecrets.length; reportConflictIndex++) {
+    if (conflictingSecrets[reportConflictIndex] && reportSecret === conflictingSecrets[reportConflictIndex]) {
+      reportSecretConflict = true
+      break
+    }
+  }
+  if (reportSecret.length < 32 || reportSecretConflict) {
     throw e.notFoundError('Recurso não encontrado.', null)
   }
 
-  var deny = function () {
+  var denyReporting = function () {
     return e.json(403, {
       status: 403,
-      code: 'consultative_snapshot_unauthorized',
+      code: 'iris_rh_reporting_snapshot_unauthorized',
       message: 'Autenticação técnica não autorizada',
       data: {},
     })
   }
-  var canonicalJson = function (value) {
+  var canonicalReportingJson = function (value) {
     if (value === null || typeof value !== 'object') return JSON.stringify(value)
     if (Array.isArray(value)) {
       return (
         '[' +
         value
           .map(function (item) {
-            return canonicalJson(item)
+            return canonicalReportingJson(item)
           })
           .join(',') +
         ']'
@@ -53,153 +287,247 @@ routerAdd('POST', '/backend/v1/access/integrations/pmais-rh-consultivo/snapshot'
       '{' +
       keys
         .map(function (key) {
-          return JSON.stringify(key) + ':' + canonicalJson(value[key])
+          return JSON.stringify(key) + ':' + canonicalReportingJson(value[key])
         })
         .join(',') +
       '}'
     )
   }
 
-  var routePath = '/backend/v1/access/integrations/pmais-rh-consultivo/snapshot'
-  var timestamp = e.request.header.get('X-PMais-Consultivo-Timestamp') || ''
-  var signature = e.request.header.get('X-PMais-Consultivo-Signature') || ''
-  var body = e.requestInfo().body || {}
-  var bodyKeys = Object.keys(body).sort()
-  var timestampNumber = Number(timestamp)
+  var reportingPath = '/backend/v1/access/integrations/iris/rh-reporting/snapshot'
+  var reportingTimestamp = e.request.header.get('X-PMais-Iris-RH-Reporting-Timestamp') || ''
+  var reportingSignature = e.request.header.get('X-PMais-Iris-RH-Reporting-Signature') || ''
+  var reportingTimestampNumber = Number(reportingTimestamp)
   if (
-    bodyKeys.length !== 1 ||
-    bodyKeys[0] !== 'request_version' ||
-    body.request_version !== 1 ||
-    !/^\d{10}$/.test(timestamp) ||
-    !/^[a-fA-F0-9]{64}$/.test(signature) ||
-    Math.abs(Math.floor(Date.now() / 1000) - timestampNumber) > 60
+    !/^\d{10}$/.test(reportingTimestamp) ||
+    !/^[a-fA-F0-9]{64}$/.test(reportingSignature) ||
+    Math.abs(Math.floor(Date.now() / 1000) - reportingTimestampNumber) > 60
   ) {
-    return deny()
+    return denyReporting()
   }
-  var expectedSignature = $security.hs256(
-    timestamp + '\nPOST\n' + routePath + '\n' + canonicalJson(body),
-    secret,
-  )
-  if (!$security.equal(expectedSignature, signature.toLowerCase())) return deny()
 
-  var snapshot = null
+  var reportingBody = e.requestInfo().body || {}
+  var reportingBodyKeys = Object.keys(reportingBody).sort()
+  var allowedBodyShape =
+    (reportingBodyKeys.length === 2 &&
+      reportingBodyKeys[0] === 'request_version' &&
+      reportingBodyKeys[1] === 'resources') ||
+    (reportingBodyKeys.length === 3 &&
+      reportingBodyKeys[0] === 'candidate_field_set' &&
+      reportingBodyKeys[1] === 'request_version' &&
+      reportingBodyKeys[2] === 'resources')
+  var requestedResources = reportingBody.resources
+  var allowedResources = Object.create(null)
+  allowedResources.vacancies = true
+  allowedResources.candidates = true
+  allowedResources.pipeline_history = true
+  allowedResources.candidate_history = true
+  var selectedResources = Object.create(null)
+  var validResources =
+    Array.isArray(requestedResources) &&
+    requestedResources.length > 0 &&
+    requestedResources.length <= 4
+  if (validResources) {
+    for (var requestedIndex = 0; requestedIndex < requestedResources.length; requestedIndex++) {
+      var requestedResource = requestedResources[requestedIndex]
+      if (
+        typeof requestedResource !== 'string' ||
+        !allowedResources[requestedResource] ||
+        selectedResources[requestedResource]
+      ) {
+        validResources = false
+        break
+      }
+      selectedResources[requestedResource] = true
+    }
+  }
+  var candidateFieldSet =
+    reportingBody.candidate_field_set === undefined
+      ? 'professional'
+      : reportingBody.candidate_field_set
+  var validCandidateFieldSet =
+    candidateFieldSet === 'professional' || candidateFieldSet === 'contact'
+  if (
+    !allowedBodyShape ||
+    reportingBody.request_version !== 1 ||
+    !validResources ||
+    !validCandidateFieldSet ||
+    (reportingBody.candidate_field_set !== undefined && !selectedResources.candidates)
+  ) {
+    return denyReporting()
+  }
+
+  var expectedReportingSignature = $security.hs256(
+    reportingTimestamp + '\nPOST\n' + reportingPath + '\n' + canonicalReportingJson(reportingBody),
+    reportSecret,
+  )
+  if (!$security.equal(expectedReportingSignature, reportingSignature.toLowerCase())) {
+    return denyReporting()
+  }
+
+  var reportingSnapshot = null
   try {
-    $app.runInTransaction((txApp) => {
-      var readAll = function (collectionName) {
-        var rows = []
+    $app.runInTransaction((reportApp) => {
+      var readAllReportingRecords = function (collectionName) {
+        var records = []
         var offset = 0
         while (true) {
-          var page = txApp.findRecordsByFilter(collectionName, '', 'id', 500, offset)
+          var page = reportApp.findRecordsByFilter(collectionName, '', 'id', 500, offset)
           for (var pageIndex = 0; pageIndex < page.length; pageIndex++) {
-            rows.push(page[pageIndex])
+            records.push(page[pageIndex])
           }
           if (page.length < 500) break
           offset += page.length
-          if (offset > 100000) throw new ApiError(503, 'Snapshot indisponível.', null)
         }
-        return rows
+        return records
       }
-      var relationName = function (collectionName, relationId) {
-        if (!relationId) return ''
-        try {
-          return txApp.findRecordById(collectionName, relationId).getString('nome')
-        } catch (_) {
-          throw new ApiError(503, 'Snapshot indisponível.', null)
+      var relationId = function (record, fieldName) {
+        var raw = record.get(fieldName)
+        if (Array.isArray(raw)) return raw.length > 0 ? String(raw[0] || '') : ''
+        return raw ? String(raw) : ''
+      }
+      var relationNameForReporting = function (collectionName, id) {
+        if (!id) return ''
+        return reportApp.findRecordById(collectionName, id).getString('nome')
+      }
+      var reportingResources = {}
+
+      if (selectedResources.vacancies) {
+        var vacancyRows = readAllReportingRecords('vacancies')
+        var vacancyItems = []
+        for (var vacancyIndex = 0; vacancyIndex < vacancyRows.length; vacancyIndex++) {
+          var reportingVacancy = vacancyRows[vacancyIndex]
+          var clienteId = relationId(reportingVacancy, 'cliente')
+          var cargoId = relationId(reportingVacancy, 'cargo')
+          var cidadeId = relationId(reportingVacancy, 'cidade')
+          var tipoVagaId = relationId(reportingVacancy, 'tipo_vaga')
+          var tipoContratoId = relationId(reportingVacancy, 'tipo_contrato')
+          vacancyItems.push({
+            id: reportingVacancy.id,
+            wordpress_job_id: reportingVacancy.getString('wordpress_job_id'),
+            ordem_execucao: reportingVacancy.getString('ordem_execucao'),
+            status: reportingVacancy.getString('status_vaga'),
+            quantidade_vagas: Number(reportingVacancy.get('quantidade_vagas') || 0),
+            prioridade: reportingVacancy.getString('prioridade'),
+            data_abertura: reportingVacancy.getString('data_abertura'),
+            data_fechamento: reportingVacancy.getString('data_fechamento'),
+            data_cancelamento: reportingVacancy.getString('data_cancelamento'),
+            prazo_desejado: reportingVacancy.getString('prazo_desejado'),
+            wordpress_applications_count: Number(
+              reportingVacancy.get('wordpress_curriculos_count') || 0,
+            ),
+            wordpress_applications_synced_at: reportingVacancy.getString(
+              'wordpress_curriculos_synced_at',
+            ),
+            origem: reportingVacancy.getString('origem'),
+            cliente_id: clienteId,
+            cliente_name: relationNameForReporting('clientes', clienteId),
+            cargo_id: cargoId,
+            cargo_name: relationNameForReporting('cargos', cargoId),
+            cidade_id: cidadeId,
+            cidade_name: relationNameForReporting('cidades', cidadeId),
+            tipo_vaga_id: tipoVagaId,
+            tipo_vaga_name: relationNameForReporting('tipos_vaga', tipoVagaId),
+            tipo_contrato_id: tipoContratoId,
+            tipo_contrato_name: relationNameForReporting('tipos_contrato', tipoContratoId),
+            responsavel_rh_id: relationId(reportingVacancy, 'responsavel_rh'),
+            responsavel_operacional: reportingVacancy.getString('responsavel_operacional'),
+            created_at: reportingVacancy.getString('created'),
+            updated_at: reportingVacancy.getString('updated'),
+          })
         }
+        reportingResources.vacancies = vacancyItems
       }
 
-      var vacancies = readAll('vacancies')
-      var candidates = readAll('candidates')
-      var candidateAggregates = Object.create(null)
-      var allowedStatuses = {
-        'Análise do RH': true,
-        'Análise do gestor': true,
-        'Documentação e exame': true,
-        'Cadastro DP': true,
-        Integrado: true,
-        Desistente: true,
-        Desclassificado: true,
-        'Em banco': true,
-        'Sem status': true,
-      }
-      var finalStatuses = {
-        Desclassificado: true,
-        Desistente: true,
-        Integrado: true,
-        'Em banco': true,
-      }
-      for (var candidateIndex = 0; candidateIndex < candidates.length; candidateIndex++) {
-        var candidate = candidates[candidateIndex]
-        var vacancyIds = candidate.get('vacancy_id')
-        if (!Array.isArray(vacancyIds)) vacancyIds = vacancyIds ? [vacancyIds] : []
-        var candidateStatus = candidate.getString('status_candidato') || 'Sem status'
-        if (!allowedStatuses[candidateStatus]) {
-          throw new ApiError(503, 'Snapshot indisponível.', null)
-        }
-        var candidateRank = Number(candidate.get('rank') || 0)
-        for (var vacancyIndex = 0; vacancyIndex < vacancyIds.length; vacancyIndex++) {
-          var vacancyId = String(vacancyIds[vacancyIndex] || '')
-          if (!vacancyId) continue
-          if (!candidateAggregates[vacancyId]) {
-            candidateAggregates[vacancyId] = {
-              candidate_status_counts: Object.create(null),
-              candidates: 0,
-              priority_45: 0,
-            }
+      if (selectedResources.candidates) {
+        var candidateRows = readAllReportingRecords('candidates')
+        var candidateItems = []
+        var seenCandidateIds = Object.create(null)
+        for (var candidateIndex = 0; candidateIndex < candidateRows.length; candidateIndex++) {
+          var candidate = candidateRows[candidateIndex]
+          var stableCandidateId = String(candidate.id || '')
+          if (!stableCandidateId || seenCandidateIds[stableCandidateId]) continue
+          seenCandidateIds[stableCandidateId] = true
+          var candidateItem = {
+            id: stableCandidateId,
+            vacancy_id: relationId(candidate, 'vacancy_id'),
+            wordpress_application_id: candidate.getString('wordpress_candidatura_id'),
+            name: candidate.getString('nome'),
+            rank: Number(candidate.get('rank') || 0),
+            status: candidate.getString('status_candidato'),
+            ordem_execucao: candidate.getString('ordem_execucao'),
+            data_integracao: candidate.getString('data_integracao'),
+            created_at: candidate.getString('created'),
+            updated_at: candidate.getString('updated'),
           }
-          var aggregate = candidateAggregates[vacancyId]
-          aggregate.candidates += 1
-          aggregate.candidate_status_counts[candidateStatus] =
-            (aggregate.candidate_status_counts[candidateStatus] || 0) + 1
-          if (candidateRank >= 4 && !finalStatuses[candidateStatus]) aggregate.priority_45 += 1
+          if (candidateFieldSet === 'contact') {
+            candidateItem.email = candidate.getString('email')
+            candidateItem.phone = candidate.getString('telefone')
+            candidateItem.city = candidate.getString('cidade')
+            candidateItem.bairro = candidate.getString('bairro')
+          }
+          candidateItems.push(candidateItem)
         }
+        reportingResources.candidates = candidateItems
       }
 
-      var snapshotVacancies = []
-      for (var rowIndex = 0; rowIndex < vacancies.length; rowIndex++) {
-        var vacancy = vacancies[rowIndex]
-        var aggregate = candidateAggregates[vacancy.id] || {
-          candidate_status_counts: Object.create(null),
-          candidates: 0,
-          priority_45: 0,
+      if (selectedResources.pipeline_history) {
+        var pipelineRows = readAllReportingRecords('pipeline_history')
+        var pipelineItems = []
+        for (var pipelineIndex = 0; pipelineIndex < pipelineRows.length; pipelineIndex++) {
+          var pipelineRow = pipelineRows[pipelineIndex]
+          pipelineItems.push({
+            id: pipelineRow.id,
+            vacancy_id: relationId(pipelineRow, 'vacancy_id'),
+            user_id: relationId(pipelineRow, 'usuario_id'),
+            previous_status: pipelineRow.getString('status_anterior'),
+            new_status: pipelineRow.getString('status_novo'),
+            changed_at: pipelineRow.getString('data_mudanca'),
+            created_at: pipelineRow.getString('created'),
+            updated_at: pipelineRow.getString('updated'),
+          })
         }
-        var cargoId = vacancy.getString('cargo')
-        var clienteId = vacancy.getString('cliente')
-        snapshotVacancies.push({
-          id: vacancy.id,
-          wordpress_job_id: vacancy.getString('wordpress_job_id'),
-          status: vacancy.getString('status_vaga'),
-          data_abertura: vacancy.getString('data_abertura') || vacancy.getString('created'),
-          prazo_desejado: vacancy.getString('prazo_desejado'),
-          quantidade_vagas: Number(vacancy.get('quantidade_vagas') || 0),
-          cargo_nome: relationName('cargos', cargoId),
-          cliente_nome: relationName('clientes', clienteId),
-          cargo_presente: Boolean(cargoId),
-          cliente_presente: Boolean(clienteId),
-          responsavel_rh_presente: Boolean(vacancy.getString('responsavel_rh')),
-          responsavel_operacional_presente: Boolean(vacancy.getString('responsavel_operacional')),
-          candidate_status_counts: aggregate.candidate_status_counts,
-          candidates: aggregate.candidates,
-          priority_45: aggregate.priority_45,
-        })
+        reportingResources.pipeline_history = pipelineItems
       }
 
-      snapshot = {
+      if (selectedResources.candidate_history) {
+        var candidateHistoryRows = readAllReportingRecords('candidate_history')
+        var candidateHistoryItems = []
+        for (
+          var candidateHistoryIndex = 0;
+          candidateHistoryIndex < candidateHistoryRows.length;
+          candidateHistoryIndex++
+        ) {
+          var candidateHistoryRow = candidateHistoryRows[candidateHistoryIndex]
+          candidateHistoryItems.push({
+            id: candidateHistoryRow.id,
+            vacancy_id: relationId(candidateHistoryRow, 'vacancy_id'),
+            candidate_id: relationId(candidateHistoryRow, 'candidate_id'),
+            user_id: relationId(candidateHistoryRow, 'usuario_id'),
+            previous_status: candidateHistoryRow.getString('status_anterior'),
+            new_status: candidateHistoryRow.getString('status_novo'),
+            changed_at: candidateHistoryRow.getString('data_mudanca'),
+            created_at: candidateHistoryRow.getString('created'),
+            updated_at: candidateHistoryRow.getString('updated'),
+          })
+        }
+        reportingResources.candidate_history = candidateHistoryItems
+      }
+
+      reportingSnapshot = {
         schema_version: 1,
         generated_at: new Date().toISOString(),
-        totals: {
-          vacancies_processed: vacancies.length,
-          candidates_processed: candidates.length,
-        },
-        vacancies: snapshotVacancies,
+        resources: reportingResources,
       }
     })
   } catch (_) {
     throw new ApiError(503, 'Snapshot indisponível.', null)
   }
-  if (!snapshot) throw new ApiError(503, 'Snapshot indisponível.', null)
-  return e.json(200, snapshot)
+  if (!reportingSnapshot) throw new ApiError(503, 'Snapshot indisponível.', null)
+  return e.json(200, reportingSnapshot)
 })
+
+
 
 routerAdd('POST', '/backend/v1/access/login', (e) => {
   var loginAccessSecret = $secrets.get('GV_RH_ACCESS_HMAC_SECRET') || ''
