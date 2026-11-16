@@ -221,6 +221,8 @@ export default function CandidatePublicForm() {
                         <SelectItem value="M">M</SelectItem>
                         <SelectItem value="G">G</SelectItem>
                         <SelectItem value="GG">GG</SelectItem>
+                        <SelectItem value="XG">XG</SelectItem>
+                        <SelectItem value="XGG">XGG</SelectItem>
                       </SelectContent>
                     </Select>
                     {fieldErrors.tamanho_fardamento && (

@@ -369,7 +369,7 @@
           "type": "select",
           "required": false,
           "system": false,
-          "selectValues": ["PP", "P", "M", "G", "GG"]
+          "selectValues": ["PP", "P", "M", "G", "GG", "XG", "XGG"]
         },
         {
           "name": "tamanho_sapato",
