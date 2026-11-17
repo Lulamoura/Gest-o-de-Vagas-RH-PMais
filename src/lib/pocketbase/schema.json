@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-16T18:58:43.646Z",
+  "generatedAt": "2026-11-17T18:08:16.828Z",
   "collections": [
     {
       "name": "users",
@@ -494,6 +494,12 @@
         },
         {
           "name": "observacoes",
+          "type": "text",
+          "required": false,
+          "system": false
+        },
+        {
+          "name": "dados_substituicao",
           "type": "text",
           "required": false,
           "system": false

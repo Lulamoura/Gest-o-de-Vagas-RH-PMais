@@ -265,9 +265,13 @@ export default function CandidateIntegrationView() {
                 <Label className="text-xs font-bold text-slate-700">Nome da Mãe</Label>
                 <Input value={candidate.nome_mae || '—'} disabled />
               </div>
-              <div className="space-y-1 sm:col-span-2">
+              <div className="space-y-1">
                 <Label className="text-xs font-bold text-slate-700">Telefone para Emergência</Label>
                 <Input value={candidate.telefone_emergencia || '—'} disabled />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-700">Dados de Substituição</Label>
+                <Input value={candidate.dados_substituicao || '—'} disabled />
               </div>
             </div>
           </div>

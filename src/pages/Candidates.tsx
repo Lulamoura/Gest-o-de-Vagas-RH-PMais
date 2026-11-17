@@ -54,6 +54,7 @@ import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { getCandidateStatusBadgeClass, toDateInputValue, formatDateBR } from '@/lib/status-utils'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Textarea } from '@/components/ui/textarea'
 import { CurrencyInput } from '@/components/CurrencyInput'
 import { toast } from 'sonner'
 import {
@@ -125,6 +126,7 @@ export default function Candidates() {
     nome_pai: string
     nome_mae: string
     telefone_emergencia: string
+    dados_substituicao: string
     integracao_ativa: boolean
     data_integracao: string
     hora_integracao: string
@@ -151,6 +153,7 @@ export default function Candidates() {
     nome_pai: '',
     nome_mae: '',
     telefone_emergencia: '',
+    dados_substituicao: '',
     integracao_ativa: false,
     data_integracao: '',
     hora_integracao: '',
@@ -225,6 +228,7 @@ export default function Candidates() {
       nome_pai: '',
       nome_mae: '',
       telefone_emergencia: '',
+      dados_substituicao: '',
       integracao_ativa: false,
       data_integracao: '',
       hora_integracao: '',
@@ -263,6 +267,7 @@ export default function Candidates() {
       nome_pai: c.nome_pai || '',
       nome_mae: c.nome_mae || '',
       telefone_emergencia: c.telefone_emergencia || '',
+      dados_substituicao: c.dados_substituicao || '',
       integracao_ativa: c.integracao_ativa || false,
       data_integracao: toDateInputValue(c.data_integracao),
       hora_integracao: c.hora_integracao || '',
@@ -918,7 +923,7 @@ export default function Candidates() {
                   />
                 </div>
 
-                <div className="space-y-1 sm:col-span-2">
+                <div className="space-y-1">
                   <Label className="text-xs font-bold text-slate-700">
                     Telefone para Emergência
                   </Label>
@@ -928,6 +933,18 @@ export default function Candidates() {
                       setFormData({ ...formData, telefone_emergencia: e.target.value })
                     }
                     placeholder="(00) 00000-0000"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs font-bold text-slate-700">Dados de Substituição</Label>
+                  <Textarea
+                    value={formData.dados_substituicao}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dados_substituicao: e.target.value })
+                    }
+                    placeholder="Dados do candidato que está substituindo (preenchido pelo RH)"
+                    rows={3}
                   />
                 </div>
               </div>

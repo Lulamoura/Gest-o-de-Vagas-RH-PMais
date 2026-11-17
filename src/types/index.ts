@@ -123,6 +123,7 @@ export interface CandidateRecord extends RecordModel {
   observacao?: string
   ordem_execucao?: string
   informacoes_integracao?: string
+  dados_substituicao?: string
   status_candidato: CandidateStatus
   integracao_ativa?: boolean
   data_integracao?: string

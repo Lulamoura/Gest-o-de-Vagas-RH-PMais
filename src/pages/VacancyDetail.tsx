@@ -161,6 +161,7 @@ export default function VacancyDetail() {
   const [editNomePai, setEditNomePai] = useState('')
   const [editNomeMae, setEditNomeMae] = useState('')
   const [editTelefoneEmergencia, setEditTelefoneEmergencia] = useState('')
+  const [editDadosSubstituicao, setEditDadosSubstituicao] = useState('')
   const [editObservacao, setEditObservacao] = useState('')
   const [editOrdemExecucao, setEditOrdemExecucao] = useState('')
   const [editFieldErrors, setEditFieldErrors] = useState<FieldErrors>({})
@@ -191,6 +192,7 @@ export default function VacancyDetail() {
   const [nomePaiCandidato, setNomePaiCandidato] = useState('')
   const [nomeMaeCandidato, setNomeMaeCandidato] = useState('')
   const [telefoneEmergenciaCandidato, setTelefoneEmergenciaCandidato] = useState('')
+  const [dadosSubstituicaoCandidato, setDadosSubstituicaoCandidato] = useState('')
   const [cpfCandidato, setCpfCandidato] = useState('')
   const [cidadeCandidato, setCidadeCandidato] = useState('')
   const [bairroCandidato, setBairroCandidato] = useState('')
@@ -395,6 +397,7 @@ export default function VacancyDetail() {
         nome_pai: nomePaiCandidato,
         nome_mae: nomeMaeCandidato,
         telefone_emergencia: telefoneEmergenciaCandidato,
+        dados_substituicao: dadosSubstituicaoCandidato.trim() || undefined,
         ordem_execucao: ordemExecucaoCandidato.trim() || undefined,
       })
 
@@ -419,6 +422,7 @@ export default function VacancyDetail() {
       setNomePaiCandidato('')
       setNomeMaeCandidato('')
       setTelefoneEmergenciaCandidato('')
+      setDadosSubstituicaoCandidato('')
       setOrdemExecucaoCandidato('')
       loadData()
     } catch (err) {
@@ -449,6 +453,7 @@ export default function VacancyDetail() {
     setEditNomePai(candidate.nome_pai || '')
     setEditNomeMae(candidate.nome_mae || '')
     setEditTelefoneEmergencia(candidate.telefone_emergencia || '')
+    setEditDadosSubstituicao(candidate.dados_substituicao || '')
     setEditObservacao(candidate.observacao || '')
     setEditOrdemExecucao(candidate.ordem_execucao || '')
     setEditDataNascimento(toDateInputValue(candidate.data_nascimento))
@@ -504,6 +509,7 @@ export default function VacancyDetail() {
         nome_pai: editNomePai.trim() || undefined,
         nome_mae: editNomeMae.trim() || undefined,
         telefone_emergencia: editTelefoneEmergencia.trim() || undefined,
+        dados_substituicao: editDadosSubstituicao.trim() || undefined,
         observacao: editObservacao.trim() || undefined,
         ordem_execucao: editOrdemExecucao.trim() || undefined,
         data_nascimento: editDataNascimento || undefined,
@@ -1564,6 +1570,18 @@ export default function VacancyDetail() {
                     onChange={(e) => setTelefoneEmergenciaCandidato(e.target.value)}
                   />
                 </div>
+                <div className="col-span-2">
+                  <Label htmlFor="vdDadosSubst" className="text-[10px] text-slate-500">
+                    Dados de Substituição
+                  </Label>
+                  <Textarea
+                    id="vdDadosSubst"
+                    value={dadosSubstituicaoCandidato}
+                    onChange={(e) => setDadosSubstituicaoCandidato(e.target.value)}
+                    placeholder="Dados do candidato que está substituindo (preenchido pelo RH)"
+                    rows={2}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1890,6 +1908,18 @@ export default function VacancyDetail() {
                     value={editTelefoneEmergencia}
                     onChange={(e) => setEditTelefoneEmergencia(e.target.value)}
                     placeholder="(00) 00000-0000"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <Label htmlFor="eDadosSubst" className="text-[10px] text-slate-500">
+                    Dados de Substituição
+                  </Label>
+                  <Textarea
+                    id="eDadosSubst"
+                    value={editDadosSubstituicao}
+                    onChange={(e) => setEditDadosSubstituicao(e.target.value)}
+                    placeholder="Dados do candidato que está substituindo (preenchido pelo RH)"
+                    rows={2}
                   />
                 </div>
                 <div>
