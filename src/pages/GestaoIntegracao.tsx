@@ -18,13 +18,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { IntegrationNoticeModal } from '@/components/IntegrationNoticeModal'
 import { getCandidateStatusBadgeClass } from '@/lib/status-utils'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { formatDateNoTimezone } from '@/lib/date-utils'
 import { toast } from 'sonner'
-import { Search, Mail, Check, Eye, Calendar, Clock, RotateCcw } from 'lucide-react'
+import { Search, Mail, Check, Eye, Calendar, Clock, RotateCcw, X } from 'lucide-react'
 
 export default function GestaoIntegracao() {
   const { canIntegrateCandidate } = useAuth()
@@ -86,17 +87,50 @@ export default function GestaoIntegracao() {
     return computeReturningCounts(listToCompare)
   }, [allCandidates, candidates])
 
+  const [filterFrom, setFilterFrom] = useState('')
+  const [filterTo, setFilterTo] = useState('')
+
   const filtered = useMemo(() => {
+    // Compara apenas a parte da data (YYYY-MM-DD) — mesma porção exibida no card,
+    // evitando desvio de fuso entre filtro, ordenação e exibição.
+    const datePartOf = (v?: string) => (v ? v.split(' ')[0].split('T')[0] : '')
+    let list = candidates
+    if (filterFrom || filterTo) {
+      list = list.filter((c) => {
+        const dp = datePartOf(c.data_integracao)
+        if (!dp) return false
+        if (filterFrom && dp < filterFrom) return false
+        if (filterTo && dp > filterTo) return false
+        return true
+      })
+    }
+    const sorted = [...list].sort((a, b) => {
+      const da = datePartOf(a.data_integracao)
+      const db = datePartOf(b.data_integracao)
+      if (da !== db) {
+        if (!da) return 1
+        if (!db) return -1
+        return da < db ? -1 : 1
+      }
+      const ta = a.data_integracao ? new Date(a.data_integracao).getTime() : 0
+      const tb = b.data_integracao ? new Date(b.data_integracao).getTime() : 0
+      return ta - tb
+    })
     const q = search.trim().toLowerCase()
-    if (!q) return candidates
-    return candidates.filter((c) => {
+    if (!q) return sorted
+    return sorted.filter((c) => {
       const vacancy = c.expand?.vacancy_id
       const vacancyName = vacancy?.expand?.cargo?.nome || vacancy?.expand?.cliente?.nome || ''
       return [c.nome, c.email, vacancyName]
         .filter(Boolean)
         .some((v) => v!.toLowerCase().includes(q))
     })
-  }, [candidates, search])
+  }, [candidates, search, filterFrom, filterTo])
+
+  const clearDateFilter = () => {
+    setFilterFrom('')
+    setFilterTo('')
+  }
 
   const handleSendAvisoClick = (candidate: CandidateRecord) => {
     setSelectedCandidate(candidate)
@@ -159,6 +193,44 @@ export default function GestaoIntegracao() {
             className="pl-9 h-9 w-56 text-sm"
           />
         </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="integracao-data-de" className="text-xs text-slate-500">
+            De
+          </Label>
+          <Input
+            id="integracao-data-de"
+            type="date"
+            value={filterFrom}
+            onChange={(e) => setFilterFrom(e.target.value)}
+            className="h-9 w-36 text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor="integracao-data-ate" className="text-xs text-slate-500">
+            Até
+          </Label>
+          <Input
+            id="integracao-data-ate"
+            type="date"
+            value={filterTo}
+            onChange={(e) => setFilterTo(e.target.value)}
+            className="h-9 w-36 text-sm"
+          />
+        </div>
+        {(filterFrom || filterTo) && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearDateFilter}
+            className="h-9 text-xs text-slate-500 hover:text-slate-900"
+          >
+            <X className="h-3.5 w-3.5" />
+            Limpar filtro
+          </Button>
+        )}
       </div>
 
       {loading ? (
